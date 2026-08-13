@@ -1,0 +1,41 @@
+<h2>换频道场景：地图不变，但运行上下文要重置</h2>
+<p class="subtitle">系统会区分“换地图”和“换频道”。换频道不重新训练地图，也不会立即沿用旧目标。</p>
+
+<div class="section">
+  <h3>本地识别状态</h3>
+  <div class="mockup">
+    <div class="mockup-header">地图身份由多种证据组成</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:13px;line-height:1.9">
+      <div>地图身份 = 地图名 + 小地图指纹 + 场景结构指纹</div>
+      <div>频道身份 = 频道号/频道文字（若可读）+ 切换提示 + 画面短暂黑屏/淡出</div>
+      <div>　　　　　　　　↓</div>
+      <div>地图身份相同、频道身份变化 → 判定为换频道</div>
+      <div>地图身份变化 → 判定为换地图</div>
+      <div>证据冲突或读不到 → 进入待确认状态，不执行攻击或移动</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>换频道后的安全流程</h3>
+  <div class="options">
+    <div class="option" data-choice="pause" onclick="toggleSelect(this)"><div class="letter">1</div><div class="content"><h3>立即暂停输入</h3><p>停止攻击、移动和捡取，等待画面恢复稳定。</p></div></div>
+    <div class="option" data-choice="reacquire" onclick="toggleSelect(this)"><div class="letter">2</div><div class="content"><h3>重新确认角色与地图</h3><p>重新截图，确认角色位置、当前平台和地图标定仍然匹配。</p></div></div>
+    <div class="option" data-choice="resume" onclick="toggleSelect(this)"><div class="letter">3</div><div class="content"><h3>恢复原地图策略</h3><p>加载同一 map_id 的缓存，只更新当前角色、怪物和掉落物观测。</p></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>什么时候才调用大模型</h3>
+  <p>换频道本身不调用大模型。只有恢复后地图指纹无法匹配、平台布局与缓存差异过大、或连续重新定位失败，才调用一次大模型做“地图复核”。复核结果通过本地几何校验后才更新缓存；失败则保持暂停。</p>
+</div>
+
+<div class="section">
+  <h3>稳定性保护</h3>
+  <div class="pros-cons">
+    <div class="pros"><h4>避免误判</h4><ul><li>切换动画期间禁止动作。</li><li>要求连续多帧稳定后再恢复。</li><li>地图名、小地图和场景结构至少两项一致才自动继续。</li></ul></div>
+    <div class="pros"><h4>避免错误复用</h4><ul><li>缓存按 map_id 和分辨率配置版本隔离。</li><li>保留上次成功标定，不直接覆盖。</li><li>新标定先进入候选版本，验证通过才生效。</li></ul></div>
+  </div>
+</div>
+
+<div class="options"><div class="option" data-choice="channel-design" onclick="toggleSelect(this)"><div class="letter">✓</div><div class="content"><h3>采用此换频道设计</h3><p>地图缓存复用，运行状态重置；仅在证据不足时触发一次大模型复核。</p></div></div></div>

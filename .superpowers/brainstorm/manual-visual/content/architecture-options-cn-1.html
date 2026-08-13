@@ -1,0 +1,39 @@
+<h2>我推荐：分层混合视觉架构</h2>
+<p class="subtitle">这是最适合“固定 UI + 变化地图/野怪/角色 + 模拟键鼠输入”的方案。你不需要在三种方案之间做技术选择。</p>
+
+<div class="section">
+  <h3>整体数据流</h3>
+  <div class="mockup">
+    <div class="mockup-header">每一帧截图进入 CPU；只有需要识别动态目标时才调用 GPU</div>
+    <div class="mockup-body" style="font-family:monospace; font-size:13px; line-height:1.8">
+      <div>游戏窗口截图</div>
+      <div>　├─ 固定 UI 区域：ROI + 颜色/模板 + OCR → HP、MP、技能冷却、小地图</div>
+      <div>　├─ 动态场景区域：YOLO（NVIDIA GPU）→ 角色、野怪、掉落物、传送点</div>
+      <div>　└─ 低置信度/新场景：大模型视觉分析 → 只给出诊断或候选规则</div>
+      <div>　　　　↓</div>
+      <div>状态机与安全检查 → 行为决策 → Windows 模拟键鼠输入</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>为什么这样选</h3>
+  <div class="pros-cons">
+    <div class="pros"><h4>稳定部分用传统视觉</h4><ul><li>血条、蓝条、按钮位置固定，速度快、容易解释。</li><li>分辨率变化只需重新配置比例化 ROI。</li><li>不让 GPU 浪费在每帧都不会变化的界面元素上。</li></ul></div>
+    <div class="pros"><h4>变化部分用 YOLO</h4><ul><li>地图、怪物、角色和掉落物是自定义训练重点。</li><li>CUDA/TensorRT 负责低延迟推理，CPU 并行采集和调度。</li><li>先录制你的实际客户端画面，再逐步标注微调。</li></ul></div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>大模型放在哪里</h3>
+  <p>不让大模型直接控制每一次攻击或移动。它只在“YOLO 置信度很低、连续识别失败、进入未知地图、需要生成新 ROI/规则”时被调用，并且输出必须经过人工确认或规则校验后才能生效。这样既保留适配能力，也不会因为一次误判连续发出错误输入。</p>
+</div>
+
+<div class="section">
+  <h3>第一版范围</h3>
+  <p>单张地图循环打怪、自动捡取、技能循环、HP/MP 阈值保护、异常暂停和紧急停止。界面可参考你截图的布局：左侧运行状态与保护参数，右侧实时截图、识别框和当前状态。</p>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="recommended" onclick="toggleSelect(this)"><div class="letter">✓</div><div class="content"><h3>采用这个推荐架构</h3><p>分层混合：固定 UI 用 ROI/OCR，动态目标用 YOLO，大模型做低频辅助。</p></div></div>
+</div>

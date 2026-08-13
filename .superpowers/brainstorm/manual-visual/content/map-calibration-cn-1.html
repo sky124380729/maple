@@ -1,0 +1,46 @@
+<h2>切换地图时：大模型负责“理解”，本地程序负责“执行”</h2>
+<p class="subtitle">你的想法适合做成一次性的地图标定流程，而不是让大模型持续控制角色。</p>
+
+<div class="section">
+  <h3>地图切换后的流程</h3>
+  <div class="mockup">
+    <div class="mockup-header">进入新地图 / 画面稳定后</div>
+    <div class="mockup-body" style="font-family:monospace; font-size:13px; line-height:1.9">
+      <div>1. 截取连续几帧，确认画面已经稳定</div>
+      <div>2. 固定 UI 模块读取 HP、MP、地图名和小地图</div>
+      <div>3. YOLO 检测角色、野怪、掉落物、梯子候选区域</div>
+      <div>4. 大模型分析整张地图，提出平台/梯子/跳跃连接候选</div>
+      <div>5. 几何校验候选：平台高度、水平距离、角色可达性</div>
+      <div>6. 生成本地“地图标定文件”，供状态机执行</div>
+      <div>7. 置信度不足时暂停并请求人工确认</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>大模型输出的不是按键，而是地图结构</h3>
+  <div class="mockup"><div class="mockup-body" style="font-family:monospace; font-size:13px; line-height:1.7">
+    <div>{</div>
+    <div>  "map_id": "forest_01",</div>
+    <div>  "platforms": [{"id":"p1","x1":20,"x2":420,"y":510}],</div>
+    <div>  "ladders": [{"x":350,"y1":300,"y2":510}],</div>
+    <div>  "links": [{"from":"p1","to":"p2","action":"jump_right"}],</div>
+    <div>  "confidence": 0.86</div>
+    <div>}</div>
+  </div></div>
+  <p>这些坐标还要经过本地规则校验和短距离探路验证；不直接信任模型幻觉。</p>
+</div>
+
+<div class="section">
+  <h3>健康度检测建议</h3>
+  <div class="pros-cons">
+    <div class="pros"><h4>主通道：像素/颜色</h4><ul><li>按比例化 ROI 定位 HP、MP 条。</li><li>用颜色占比估算当前百分比，低延迟、可解释。</li><li>连续多帧确认后才触发补血，避免动画抖动误判。</li></ul></div>
+    <div class="pros"><h4>备用通道：OCR/模板</h4><ul><li>读取数字或状态图标，作为颜色估计的交叉验证。</li><li>两者冲突时进入保护状态并暂停输入。</li><li>大模型只在 UI 改版或识别持续失败时协助重新找 ROI。</li></ul></div>
+  </div>
+</div>
+
+<div class="section"><h3>安全原则</h3><p>地图标定失败、血量读取冲突、连续多帧看不到角色、窗口失焦或输入回执异常，统一进入“暂停并报警”，而不是继续猜测。</p></div>
+
+<div class="options">
+  <div class="option" data-choice="map-calibration" onclick="toggleSelect(this)"><div class="letter">✓</div><div class="content"><h3>采用地图标定 + 本地执行</h3><p>大模型低频分析地图结构；本地几何和状态机执行移动、跳跃与战斗。</p></div></div>
+</div>

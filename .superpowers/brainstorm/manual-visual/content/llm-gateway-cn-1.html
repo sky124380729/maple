@@ -1,0 +1,42 @@
+<h2>大模型调用策略：本地判断，按需调用</h2>
+<p class="subtitle">大模型不是循环的一部分，而是一个受控的“低频地图顾问”。本地程序先判断是否真的需要它。</p>
+
+<div class="section">
+  <h3>地图切换检测</h3>
+  <div class="mockup">
+    <div class="mockup-header">本地快速路径</div>
+    <div class="mockup-body" style="font-family:monospace;font-size:13px;line-height:1.9">
+      <div>截图差异 / 画面稳定性 / 地图名 ROI / 小地图指纹</div>
+      <div>　　　　　　　　↓</div>
+      <div>与本地地图缓存匹配？</div>
+      <div>　├─ 是：加载标定文件，不调用大模型</div>
+      <div>　└─ 否：进入“待确认新地图”</div>
+      <div>　　　　↓</div>
+      <div>连续采集 3-5 帧 → 发送一张压缩截图 + 上下文给大模型</div>
+      <div>　　　　↓</div>
+      <div>结构化地图标定 → 本地几何校验 → 缓存 map_id</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>只在这些情况调用大模型</h3>
+  <div class="options" data-multiselect>
+    <div class="option" data-choice="new-map" onclick="toggleSelect(this)"><div class="letter">1</div><div class="content"><h3>检测到新地图</h3><p>地图指纹或地图名不在本地缓存中。</p></div></div>
+    <div class="option" data-choice="low-confidence" onclick="toggleSelect(this)"><div class="letter">2</div><div class="content"><h3>连续识别失败</h3><p>角色、平台或梯子连续多帧低置信度。</p></div></div>
+    <div class="option" data-choice="conflict" onclick="toggleSelect(this)"><div class="letter">3</div><div class="content"><h3>传感器结果冲突</h3><p>地图名、画面指纹和小地图判断互相矛盾。</p></div></div>
+    <div class="option" data-choice="manual-recalibrate" onclick="toggleSelect(this)"><div class="letter">4</div><div class="content"><h3>用户主动重新标定</h3><p>控制台提供按钮，手动触发一次分析。</p></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>调用预算和缓存</h3>
+  <div class="pros-cons">
+    <div class="pros"><h4>减少消耗</h4><ul><li>一张地图只在首次遇到时调用。</li><li>优先发送裁剪后的地图区域和低分辨率预览。</li><li>同一地图标定结果写入本地缓存，后续直接复用。</li></ul></div>
+    <div class="pros"><h4>控制风险</h4><ul><li>单次调用超时就暂停，不继续猜测。</li><li>结构化 JSON 必须通过 schema 和几何规则校验。</li><li>标定版本变化可回滚，保留人工确认记录。</li></ul></div>
+  </div>
+</div>
+
+<div class="section"><h3>推荐的调用频率</h3><p>正常战斗：0 次。已知地图切换：0 次。首次发现新地图：1 次。标定失败或画面发生重大变化：最多重试 1 次，仍失败则暂停等待人工处理。</p></div>
+
+<div class="options"><div class="option" data-choice="gateway" onclick="toggleSelect(this)"><div class="letter">✓</div><div class="content"><h3>采用“本地网关 + 地图缓存”</h3><p>本地事件触发器决定何时调用大模型；大模型只输出一次性标定结果。</p></div></div></div>

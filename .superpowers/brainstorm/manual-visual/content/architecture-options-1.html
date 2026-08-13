@@ -1,0 +1,25 @@
+<h2>Choose the sensing architecture</h2>
+<p class="subtitle">Fixed HUD and changing game scenes need different detectors. Click the approach that best fits your test client.</p>
+
+<div class="cards">
+  <div class="card" data-choice="hybrid" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:18px; background:#eef3f7; color:#17212b; font-family:monospace; font-size:13px; line-height:1.6">
+      <div>[screenshot]</div><div>  ├─ fixed HUD -> ROI/OCR</div><div>  └─ scene -> YOLO</div><div>       └─ low-rate VLM fallback</div>
+    </div>
+    <div class="card-body"><h3>Hybrid layered (recommended)</h3><p>Templates/OCR for HP, MP, minimap and buttons; custom YOLO for character, monsters and loot; a vision-language model only for uncertain or novel scenes.</p></div>
+  </div>
+  <div class="card" data-choice="yolo-all" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:18px; background:#eef3f7; color:#17212b; font-family:monospace; font-size:13px; line-height:1.6">
+      <div>[screenshot]</div><div>  └─ one YOLO model for all UI + scene</div><div>       └─ always-on inference</div>
+    </div>
+    <div class="card-body"><h3>YOLO everywhere</h3><p>One detector sees all classes. Simple data flow, but wastes GPU on stable UI and is more sensitive to resolution and skin changes.</p></div>
+  </div>
+  <div class="card" data-choice="vlm-first" onclick="toggleSelect(this)">
+    <div class="card-image" style="padding:18px; background:#eef3f7; color:#17212b; font-family:monospace; font-size:13px; line-height:1.6">
+      <div>[screenshot]</div><div>  └─ VLM interprets screen</div><div>       └─ action planner</div>
+    </div>
+    <div class="card-body"><h3>VLM-first</h3><p>Flexible for unfamiliar maps, but latency, determinism and GPU cost make it unsuitable for per-frame combat control.</p></div>
+  </div>
+</div>
+
+<div class="section"><h3>Recommended control loop</h3><p>CPU: capture, ROI extraction, OCR, tracking, state machine and safety checks. GPU: batched YOLO inference. VLM: event-triggered diagnosis or calibration, never the direct hot-path controller.</p></div>
