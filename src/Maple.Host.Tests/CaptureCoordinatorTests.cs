@@ -86,6 +86,58 @@ public sealed class CaptureCoordinatorTests
     }
 
     [Fact]
+    public async Task TargetIdentityChangeStopsBeforeSecondCapture()
+    {
+        var input = new RecordingInputAdapter();
+        var sink = new RecordingFrameSink();
+        var backend = new RecordingCaptureBackend { Next = SuccessFrame(80) };
+        WindowIdentity first = ValidTarget();
+        WindowIdentity replacement = first with { Pid = first.Pid + 1, ProcessStartedAtUtc = first.ProcessStartedAtUtc.AddSeconds(1) };
+        var coordinator = new CaptureCoordinator(
+            new SequenceTargetLocator(Found(first), Found(replacement)),
+            backend,
+            sink,
+            new HostSafetyCoordinator(input, () => 500),
+            () => 1000);
+
+        CaptureTickResult initial = await coordinator.CaptureOnceAsync(CancellationToken.None);
+        CaptureTickResult changed = await coordinator.CaptureOnceAsync(CancellationToken.None);
+
+        Assert.True(initial.Success);
+        Assert.False(changed.Success);
+        Assert.Equal("TARGET_IDENTITY_CHANGED", changed.Code);
+        Assert.Equal(1, backend.Calls);
+        Assert.Equal(1, input.ReleaseCalls);
+        sink.Dispose();
+    }
+
+    [Fact]
+    public async Task ClientGeometryChangeStopsBeforeSecondCapture()
+    {
+        var input = new RecordingInputAdapter();
+        var sink = new RecordingFrameSink();
+        var backend = new RecordingCaptureBackend { Next = SuccessFrame(80) };
+        WindowIdentity first = ValidTarget();
+        WindowIdentity resized = first with { ClientWidth = first.ClientWidth + 160, Dpi = 120 };
+        var coordinator = new CaptureCoordinator(
+            new SequenceTargetLocator(Found(first), Found(resized)),
+            backend,
+            sink,
+            new HostSafetyCoordinator(input, () => 500),
+            () => 1000);
+
+        CaptureTickResult initial = await coordinator.CaptureOnceAsync(CancellationToken.None);
+        CaptureTickResult changed = await coordinator.CaptureOnceAsync(CancellationToken.None);
+
+        Assert.True(initial.Success);
+        Assert.False(changed.Success);
+        Assert.Equal("TARGET_CLIENT_CHANGED", changed.Code);
+        Assert.Equal(1, backend.Calls);
+        Assert.Equal(1, input.ReleaseCalls);
+        sink.Dispose();
+    }
+
+    [Fact]
     public async Task BlackFrameIsDisposedAndFailsClosed()
     {
         var input = new RecordingInputAdapter();
@@ -197,6 +249,17 @@ public sealed class CaptureCoordinatorTests
     private sealed class FixedTargetLocator(TargetWindowDiscoveryResult result) : ITargetWindowLocator
     {
         public TargetWindowDiscoveryResult Locate() => result;
+    }
+
+    private sealed class SequenceTargetLocator(params TargetWindowDiscoveryResult[] results) : ITargetWindowLocator
+    {
+        private int index;
+
+        public TargetWindowDiscoveryResult Locate()
+        {
+            int current = Math.Min(Interlocked.Increment(ref index) - 1, results.Length - 1);
+            return results[current];
+        }
     }
 
     private sealed class RecordingCaptureBackend : ICaptureBackend, IDisposable

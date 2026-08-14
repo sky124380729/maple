@@ -205,6 +205,39 @@ Run: `git diff --check`
 
 只有上述命令全部通过后，更新 `docs/maple-runtime/VERIFICATION_2026-08-14.md` 并提交；不得把地图覆盖率、真实百炼响应或客户端扫描标记为 PASS。
 
+### Task 7: 授权客户端只读捕获证据入口
+
+**Files:**
+- Create: `src/Maple.Host/TargetCaptureEvidenceRunner.cs`
+- Create: `src/Maple.Host.Tests/TargetCaptureEvidenceRunnerTests.cs`
+- Modify: `src/Maple.Host/Program.cs`
+- Modify: `src/Maple.Host.Tests/Maple.Host.Tests.csproj`
+- Create: `tests/windows/target_capture_evidence.tests.ps1`
+
+- [x] **Step 1: 写失败测试**
+
+验证 runner 只在唯一目标、前台、非最小化且客户区稳定时连续采样；最小化、失焦和中途目标状态变化立即停止；sink 必须释放每一帧。成功报告包含目标 HWND/PID、客户区/DPI、请求/成功帧数、WGC/BitBlt 数量、有效 FPS 和 P50/P95 捕获耗时。
+
+- [x] **Step 2: 验证 RED**
+
+Run: `dotnet test src/Maple.Host.Tests/Maple.Host.Tests.csproj --filter TargetCaptureEvidenceRunnerTests`
+
+Expected: FAIL，因为 `TargetCaptureEvidenceRunner` 尚不存在。
+
+- [x] **Step 3: 实现只读 runner 和 CLI**
+
+新增 `Maple.exe --target-capture-test <evidence.json> [frameCount]`；默认采样 60 帧并限制为 10–600 帧。命令不得调用窗口激活、鼠标、键盘或 HID API；失败也写 JSON 并以退出码 2 返回。
+
+- [x] **Step 4: 验证 GREEN 与非前台失败证据**
+
+Run: `dotnet test src/Maple.Host.Tests/Maple.Host.Tests.csproj --filter TargetCaptureEvidenceRunnerTests`
+
+当前客户端已恢复但不在前台时运行发布版命令，结果为 exit 2、`code=TARGET_NOT_FOREGROUND`、`capturedFrames=0`、`inputStatus=INPUT_INJECTION=DISABLED`；最小化分支由单元测试覆盖。
+
+- [ ] **Step 5: 客户端前台实测**
+
+用户将客户端恢复到前台后运行 `tests/windows/target_capture_evidence.tests.ps1 -RequireForeground`。只有连续帧非黑、窗口身份/尺寸稳定、输入仍禁用时才写 PASS；随后人工切走焦点并验证下一轮返回 `TARGET_NOT_FOREGROUND`。
+
 ### 后续独立阶段（不在本计划伪造完成）
 
 - WGC：已实现真实 `GraphicsCaptureItem + D3D11` readback，并用自建 640x360 窗口完成系统通路烟雾测试；冒险岛客户区、Direct2D/Direct3D 预览和 30-60 FPS/DPI/soak 矩阵仍待独立实测。

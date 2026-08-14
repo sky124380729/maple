@@ -22,6 +22,7 @@ public sealed class CaptureCoordinator : IDisposable
     private readonly HostSafetyCoordinator safety;
     private readonly Func<long> clock;
     private readonly ICaptureFrameObserver? frameObserver;
+    private WindowIdentity? activeTarget;
     private long frameId;
     private string? activePauseCode;
     private bool disposed;
@@ -51,6 +52,9 @@ public sealed class CaptureCoordinator : IDisposable
         if (target.IsMinimized) return Pause("TARGET_MINIMIZED");
         if (!target.IsForeground) return Pause("TARGET_NOT_FOREGROUND");
         if (target.ClientWidth < 640 || target.ClientHeight < 360) return Pause("INVALID_CLIENT_BOUNDS");
+        if (activeTarget is null) activeTarget = target;
+        else if (!SameIdentity(activeTarget, target)) return Pause("TARGET_IDENTITY_CHANGED");
+        else if (!SameClientGeometry(activeTarget, target)) return Pause("TARGET_CLIENT_CHANGED");
 
         long nextFrameId = Interlocked.Increment(ref frameId);
         long nowMonoMs = clock();
@@ -130,6 +134,23 @@ public sealed class CaptureCoordinator : IDisposable
             if (pixels[offset] > 2 || pixels[offset + 1] > 2 || pixels[offset + 2] > 2) return false;
         }
         return true;
+    }
+
+    private static bool SameIdentity(WindowIdentity expected, WindowIdentity actual)
+    {
+        return string.Equals(expected.Hwnd, actual.Hwnd, StringComparison.OrdinalIgnoreCase)
+            && expected.Pid == actual.Pid
+            && expected.ProcessStartedAtUtc == actual.ProcessStartedAtUtc
+            && string.Equals(expected.ProcessPathSha256, actual.ProcessPathSha256, StringComparison.OrdinalIgnoreCase)
+            && string.Equals(expected.ClassName, actual.ClassName, StringComparison.Ordinal)
+            && string.Equals(expected.ProcessVersion, actual.ProcessVersion, StringComparison.Ordinal);
+    }
+
+    private static bool SameClientGeometry(WindowIdentity expected, WindowIdentity actual)
+    {
+        return expected.ClientWidth == actual.ClientWidth
+            && expected.ClientHeight == actual.ClientHeight
+            && expected.Dpi == actual.Dpi;
     }
 
     public void Dispose()
