@@ -10,6 +10,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <SelfContained>true</SelfContained>
     <PublishTrimmed>false</PublishTrimmed>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Nullable>enable</Nullable>
     <NoWarn>$(NoWarn);MSB3277</NoWarn>

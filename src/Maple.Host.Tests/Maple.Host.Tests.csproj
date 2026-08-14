@@ -17,11 +17,13 @@
     <ProjectReference Include="../Maple.Cloud/Maple.Cloud.csproj" />
     <ProjectReference Include="../Maple.Core/Maple.Core.csproj" />
     <ProjectReference Include="../Maple.Input/Maple.Input.csproj" />
+    <ProjectReference Include="../Maple.Capture/Maple.Capture.csproj" />
     <Compile Include="../Maple.Host/BridgeMessageRouter.cs" Link="BridgeMessageRouter.cs" />
     <Compile Include="../Maple.Host/HostCommandDispatcher.cs" Link="HostCommandDispatcher.cs" />
     <Compile Include="../Maple.Host/HostSafetyCoordinator.cs" Link="HostSafetyCoordinator.cs" />
     <Compile Include="../Maple.Host/LocalNavigationPolicy.cs" Link="LocalNavigationPolicy.cs" />
     <Compile Include="../Maple.Host/WindowIdentity.cs" Link="WindowIdentity.cs" />
     <Compile Include="../Maple.Host/WindowsTargetWindowLocator.cs" Link="WindowsTargetWindowLocator.cs" />
+    <Compile Include="../Maple.Host/CaptureCoordinator.cs" Link="CaptureCoordinator.cs" />
   </ItemGroup>
 </Project>

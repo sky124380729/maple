@@ -1,5 +1,6 @@
 using Maple.Input;
 using Maple.Cloud;
+using Maple.Capture;
 
 namespace Maple.Host;
 
@@ -12,6 +13,9 @@ public static class HostCompositionRoot
         var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
         var dispatcher = new HostCommandDispatcher(store, new BailianHttpClient(httpClient, store));
         var window = new MainWindow(new WebView2Runtime(), new NullInputAdapter(), assetFolder);
+        window.ConfigureCapture(
+            new WindowsTargetWindowLocator(new Win32WindowSystem()),
+            new WindowsGraphicsCaptureBackend(null, new WindowsBitBltFrameSource()));
         window.CommandReceived += (_, route) => dispatcher.Handle(route);
         dispatcher.StatusChanged += (_, status) => window.SendCloudStatus(status);
         window.FormClosed += (_, _) => { dispatcher.Dispose(); httpClient.Dispose(); };

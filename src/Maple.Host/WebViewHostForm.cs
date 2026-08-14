@@ -7,6 +7,7 @@ using Maple.Contracts;
 using Maple.Core;
 using Maple.Input;
 using Maple.Preview;
+using Maple.Capture;
 
 namespace Maple.Host
 {
@@ -34,6 +35,9 @@ namespace Maple.Host
         private readonly Panel browserPanel = new Panel();
         private readonly Button emergencyButton = new Button();
         private readonly string assetFolder;
+        private readonly System.Windows.Forms.Timer captureTimer = new() { Interval = 33 };
+        private CaptureCoordinator? captureCoordinator;
+        private bool captureInProgress;
 
         public WebViewHostForm(IWebViewRuntime webViewRuntime, IInputAdapter inputAdapter, string assetFolder)
         {
@@ -47,10 +51,21 @@ namespace Maple.Host
             this.webViewRuntime.RuntimeCrashed += OnRuntimeCrashed;
             this.webViewRuntime.ContentReset += OnContentReset;
             Shown += OnShown;
+            captureTimer.Tick += OnCaptureTick;
         }
 
         public event EventHandler<BridgeRouteResult>? CommandReceived;
         public NativePreviewSurface PreviewSurface { get { return preview; } }
+
+        public void ConfigureCapture(ITargetWindowLocator locator, ICaptureBackend backend)
+        {
+            if (captureCoordinator is not null) throw new InvalidOperationException("Capture is already configured");
+            captureCoordinator = new CaptureCoordinator(
+                locator,
+                backend,
+                new NativePreviewFrameSink(preview),
+                safety);
+        }
 
         public void SendCloudStatus(CloudRuntimeStatus status)
         {
@@ -93,6 +108,16 @@ namespace Maple.Host
         private void OnShown(object? sender, EventArgs e)
         {
             webViewRuntime.Attach(browserPanel, assetFolder);
+            if (captureCoordinator is not null) captureTimer.Start();
+        }
+
+        private async void OnCaptureTick(object? sender, EventArgs e)
+        {
+            if (captureCoordinator is null || captureInProgress) return;
+            captureInProgress = true;
+            try { await captureCoordinator.CaptureOnceAsync(CancellationToken.None); }
+            catch (OperationCanceledException) { }
+            finally { captureInProgress = false; }
         }
 
         private void OnMessageReceived(object? sender, WebViewRuntimeMessageEventArgs e)
@@ -124,6 +149,9 @@ namespace Maple.Host
         {
             if (disposing)
             {
+                captureTimer.Stop();
+                captureTimer.Tick -= OnCaptureTick;
+                captureTimer.Dispose();
                 webViewRuntime.MessageReceived -= OnMessageReceived;
                 webViewRuntime.RuntimeCrashed -= OnRuntimeCrashed;
                 webViewRuntime.ContentReset -= OnContentReset;

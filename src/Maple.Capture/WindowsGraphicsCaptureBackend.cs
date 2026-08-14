@@ -47,7 +47,13 @@ internal static class CaptureValidation
         return null;
     }
 
-    internal static CaptureFrameMetadata Metadata(CaptureTarget? target, long frameId, long nowMonoMs, CaptureBackend backend, DroppedFrameReason dropped) => new()
+    internal static CaptureFrameMetadata Metadata(
+        CaptureTarget? target,
+        long frameId,
+        long nowMonoMs,
+        CaptureBackend backend,
+        DroppedFrameReason dropped,
+        double captureDurationMs = 0) => new()
     {
         SchemaVersion = ContractConstants.SchemaVersion,
         FrameId = frameId,
@@ -56,7 +62,7 @@ internal static class CaptureValidation
         ClientHeight = target?.ClientHeight ?? 0,
         Dpi = target?.Dpi ?? 96,
         CaptureBackend = backend,
-        CaptureDurationMs = 0,
+        CaptureDurationMs = captureDurationMs,
         DroppedReason = dropped,
     };
 }

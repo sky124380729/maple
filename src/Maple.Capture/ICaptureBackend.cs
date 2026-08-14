@@ -6,6 +6,8 @@ public sealed class CaptureTarget
 {
     public required string Hwnd { get; init; }
     public int Pid { get; init; }
+    public int ClientLeft { get; init; }
+    public int ClientTop { get; init; }
     public int ClientWidth { get; init; }
     public int ClientHeight { get; init; }
     public int Dpi { get; init; } = 96;

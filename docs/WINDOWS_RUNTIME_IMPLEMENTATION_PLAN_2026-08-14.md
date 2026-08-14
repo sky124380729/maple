@@ -97,23 +97,25 @@ Expected: FAIL，因为 locator 类型不存在。
 - Modify: `src/Maple.Host/WebViewHostForm.cs`
 - Modify: `src/Maple.Host/HostCompositionRoot.cs`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 测试 coordinator 只在唯一目标、前台、非最小化、客户区稳定时采集；失焦/尺寸变化/黑帧立即暂停并释放；latest-frame 发布到预览 sink；任何异常保持 `NullInputAdapter`。
 
-- [ ] **Step 2: 验证 RED**
+- [x] **Step 2: 验证 RED**
 
 Run: `dotnet test src/Maple.Host.Tests/Maple.Host.Tests.csproj --filter CaptureCoordinatorTests`
 
 Expected: FAIL，因为 coordinator 尚不存在。
 
-- [ ] **Step 3: 实现 Windows-only 编译和 BGRA32 帧源**
+- [x] **Step 3: 实现 Windows-only 编译和 BGRA32 帧源**
 
 `Maple.Capture` 多目标构建，在 Windows TFM 编译 Windows 源；BitBlt 只复制客户区到池化 BGRA32 `CapturedFrame`，记录捕获时长并检测黑帧。Host 以 30 FPS 定时器拉取 latest frame，GDI 预览仅作第一阶段兼容回退。
 
 - [ ] **Step 4: 验证 GREEN 与客户端观察测试**
 
 运行 Host tests、发布包，再对当前客户端执行只读客户区预览；验证失焦和最小化均停止采集且无输入调用。
+
+当前证据：Host tests 47/47、Release 构建零警告、发布契约和 Host 启动/正常关闭均通过；客户端最小化时保持安全暂停。真实客户区帧仍需客户端恢复到前台后补验，因此本步骤暂不勾选。
 
 ### Task 5: WebView2 与 DPAPI Windows 实机证据
 

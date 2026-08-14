@@ -10,7 +10,12 @@ public interface IWindowSystem
     IReadOnlyList<WindowCandidate> EnumerateTopLevelWindows();
 }
 
-public sealed class WindowsTargetWindowLocator
+public interface ITargetWindowLocator
+{
+    TargetWindowDiscoveryResult Locate();
+}
+
+public sealed class WindowsTargetWindowLocator : ITargetWindowLocator
 {
     public const string TargetTitle = "冒险岛怀旧服";
     public const string TargetClassName = "UnityWndClass";
