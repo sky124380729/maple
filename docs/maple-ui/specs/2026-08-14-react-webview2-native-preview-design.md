@@ -49,6 +49,14 @@ WGC 后端输出 GPU/CPU 可复用的帧资源；兼容后端输出 pooled bitma
 
 原生控件只做渲染：读取最新帧、按宽高比缩放、绘制仍在 TTL 内的 overlay，并报告 `renderFps` 与 `renderLatencyMs`。它不决定状态、不发送输入。
 
+实时预览只显示三类动态框：
+
+- `Self`：绿色框，标签包含置信度和跟踪编号；
+- `Player`：青色框，标签包含置信度和跟踪编号，只观察，不参与目标选择；
+- `Monster`：红色框，标签包含类别、置信度和目标编号，目标选择仍需经过距离、平台和拓扑过滤。
+
+`loot`、HP/MP、地图名、技能栏和小地图不画框，只提供给内部识别和右侧状态面板。所有框绑定 `frameId`、模型版本和 stale TTL；过期或丢失的框自动隐藏。Self 置信度不足时要提示用户点击确认，客户端重启或地图身份重置后重新确认。
+
 ### `Maple.Host`
 
 创建 WebView2、加载本地 React bundle、注册 `WebMessageReceived`、验证消息 schema，并在 React 页面刷新或崩溃时保持后端暂停。
@@ -68,6 +76,18 @@ WGC/BitBlt -> CaptureWorker -> FrameSlot[2]
 ```
 
 帧槽位必须固定为 2，写入完成后再发布版本号。渲染器发现版本变化就读取最新槽位，旧槽位直接复用。识别线程可以跳帧，但不能阻塞预览或安全监控。
+
+识别数据不通过 React 逐帧传输。Native Preview 读取结构化 `OverlaySnapshot`，React 每秒接收聚合后的目标数量、置信度、角色所在层、地图身份和暂停原因。
+
+```ts
+type OverlaySnapshot = {
+  frameId: number
+  capturedAtMonoMs: number
+  self?: { box: [number, number, number, number]; confidence: number; trackId: string; freshUntilMonoMs: number }
+  players: Array<{ box: [number, number, number, number]; confidence: number; trackId: string; freshUntilMonoMs: number }>
+  monsters: Array<{ className: string; box: [number, number, number, number]; confidence: number; targetId: string; freshUntilMonoMs: number }>
+}
+```
 
 WebView2 消息使用：
 
@@ -97,6 +117,8 @@ type UiCommand =
 - WGC 不可用时记录后端降级原因，不静默宣称达到 60 FPS；
 - 页面遥测默认 1Hz，日志按批次更新，避免 React 重渲染影响预览。
 
+识别线程允许低于预览帧率；预览必须继续显示新鲜画面，但不能继续显示过期识别框。`renderFps`、`captureFps` 和 `recognitionFps` 必须分开统计。
+
 ## 6. 故障和降级
 
 - WebView2 页面崩溃：C# 保持 `Paused`，显示原生安全提示并允许重新加载 UI；
@@ -116,4 +138,3 @@ type UiCommand =
 ## 8. 不在本次设计内的内容
 
 本设计不实现真实 OpenCV/YOLO/OCR、地图拓扑、百炼调用或虚拟 HID 报告。它只定义 UI、帧传输、性能和安全边界，确保后续实现可以独立替换视觉和输入模块。
-
