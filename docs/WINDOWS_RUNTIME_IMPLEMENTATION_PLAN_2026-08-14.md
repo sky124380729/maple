@@ -69,21 +69,21 @@ Expected: FAIL，错误为 `ui/index.html` 缺失。
 - Create: `src/Maple.Host.Tests/WindowsTargetWindowLocatorTests.cs`
 - Modify: `src/Maple.Host.Tests/Maple.Host.Tests.csproj`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
-通过可替换的 `IWindowSystem` 验证：无窗口返回 `TARGET_NOT_FOUND`；唯一合格窗口自动绑定；多个窗口返回 `TARGET_SELECTION_REQUIRED`；窗口最小化、标题错误、客户区过小被拒绝；身份包含 HWND、PID、进程启动时间、路径哈希、客户区、DPI、前台状态。
+通过可替换的 `IWindowSystem` 验证：无窗口返回 `TARGET_NOT_FOUND`；唯一合格窗口自动绑定；多个窗口返回 `TARGET_SELECTION_REQUIRED`；窗口最小化时仍保留身份并标记暂停事实，标题错误和非最小化的小客户区被拒绝；身份包含 HWND、PID、进程启动时间、路径哈希、客户区、DPI、前台状态。
 
-- [ ] **Step 2: 验证 RED**
+- [x] **Step 2: 验证 RED**
 
 Run: `dotnet test src/Maple.Host.Tests/Maple.Host.Tests.csproj --filter WindowsTargetWindowLocatorTests`
 
 Expected: FAIL，因为 locator 类型不存在。
 
-- [ ] **Step 3: 实现 Win32 发现与不可变身份**
+- [x] **Step 3: 实现 Win32 发现与不可变身份**
 
 使用 `EnumWindows/GetWindowText/GetClassName/GetClientRect/ClientToScreen/GetDpiForWindow/IsIconic/GetForegroundWindow`；进程路径和启动时间来自 `Process`，路径哈希使用 SHA-256。不得激活、置顶或向窗口发送消息。
 
-- [ ] **Step 4: 验证 GREEN**
+- [x] **Step 4: 验证 GREEN**
 
 运行筛选测试和全部 Host tests；对当前授权客户端只做只读发现，记录诊断结果，不发送输入。
 
