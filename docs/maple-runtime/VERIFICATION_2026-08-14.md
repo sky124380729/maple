@@ -1,8 +1,8 @@
 # Maple 运行时验证记录
 
 日期：2026-08-14
-环境：macOS arm64，局部 .NET SDK `/tmp/maple-dotnet` 8.0.424，Node/Vite/Vitest/Playwright
-范围：本机可执行模块和 Windows 交叉编译；不把交叉编译当作 Windows 实机验收。
+初始环境：macOS arm64，局部 .NET SDK `/tmp/maple-dotnet` 8.0.424，Node/Vite/Vitest/Playwright。
+Windows 补验环境：Windows x64 build 26200，.NET SDK 8.0.424，WebView2 Evergreen Runtime 151.0.4129.78。
 
 ## 已通过
 
@@ -20,6 +20,18 @@
 | Windows Host 交叉编译 | `dotnet build src/Maple.Host/Maple.Host.csproj -p:EnableWindowsTargeting=true -t:Rebuild` | win-x64 编译 PASS，0 warning / 0 error |
 | 密钥边界 | 百炼测试、portable 密钥扫描 | 未发现真实密钥；API Key 不进入状态/日志 |
 
+## Windows 实机补验
+
+| 范围 | 证据 | 结果 |
+| --- | --- | --- |
+| Windows 自包含发布 | `tools/publish-windows.ps1 -SkipE2E`、`tests/windows/publish_contract.tests.ps1` | PASS；`Maple.exe`、自包含运行时、WebView2Loader 和 React 静态资源齐全 |
+| Windows 全量便携门禁 | `node tools/verify-portable.mjs` | PASS；React 33、Playwright 2、Host 54、Runtime 38、Input 3、Map 2，Host Rebuild 0 warning / 0 error |
+| WebView2 环境与宿主启动 | `tests/windows/windows_runtime_smoke.tests.ps1` | PASS；Evergreen 151.0.4129.78 高于应用兼容线 109.0.1518.78；发布版工作台响应并正常关闭 |
+| 目标窗口身份 | `Maple.exe --windows-diagnostics` | PASS；唯一 `UnityWndClass` 客户端自动绑定，记录 PID、启动时间、版本、DPI 与路径 SHA-256；当次窗口为最小化/失焦 |
+| DPAPI 当前用户存储 | Runtime.Tests `WindowsDpapiCredentialStoreTests` | 1/1 PASS；临时目录完成写入、密文检查、读取、替换、清除 |
+| 安全观察回退 | Host.Tests `CaptureCoordinatorTests`、Host 启动烟雾 | 6/6 PASS；缺失/失焦/最小化/黑帧 fail-closed，重复暂停不重复释放；真实客户区帧仍待窗口恢复后补验 |
+| 输入状态 | `windows-runtime-diagnostic.json` | `NullInputAdapter` / `INPUT_INJECTION=DISABLED`；HID 三层证据仍未提供 |
+
 ## 已实现但不能宣称实机通过
 
 - `Maple.Host` 已有 .NET 8 win-x64 入口、WebView2 本地虚拟域映射、禁止外部导航、关闭生产 DevTools、进程崩溃事件和原生紧急停止；`HostSafetyCoordinator` 已离线验证刷新/失败/关闭的统一 ReleaseAll 语义。
@@ -29,12 +41,12 @@
 
 ## 必须留给 Windows
 
-1. 实际 WebView2 Evergreen Runtime 启动、本地资源加载、刷新/进程失败/窗口关闭后的 ReleaseAll。
+1. WebView2 刷新/进程失败的 Windows 故障注入与 ReleaseAll 实机证据；Evergreen 检测、本地宿主启动和窗口关闭已补验。
 2. 实际 `GraphicsCaptureItem` + D3D11 readback adapter、WGC 权限/黑帧/尺寸变化与 BitBlt fallback。
 3. 1280x720、1440x900、DPI 100/125/150% 的 capture/render 30-60 FPS、P50/P95/P99 延迟、队列年龄和内存/稳定性矩阵。
 4. 真实 ONNX 权重和数据集的 Self/Player/Monster precision/recall、位置误差、遮挡和 stale 率。
 5. 真实虚拟 HID 设备路径、VID/PID、报告描述符、驱动签名、设备层/Windows 输入层/授权客户端三层 PASS。
-6. Windows DPAPI 当前用户写入、读取、清除和升级/回滚实机证据。
+6. Windows DPAPI 升级/回滚兼容证据；当前用户写入、读取、替换和清除已补验。
 7. 把 WGC 地图关键帧编码并绑定到 `IMapImageSource`；未绑定时 Host 明确返回 `MAP_FRAME_SOURCE_UNAVAILABLE`，不得伪造云端地图候选。
 
 ## 当前风险

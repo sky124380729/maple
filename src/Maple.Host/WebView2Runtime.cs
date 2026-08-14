@@ -9,6 +9,8 @@ public sealed class WebView2Runtime : IWebViewRuntime
     private bool disposed;
     private bool initialNavigationStarted;
 
+    public WebView2EnvironmentStatus? EnvironmentStatus { get; private set; }
+
     public event EventHandler<WebViewRuntimeMessageEventArgs>? MessageReceived;
     public event EventHandler? RuntimeCrashed;
     public event EventHandler? ContentReset;
@@ -17,9 +19,18 @@ public sealed class WebView2Runtime : IWebViewRuntime
     {
         ArgumentNullException.ThrowIfNull(parent);
         string folder = ValidateAssetFolder(localAssetFolder);
+        EnvironmentStatus = ProbeInstalledEnvironment();
+        if (!EnvironmentStatus.IsReady)
+        {
+            RuntimeCrashed?.Invoke(this, EventArgs.Empty);
+            return;
+        }
         parent.Controls.Add(webView);
         _ = InitializeAsync(folder);
     }
+
+    public static WebView2EnvironmentStatus ProbeInstalledEnvironment() =>
+        new WebView2EnvironmentProbe(() => CoreWebView2Environment.GetAvailableBrowserVersionString()).Probe();
 
     public void Send(string json)
     {

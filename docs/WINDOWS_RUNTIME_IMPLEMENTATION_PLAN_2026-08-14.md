@@ -127,21 +127,23 @@ Expected: FAIL，因为 coordinator 尚不存在。
 - Modify: `src/Maple.Host/WebView2Runtime.cs`
 - Modify: `docs/maple-runtime/VERIFICATION_2026-08-14.md`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 WebView2 probe 对运行时缺失/版本过低返回明确状态；DPAPI Windows 测试在临时目录完成 set/lease/clear，确认密文不含明文且错误用户范围不可伪造。
 
-- [ ] **Step 2: 验证 RED**
+- [x] **Step 2: 验证 RED**
 
 运行筛选测试，确认 probe 类型缺失和 Windows DPAPI 证据缺失。
 
-- [ ] **Step 3: 实现 probe 和烟雾证据脚本**
+- [x] **Step 3: 实现 probe 和烟雾证据脚本**
 
 Host 启动先查询 Evergreen 版本，再加载本地 `maple.local`；烟雾脚本输出 OS build、DPI、WebView2 版本、目标绑定、发布资产、DPAPI 和输入适配器状态，严禁把 WGC/HID 标记为 PASS。
 
-- [ ] **Step 4: 完整验证并更新证据**
+- [x] **Step 4: 完整验证并更新证据**
 
 运行 `node tools/verify-portable.mjs`、Windows 发布契约、runtime smoke、`git diff --check`。只把有本机输出支撑的条目写入验证文档。
+
+Windows 结果：`PORTABLE_VERIFICATION=PASS`；React 33、Playwright 2、Host 54、Runtime 38、Input 3、Map 2 全部通过，Host Rebuild 0 warning / 0 error；Windows runtime smoke 与 DPAPI 实测通过。
 
 ### 后续独立阶段（不在本计划伪造完成）
 

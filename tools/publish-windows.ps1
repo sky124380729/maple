@@ -8,6 +8,14 @@ $root = Split-Path -Parent $PSScriptRoot
 $publish = [IO.Path]::GetFullPath((Join-Path $root $OutputDirectory))
 $localDotnet = Join-Path $env:USERPROFILE '.dotnet\dotnet.exe'
 $dotnet = if (Test-Path -LiteralPath $localDotnet) { $localDotnet } else { (Get-Command dotnet -ErrorAction Stop).Source }
+$publishedExecutable = Join-Path $publish 'Maple.exe'
+$lockingProcesses = @(Get-Process -Name Maple -ErrorAction SilentlyContinue | Where-Object {
+    try { $_.Path -eq $publishedExecutable } catch { $false }
+})
+if ($lockingProcesses.Count -gt 0) {
+    $processIds = ($lockingProcesses | Select-Object -ExpandProperty Id) -join ', '
+    throw "Published Maple is still running from the output directory (PID: $processIds). Close it before publishing."
+}
 
 $uiBuildScript = Join-Path $PSScriptRoot 'build-react-ui.ps1'
 if ($SkipE2E) {
