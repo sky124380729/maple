@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Maple.Contracts;
 
 namespace Maple.Input
@@ -31,9 +32,7 @@ namespace Maple.Input
 
     public interface IVirtualHidReportEncoder
     {
-        byte[] EncodeKeyDown(string key, VirtualHidDeviceContract contract);
-        byte[] EncodeKeyUp(string key, VirtualHidDeviceContract contract);
-        byte[] EncodeNeutral(VirtualHidDeviceContract contract);
+        byte[] EncodeState(IReadOnlyCollection<string> activeKeys, VirtualHidDeviceContract contract);
     }
 
     /// <summary>
@@ -67,8 +66,10 @@ namespace Maple.Input
         {
             if (!ready) return Unavailable(action, nowMonoMs);
             Validate(action, key);
+            var nextKeys = new List<string>(registry.ActiveKeys);
+            if (!nextKeys.Contains(key, StringComparer.OrdinalIgnoreCase)) nextKeys.Add(key);
             string error;
-            if (!transport.WriteReport(encoder.EncodeKeyDown(key, contract), out error)) return Fail(action, nowMonoMs, error);
+            if (!transport.WriteReport(encoder.EncodeState(nextKeys, contract), out error)) return Fail(action, nowMonoMs, error);
             registry.KeyDown(key);
             return Result(action.ActionId, InputStatus.Accepted, nowMonoMs, null, "HID key-down 已发送");
         }
@@ -77,8 +78,10 @@ namespace Maple.Input
         {
             if (!ready) return Unavailable(action, nowMonoMs);
             Validate(action, key);
+            var nextKeys = new List<string>(registry.ActiveKeys);
+            nextKeys.RemoveAll(active => string.Equals(active, key, StringComparison.OrdinalIgnoreCase));
             string error;
-            if (!transport.WriteReport(encoder.EncodeKeyUp(key, contract), out error)) return Fail(action, nowMonoMs, error);
+            if (!transport.WriteReport(encoder.EncodeState(nextKeys, contract), out error)) return Fail(action, nowMonoMs, error);
             registry.KeyUp(key);
             return Result(action.ActionId, InputStatus.Completed, nowMonoMs, new List<string> { key }, "HID key-up 已发送");
         }
@@ -92,15 +95,16 @@ namespace Maple.Input
 
         public InputResult ReleaseAll(long nowMonoMs)
         {
-            IList<string> released = registry.ReleaseAll();
+            IList<string> released = registry.ActiveKeys;
             if (!ready) return Result("release-all", InputStatus.Completed, nowMonoMs, new List<string>(released), statusCode);
             string error;
-            if (!transport.WriteReport(encoder.EncodeNeutral(contract), out error))
+            if (!transport.WriteReport(encoder.EncodeState(Array.Empty<string>(), contract), out error))
             {
                 ready = false;
                 statusCode = "HID_NEUTRAL_REPORT_FAILED:" + (error ?? "UNKNOWN");
                 return Result("release-all", InputStatus.Failed, nowMonoMs, new List<string>(released), statusCode);
             }
+            registry.ReleaseAll();
             return Result("release-all", InputStatus.Completed, nowMonoMs, new List<string>(released), "HID neutral report 已发送");
         }
 

@@ -1,0 +1,20 @@
+#pragma once
+
+#define MAPLE_HID_MAGIC 0x4449484Du
+#define MAPLE_HID_VERSION 1u
+#define MAPLE_HID_COMMAND_SUBMIT_REPORT 1u
+#define MAPLE_HID_COMMAND_HEARTBEAT 2u
+#define MAPLE_HID_KEYBOARD_REPORT_LENGTH 8u
+#define MAPLE_HID_WATCHDOG_TIMEOUT_MS 2000u
+
+#pragma pack(push, 1)
+typedef struct _MAPLE_HID_REQUEST {
+    ULONG Magic;
+    USHORT Version;
+    USHORT Command;
+    ULONG Sequence;
+    UCHAR Report[MAPLE_HID_KEYBOARD_REPORT_LENGTH];
+} MAPLE_HID_REQUEST, *PMAPLE_HID_REQUEST;
+#pragma pack(pop)
+
+C_ASSERT(sizeof(MAPLE_HID_REQUEST) == 20);

@@ -54,9 +54,9 @@ Maple 是一个独立的 Windows 桌面观察与自动化控制台。它绑定�
 | Null/Replay 输入适配器 | `DONE (macOS) / WINDOWS_PENDING` | Null/Replay/活动键/ReleaseAll 行为已通过便携测试；真实 HID 保持禁用 |
 | WebView2 Host 与原生预览交接 | `SOURCE_READY / WINDOWS_PENDING` | `Maple.Host` 已迁移为 .NET 8 win-x64 可执行入口；WebView2 Evergreen、本地资源映射、系统 WGC/D3D11 自检和 BitBlt fallback 已在 Windows 通过，刷新/崩溃故障注入及真实客户端客户区仍待验；严格 bridge 和关闭 ReleaseAll 保持启用 |
 | 30-60 FPS 实时预览 | `WINDOWS_PENDING` | 两槽位链路和性能验收指标已定义；必须在 Windows 实测 P50/P95/P99、1280×720 和 1440×900 后才能完成 |
-| 虚拟 HID 适配器 | `SOURCE_SCAFFOLD / WINDOWS_PENDING` | 传输/报告编码器边界、ReleaseAll、Heartbeat 和证据模板已建立；设备路径、VID/PID、报告描述符与三层 PASS 证据为空 |
+| 虚拟 HID 适配器 | `DRIVER_BUILD_PASS / WINDOWS_EVIDENCE_PENDING` | 项目自有 KMDF/VHF 驱动、Boot Keyboard 报告编码、唯一接口枚举、IOCTL 传输、Neutral/Heartbeat/watchdog、安装/卸载脚本和 WDK/Inf2Cat 零警告构建已完成；测试签名安装、设备路径和设备/Windows 输入/授权客户端三层 PASS 仍待重启实测，生产输入保持禁用 |
 | 自动战斗闭环 | `DONE (macOS) / WINDOWS_PENDING` | 生产 C# 编排器已以 Replay/替身验证移动到攻击距离提前释放、profile、补给优先级、低置信度、过期帧和 ReleaseAll；真实 HID/客户端画面反馈待 Windows |
-| macOS 页面与可移植回归 | `DONE (macOS)` | `verify-portable` 已通过：npm audit 0 漏洞、ESLint、TypeScript、33 个 Vitest、Vite 构建、桌面/移动 Playwright、37 个 Runtime.Tests、30 个 Host.Tests、3 个 Input.Tests、2 个 Map.Tests、portable contracts/closed-loop，以及 Host Rebuild 0 warning |
+| macOS 页面与可移植回归 | `DONE (macOS)` | `verify-portable` 已通过：npm audit 0 漏洞、ESLint、TypeScript、33 个 Vitest、Vite 构建、桌面/移动 Playwright、38 个 Runtime.Tests、81 个 Host.Tests、30 个 Input.Tests、2 个 Map.Tests、portable contracts/closed-loop，以及 Host Rebuild 0 warning |
 
 状态词只有以下含义：`DONE (macOS)` 表示 Mac 可执行测试和构建证据通过；`SOURCE_READY` 表示源码已可交叉编译但运行依赖真实 Windows；`WINDOWS_PENDING`、`MODEL_PENDING` 均属于目标环境未完成。后续 AI 不得把源码存在、交叉编译、XML 可解析或静态 token 检查改写成 Windows 功能完成。
 

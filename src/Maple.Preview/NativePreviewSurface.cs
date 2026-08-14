@@ -9,7 +9,7 @@ namespace Maple.Preview
 {
     public sealed class NativePreviewSurface : Control
     {
-        private readonly FrameSlot<Bitmap> frames = new FrameSlot<Bitmap>();
+        private readonly FrameSlot<Bitmap> frames = new FrameSlot<Bitmap>(frame => frame.Dispose());
         private readonly object overlaySync = new object();
         private OverlaySnapshot overlay;
         private long nowMonoMs;
@@ -57,6 +57,12 @@ namespace Maple.Preview
                 DrawPlayers(e.Graphics, destination, snapshot.Players);
                 DrawMonsters(e.Graphics, destination, snapshot.Monsters);
             }
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) frames.Dispose();
+            base.Dispose(disposing);
         }
 
         private void DrawSelf(Graphics graphics, Rectangle destination, SelfObservation self)

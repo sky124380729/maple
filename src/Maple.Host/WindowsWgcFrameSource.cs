@@ -20,6 +20,10 @@ public sealed class WindowsWgcFrameSource : IWindowFrameSource, IDisposable
     private readonly ID3D11Device nativeDevice;
     private readonly ID3D11DeviceContext nativeContext;
     private readonly IDirect3DDevice direct3DDevice;
+    private ID3D11Texture2D? stagingTexture;
+    private int stagingWidth;
+    private int stagingHeight;
+    private int stagingFormat;
     private Direct3D11CaptureFramePool? framePool;
     private GraphicsCaptureSession? captureSession;
     private GraphicsCaptureItem? captureItem;
@@ -157,18 +161,7 @@ public sealed class WindowsWgcFrameSource : IWindowFrameSource, IDisposable
             throw new InvalidOperationException("WGC client crop is outside the captured surface");
         using ID3D11Texture2D source = WgcInterop.OpenTexture(surface);
         Texture2DDescription sourceDescription = source.Description;
-        var stagingDescription = new Texture2DDescription
-        {
-            Width = (uint)width,
-            Height = (uint)height,
-            MipLevels = 1,
-            ArraySize = 1,
-            Format = sourceDescription.Format,
-            SampleDescription = new SampleDescription(1, 0),
-            Usage = ResourceUsage.Staging,
-            CPUAccessFlags = CpuAccessFlags.Read,
-        };
-        using ID3D11Texture2D staging = nativeDevice.CreateTexture2D(stagingDescription);
+        ID3D11Texture2D staging = GetOrCreateStagingTexture(width, height, sourceDescription.Format);
         nativeContext.CopyResource(staging, source);
         MappedSubresource mapped = nativeContext.Map(staging, 0, MapMode.Read, Vortice.Direct3D11.MapFlags.None);
         int stride = checked(outputWidth * 4);
@@ -204,6 +197,39 @@ public sealed class WindowsWgcFrameSource : IWindowFrameSource, IDisposable
             DroppedReason = DroppedFrameReason.None,
         };
         return new CapturedFrame(metadata, outputWidth, outputHeight, stride, CapturedPixelFormat.Bgra32, owner, length);
+    }
+
+    private ID3D11Texture2D GetOrCreateStagingTexture(int width, int height, Format format)
+    {
+        int formatValue = (int)format;
+        if (!WgcReadbackResourcePolicy.ShouldRecreate(
+            stagingTexture is not null,
+            stagingWidth,
+            stagingHeight,
+            stagingFormat,
+            width,
+            height,
+            formatValue))
+        {
+            return stagingTexture!;
+        }
+
+        stagingTexture?.Dispose();
+        stagingTexture = nativeDevice.CreateTexture2D(new Texture2DDescription
+        {
+            Width = (uint)width,
+            Height = (uint)height,
+            MipLevels = 1,
+            ArraySize = 1,
+            Format = format,
+            SampleDescription = new SampleDescription(1, 0),
+            Usage = ResourceUsage.Staging,
+            CPUAccessFlags = CpuAccessFlags.Read,
+        });
+        stagingWidth = width;
+        stagingHeight = height;
+        stagingFormat = formatValue;
+        return stagingTexture;
     }
 
     private void UpdateClientCrop(CaptureTarget target)
@@ -262,6 +288,8 @@ public sealed class WindowsWgcFrameSource : IWindowFrameSource, IDisposable
             StopSession();
             lock (readbackSync)
             {
+                stagingTexture?.Dispose();
+                stagingTexture = null;
                 direct3DDevice.Dispose();
                 nativeContext.Dispose();
                 nativeDevice.Dispose();

@@ -1,3 +1,4 @@
+#nullable disable
 using System;
 using System.Threading;
 
@@ -7,7 +8,7 @@ namespace Maple.Preview
     /// A bounded two-slot latest-frame buffer. Publishing never waits for the
     /// render or vision consumer; an unread publication is replaced and counted.
     /// </summary>
-    public sealed class FrameSlot<T> where T : class
+    public sealed class FrameSlot<T> : IDisposable where T : class
     {
         private sealed class Publication
         {
@@ -24,16 +25,24 @@ namespace Maple.Preview
         }
 
         private readonly Publication[] slots = new Publication[2];
+        private readonly Action<T> releaseFrame;
         private int publishedSlot = -1;
         private long nextSequence;
         private long lastReadSequence = -1;
         private long droppedFrames;
+        private int disposed;
+
+        public FrameSlot(Action<T> releaseFrame = null)
+        {
+            this.releaseFrame = releaseFrame;
+        }
 
         public long DroppedFrames { get { return Interlocked.Read(ref droppedFrames); } }
 
         public void Publish(T frame, long capturedAtMonoMs)
         {
             if (frame == null) throw new ArgumentNullException("frame");
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
             int currentSlot = Volatile.Read(ref publishedSlot);
             int nextSlot = currentSlot < 0 ? 0 : (currentSlot + 1) & 1;
             var publication = new Publication(Interlocked.Increment(ref nextSequence), capturedAtMonoMs, frame);
@@ -42,11 +51,13 @@ namespace Maple.Preview
             {
                 Interlocked.Increment(ref droppedFrames);
             }
+            if (previous != null) releaseFrame?.Invoke(previous.Frame);
             Volatile.Write(ref publishedSlot, nextSlot);
         }
 
         public bool TryRead(long nowMonoMs, out FrameRead<T> read)
         {
+            ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
             int currentSlot = Volatile.Read(ref publishedSlot);
             if (currentSlot < 0)
             {
@@ -64,6 +75,17 @@ namespace Maple.Preview
             Interlocked.Exchange(ref lastReadSequence, publication.Sequence);
             read = new FrameRead<T>(publication.Sequence, publication.CapturedAtMonoMs, Math.Max(0, nowMonoMs - publication.CapturedAtMonoMs), publication.Frame);
             return true;
+        }
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref disposed, 1) != 0) return;
+            Volatile.Write(ref publishedSlot, -1);
+            for (int index = 0; index < slots.Length; index++)
+            {
+                Publication publication = Interlocked.Exchange(ref slots[index], null);
+                if (publication != null) releaseFrame?.Invoke(publication.Frame);
+            }
         }
     }
 

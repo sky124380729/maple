@@ -47,6 +47,21 @@ public sealed class WindowsTargetWindowLocatorTests
     }
 
     [Fact]
+    public void LocatorUsesTargetScopedEnumeration()
+    {
+        var windowSystem = new TrackingWindowSystem([ValidCandidate()]);
+        var locator = new WindowsTargetWindowLocator(windowSystem);
+
+        TargetWindowDiscoveryResult result = locator.Locate();
+
+        Assert.Equal(TargetWindowDiscoveryStatus.Found, result.Status);
+        Assert.Equal(1, windowSystem.ScopedCalls);
+        Assert.Equal(0, windowSystem.UnscopedCalls);
+        Assert.Equal(WindowsTargetWindowLocator.TargetTitle, windowSystem.LastTitle);
+        Assert.Equal(WindowsTargetWindowLocator.TargetClassName, windowSystem.LastClassName);
+    }
+
+    [Fact]
     public void MultipleEligibleWindowsRequireSelection()
     {
         var locator = new WindowsTargetWindowLocator(new FakeWindowSystem([
@@ -148,5 +163,27 @@ public sealed class WindowsTargetWindowLocatorTests
     private sealed class FakeWindowSystem(IReadOnlyList<WindowCandidate> candidates) : IWindowSystem
     {
         public IReadOnlyList<WindowCandidate> EnumerateTopLevelWindows() => candidates;
+    }
+
+    private sealed class TrackingWindowSystem(IReadOnlyList<WindowCandidate> candidates) : IWindowSystem
+    {
+        public int ScopedCalls { get; private set; }
+        public int UnscopedCalls { get; private set; }
+        public string? LastTitle { get; private set; }
+        public string? LastClassName { get; private set; }
+
+        public IReadOnlyList<WindowCandidate> EnumerateTopLevelWindows()
+        {
+            UnscopedCalls++;
+            return [];
+        }
+
+        public IReadOnlyList<WindowCandidate> EnumerateTopLevelWindows(string title, string className)
+        {
+            ScopedCalls++;
+            LastTitle = title;
+            LastClassName = className;
+            return candidates;
+        }
     }
 }

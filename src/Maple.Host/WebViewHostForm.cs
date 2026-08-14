@@ -35,7 +35,7 @@ namespace Maple.Host
         private readonly Panel browserPanel = new Panel();
         private readonly Button emergencyButton = new Button();
         private readonly string assetFolder;
-        private readonly System.Windows.Forms.Timer captureTimer = new() { Interval = 33 };
+        private readonly System.Windows.Forms.Timer captureTimer = new() { Interval = CapturePollingPolicy.ActiveIntervalMs };
         private CaptureCoordinator? captureCoordinator;
         private bool captureInProgress;
 
@@ -116,7 +116,11 @@ namespace Maple.Host
         {
             if (captureCoordinator is null || captureInProgress) return;
             captureInProgress = true;
-            try { await captureCoordinator.CaptureOnceAsync(CancellationToken.None); }
+            try
+            {
+                CaptureTickResult result = await captureCoordinator.CaptureOnceAsync(CancellationToken.None);
+                captureTimer.Interval = CapturePollingPolicy.NextIntervalMs(result);
+            }
             catch (OperationCanceledException) { }
             finally { captureInProgress = false; }
         }

@@ -8,6 +8,12 @@ namespace Maple.Host;
 public interface IWindowSystem
 {
     IReadOnlyList<WindowCandidate> EnumerateTopLevelWindows();
+
+    IReadOnlyList<WindowCandidate> EnumerateTopLevelWindows(string title, string className) =>
+        EnumerateTopLevelWindows()
+            .Where(candidate => string.Equals(candidate.Title, title, StringComparison.Ordinal)
+                && string.Equals(candidate.ClassName, className, StringComparison.Ordinal))
+            .ToList();
 }
 
 public interface ITargetWindowLocator
@@ -30,7 +36,7 @@ public sealed class WindowsTargetWindowLocator : ITargetWindowLocator
     public TargetWindowDiscoveryResult Locate()
     {
         List<WindowIdentity> candidates = windowSystem
-            .EnumerateTopLevelWindows()
+            .EnumerateTopLevelWindows(TargetTitle, TargetClassName)
             .Where(IsEligible)
             .Select(CreateIdentity)
             .OrderBy(candidate => candidate.Pid)
@@ -84,12 +90,35 @@ public sealed class Win32WindowSystem : IWindowSystem
     private const uint ProcessQueryLimitedInformation = 0x1000;
 
     public IReadOnlyList<WindowCandidate> EnumerateTopLevelWindows()
+        => EnumerateTopLevelWindowsCore(null, null);
+
+    public IReadOnlyList<WindowCandidate> EnumerateTopLevelWindows(string title, string className)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(title);
+        ArgumentException.ThrowIfNullOrWhiteSpace(className);
+        return EnumerateTopLevelWindowsCore(title, className);
+    }
+
+    private static IReadOnlyList<WindowCandidate> EnumerateTopLevelWindowsCore(
+        string? requiredTitle,
+        string? requiredClassName)
     {
         if (!OperatingSystem.IsWindows()) return [];
         var windows = new List<WindowCandidate>();
         nint foreground = GetForegroundWindow();
         EnumWindows((hwnd, parameter) =>
         {
+            string title = ReadWindowText(hwnd);
+            string className = ReadClassName(hwnd);
+            bool isVisible = IsWindowVisible(hwnd);
+            if (requiredTitle is not null
+                && (!isVisible
+                    || !string.Equals(title, requiredTitle, StringComparison.Ordinal)
+                    || !string.Equals(className, requiredClassName, StringComparison.Ordinal)))
+            {
+                return true;
+            }
+
             uint pidValue;
             GetWindowThreadProcessId(hwnd, out pidValue);
             int pid = unchecked((int)pidValue);
@@ -103,9 +132,9 @@ public sealed class Win32WindowSystem : IWindowSystem
             windows.Add(new WindowCandidate(
                 hwnd,
                 pid,
-                ReadWindowText(hwnd),
-                ReadClassName(hwnd),
-                IsWindowVisible(hwnd),
+                title,
+                className,
+                isVisible,
                 IsIconic(hwnd),
                 hwnd == foreground,
                 hasClientOrigin ? origin.X : 0,
