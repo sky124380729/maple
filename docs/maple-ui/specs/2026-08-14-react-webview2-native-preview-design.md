@@ -51,11 +51,11 @@ WGC 后端输出 GPU/CPU 可复用的帧资源；兼容后端输出 pooled bitma
 
 实时预览只显示三类动态框：
 
-- `Self`：绿色框，标签包含置信度和跟踪编号；
+- `Self`：绿色框，标签只包含置信度；Self 只有一个，不向用户显示跟踪编号；
 - `Player`：青色框，标签包含置信度和跟踪编号，只观察，不参与目标选择；
 - `Monster`：红色框，标签包含类别、置信度和目标编号，目标选择仍需经过距离、平台和拓扑过滤。
 
-`loot`、HP/MP、地图名、技能栏和小地图不画框，只提供给内部识别和右侧状态面板。所有框绑定 `frameId`、模型版本和 stale TTL；过期或丢失的框自动隐藏。Self 置信度不足时要提示用户点击确认，客户端重启或地图身份重置后重新确认。
+`loot`、HP/MP、地图名、技能栏和小地图不画框，只提供给内部识别和右侧状态面板。所有框绑定 `frameId`、模型版本和 stale TTL；过期或丢失的框自动隐藏。Self 置信度不足时不能提示用户点击确认；C# 运行核心必须进入 `Paused/CalibrationRequired`，自动重试窗口绑定、ROI、模型和跟踪器，直到达到高置信度门槛。用户不负责标注 Self，也不需要理解或填写跟踪编号。
 
 ### `Maple.Host`
 
@@ -83,7 +83,7 @@ WGC/BitBlt -> CaptureWorker -> FrameSlot[2]
 type OverlaySnapshot = {
   frameId: number
   capturedAtMonoMs: number
-  self?: { box: [number, number, number, number]; confidence: number; trackId: string; freshUntilMonoMs: number }
+  self?: { box: [number, number, number, number]; confidence: number; freshUntilMonoMs: number }
   players: Array<{ box: [number, number, number, number]; confidence: number; trackId: string; freshUntilMonoMs: number }>
   monsters: Array<{ className: string; box: [number, number, number, number]; confidence: number; targetId: string; freshUntilMonoMs: number }>
 }

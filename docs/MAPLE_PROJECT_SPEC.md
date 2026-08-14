@@ -43,7 +43,7 @@ Maple 是一个独立的 Windows 桌面观察与自动化控制台。它绑定�
 | 标准输入探针 | 已完成诊断 | `SendInput` 入队成功，但客户端响应未确认；不进入生产路径 |
 | React 工作台 | 待实现 | 采用 WebView2 承载 React |
 | 30-60 FPS 实时预览 | 待实现 | 当前原型 `300ms` 定时器只有约 3.3 FPS |
-| 真实 OpenCV/YOLO/OCR | 未开始 | 需要先建立离线评测集 |
+| 真实 OpenCV/YOLO/OCR | 未开始 | 需要先建立离线评测集；低置信度由程序修复，不转嫁给用户 |
 | 地图拓扑运行时 | 未开始 | 先做候选、校验、用户确认 |
 | 虚拟 HID 适配器 | 未开始 | 等待明确设备合同和报告协议 |
 | 自动战斗闭环 | 未开始 | 真实输入必须最后分阶段开启 |
@@ -102,7 +102,7 @@ C# 保留并逐步拆分现有 `WindowCapture`、`PrototypeState` 和安全逻�
 
 | 对象 | 颜色 | 标签 | 是否参与目标选择 | 备注 |
 | --- | --- | --- | --- | --- |
-| 自己角色 `self` | 绿色 | `Self <confidence> #<trackId>` | 是，作为导航参考 | 置信度不足时提示用户点击确认一次 |
+| 自己角色 `self` | 绿色 | `Self <confidence>` | 是，作为导航参考 | Self 只有一个，不显示跟踪编号；跟踪状态由程序内部维护 |
 | 其他玩家 `player` | 青色 | `Player <confidence> #<trackId>` | 否 | 只观察和显示，不攻击、不暂停、不作为导航目标 |
 | 怪物 `monster` | 红色 | `<class> <confidence> #<targetId>` | 是 | 目标选择还要经过距离、当前平台和地图拓扑过滤 |
 
@@ -110,7 +110,7 @@ C# 保留并逐步拆分现有 `WindowCapture`、`PrototypeState` 和安全逻�
 
 掉落物 `loot` 只允许进入内部观察通道，不在实时预览中画框、标签或数量；HP/MP 条、数字、地图名、技能栏、小地图等固定 UI 同样只做内部 OpenCV/OCR 识别，不在客户区镜像上画框。
 
-自己的角色采用“自动识别 + 可纠正”流程：先结合 YOLO、角色特征、初始位置和多帧轨迹推断；置信度不足时暂停危险动作并要求用户点击角色确认。客户端重启、PID/HWND 变化、地图身份重置或连续丢失后必须重新确认。
+自己的角色必须完全自动识别：结合 YOLO、角色特征、初始位置和多帧轨迹推断，内部维护唯一 Self 跟踪状态，不向用户显示或要求填写跟踪编号。置信度不足不是用户操作问题，而是程序的模型、ROI、窗口绑定或跟踪链路问题；此时程序必须保持 `Paused/CalibrationRequired`，自动重试采集、重新标定 ROI、刷新模型/跟踪器或进入离线诊断，直到达到配置的高置信度门槛。未达到门槛前不得启动真实动作，也不得要求用户点击角色“帮程序猜”。客户端重启、PID/HWND 变化、地图身份重置或连续丢失后，程序自动重新建立 Self 观察并再次通过门槛。
 
 预览层只展示观察结果，不直接决定按键。任何框都不能绕过状态机、帧新鲜度和安全门。
 
@@ -165,7 +165,7 @@ React 发出的命令只允许抽象动作和配置更新，例如 `session.arm`
   "frameId": 1842,
   "capturedAtMonoMs": 441238,
   "target": { "hwnd": "0x1234", "pid": 1008, "clientWidth": 1280, "clientHeight": 720, "dpi": 96 },
-  "self": { "box": [0.42, 0.51, 0.08, 0.18], "confidence": 0.94, "trackId": "self-7", "freshUntilMonoMs": 441338 },
+  "self": { "box": [0.42, 0.51, 0.08, 0.18], "confidence": 0.94, "freshUntilMonoMs": 441338 },
   "players": [],
   "monsters": [{ "class": "snail", "box": [0.66, 0.54, 0.07, 0.13], "confidence": 0.88, "trackId": "monster-12" }],
   "loot": { "visible": false, "confidence": 0.0 },
@@ -176,7 +176,7 @@ React 发出的命令只允许抽象动作和配置更新，例如 `session.arm`
 }
 ```
 
-预览可消费 `self`、`players` 和 `monsters`；`loot`、HP/MP、地图和技能状态只能进入状态机与诊断面板。所有观察字段都必须有时间戳、置信度和 TTL，过期值不得触发动作。
+预览可消费 `self`、`players` 和 `monsters`；`self` 对外不包含跟踪编号，只有 `confidence` 和唯一当前框。`loot`、HP/MP、地图和技能状态只能进入状态机与诊断面板。所有观察字段都必须有时间戳、置信度和 TTL，过期值不得触发动作。
 
 ## 7. UI 信息架构
 
@@ -230,14 +230,15 @@ Stopped -> Arming -> Observing -> MapScanning -> MapCalibrating
 
 ### 9.1 首次配置
 
-1. 发现并绑定唯一的可见目标窗口，保存 HWND/PID/进程路径、客户区尺寸和 DPI。
-2. 自动计算固定 HUD 的 ROI 和客户区比例，不要求用户逐项框选；校验窗口身份和采集后端。
-3. 创建或选择地图档案。未知地图只能进入 `MapScanning`，不能直接运行。
-4. 采集覆盖多个镜头位置的短录屏/关键帧，估计相机位移并注册到 `MapWorld`，显示覆盖率和未覆盖区域。
-5. 可选调用百炼生成 `InitialMapAnnotation`；用户确认或修正平台、台阶、梯子/绳索、边界和连接关系。
-6. 通过本地几何/拓扑校验和动作预览/短时验证后，保存 `validated` 地图版本。
-7. 配置攻击模式、技能、药水、跳跃和拾取键/开关、阈值、冷却、保持时间和重试预算，执行键冲突检查。
-8. 执行虚拟 HID 单键诊断和人物/怪物离线回放检查。
+1. 自动发现并绑定唯一的可见目标窗口，保存 HWND/PID/进程路径、客户区尺寸和 DPI；用户不需要手动选择进程或填写窗口参数。
+2. 自动计算固定 HUD 的 ROI 和客户区比例，不要求用户逐项框选；程序自动选择并验证采集后端。
+3. 自动加载默认模型、键位、阈值和安全策略；自动建立唯一 Self 观察，低置信度时进入程序自修复流程，不要求用户点击角色。
+4. 创建或选择地图档案。已验证地图直接进入观察；未知地图只能进入 `MapScanning`，不能直接运行。
+5. 采集覆盖多个镜头位置的短录屏/关键帧，估计相机位移并注册到 `MapWorld`，显示覆盖率和未覆盖区域。
+6. 可选调用百炼生成 `InitialMapAnnotation`；用户只确认地图结构版本，不参与 Self/Monster 逐个标注。
+7. 通过本地几何/拓扑校验和动作预览/短时验证后，保存 `validated` 地图版本。
+8. 使用默认攻击、药水、跳跃和拾取配置；高级用户可进入设置页修改，程序自动执行键冲突检查。
+9. 执行虚拟 HID 单键诊断和人物/怪物离线回放检查。
 
 ### 9.2 日常运行与人工接管
 
@@ -358,13 +359,13 @@ git diff --check
 
 ## 15. 历史资料
 
-以下文件保留用于追溯，内容不再作为实施入口：
+以下文件已移入 `docs/archive/`，只用于追溯，内容不再作为实施入口：
 
-- `2026-08-13-maple-auto-hunting-product-spec.md`；
-- `2026-08-13-input-compatibility-handoff-spec.md`；
-- `docs/2026-08-13-maple-auto-hunting-product-spec.md`；
-- `docs/2026-08-13-input-compatibility-handoff-spec.md`；
-- `docs/SESSION_HANDOFF_2026-08-14.md`；
-- `docs/superpowers/specs/2026-08-12-maple-visual-automation-design.md`。
+- `docs/archive/specs/2026-08-13-maple-auto-hunting-product-spec.md`；
+- `docs/archive/specs/2026-08-13-input-compatibility-handoff-spec.md`；
+- `docs/archive/specs/2026-08-12-maple-visual-automation-design.md`；
+- `docs/archive/plans/2026-08-13-maple-ui-prototype.md`。
+
+`docs/SESSION_HANDOFF_2026-08-14.md` 暂时保留在主目录，因为它包含当前工作区尚未提交的本机交接修改；它不是产品主规格。
 
 当历史文档与本文冲突时，以本文为准；需要恢复历史背景时才打开对应文件。
