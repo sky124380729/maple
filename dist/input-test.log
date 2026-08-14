@@ -109,3 +109,10 @@ INPUT_POLICY=FOREGROUND_ONLY
 2026-08-13T01:04:27.6657197+08:00 mode=scancode key=Right scan=77 foreground=冒险岛怀旧服 down=1 downError=0 up=1 upError=0
 2026-08-13T01:04:28.7757698+08:00 action=authorized-auto-test complete
 2026-08-13T01:04:28.7772726+08:00 action=release-all count=0
+2026-08-14T00:30:43.2406316+08:00 action=dismiss-known-overlay title=快速设置 down=1 up=1
+2026-08-14T00:30:43.5613329+08:00 action=probe-foreground-handshake confirmed=True
+2026-08-14T00:30:43.6179501+08:00 action=activate-target activateResult=True targetHandle=1510202 minimizedBefore=False restoreResult=False minimizedAfter=False foregroundBefore=1577302 foregroundBeforeTitle=枫叶视觉助手 - 最小输入验证 foregroundAfter=1510202 foregroundAfterTitle=冒险岛怀旧服 foregroundConfirmed=True
+2026-08-14T00:30:44.0199435+08:00 mode=scancode key=Left scan=75 foreground=冒险岛怀旧服 down=1 downError=0 up=1 upError=0
+2026-08-14T00:30:45.4031031+08:00 mode=scancode key=Right scan=77 foreground=冒险岛怀旧服 down=1 downError=0 up=1 upError=0
+2026-08-14T00:30:46.6459689+08:00 action=authorized-auto-test complete
+2026-08-14T00:30:46.6474729+08:00 action=release-all count=0
