@@ -101,6 +101,21 @@ public sealed class CaptureCoordinatorTests
         Assert.Equal(1, input.ReleaseCalls);
     }
 
+    [Fact]
+    public void DisposeReleasesOwnedCaptureBackend()
+    {
+        var backend = new RecordingCaptureBackend();
+        var coordinator = CreateCoordinator(
+            new TargetWindowDiscoveryResult(TargetWindowDiscoveryStatus.NotFound, "TARGET_NOT_FOUND", []),
+            backend,
+            new RecordingFrameSink(),
+            new RecordingInputAdapter());
+
+        coordinator.Dispose();
+
+        Assert.True(backend.Disposed);
+    }
+
     private static CaptureCoordinator CreateCoordinator(
         TargetWindowDiscoveryResult discovery,
         ICaptureBackend backend,
@@ -161,9 +176,10 @@ public sealed class CaptureCoordinatorTests
         public TargetWindowDiscoveryResult Locate() => result;
     }
 
-    private sealed class RecordingCaptureBackend : ICaptureBackend
+    private sealed class RecordingCaptureBackend : ICaptureBackend, IDisposable
     {
         public int Calls { get; private set; }
+        public bool Disposed { get; private set; }
         public CaptureResult? Next { get; init; }
         public CaptureBackend Backend => CaptureBackend.BitBlt;
 
@@ -187,6 +203,8 @@ public sealed class CaptureCoordinatorTests
                 },
             });
         }
+
+        public void Dispose() => Disposed = true;
     }
 
     private sealed class RecordingFrameSink : ICaptureFrameSink, IDisposable

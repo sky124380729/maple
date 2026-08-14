@@ -27,6 +27,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4129.50" />
+    <PackageReference Include="Vortice.Direct3D11" Version="3.6.2" />
   </ItemGroup>
   <ItemGroup Condition="Exists('..\..\ui\dist\index.html')">
     <Content Include="..\..\ui\dist\**\*"

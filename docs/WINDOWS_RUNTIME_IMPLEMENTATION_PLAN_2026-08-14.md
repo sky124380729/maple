@@ -147,7 +147,7 @@ Windows 结果：`PORTABLE_VERIFICATION=PASS`；React 33、Playwright 2、Host 5
 
 ### 后续独立阶段（不在本计划伪造完成）
 
-- WGC：真实 `GraphicsCaptureItem + D3D11` readback、Direct2D/Direct3D 预览和 30-60 FPS/DPI/soak 矩阵。
+- WGC：已实现真实 `GraphicsCaptureItem + D3D11` readback，并用自建 640x360 窗口完成系统通路烟雾测试；冒险岛客户区、Direct2D/Direct3D 预览和 30-60 FPS/DPI/soak 矩阵仍待独立实测。
 - 地图帧源：WGC 关键帧编码并绑定 `IMapImageSource`，再验百炼地图标定。
 - 真实模型：用户提供 manifest/权重/数据集后执行 precision/recall 与 GPU provider 验收。
 - 虚拟 HID：只有拿到本项目设备接口、VID/PID、报告描述符、签名和协议后才实现 transport/encoder，并运行 `tests/windows/hid_contract.tests.ps1 -RequireEvidence`；不得借用或逆向第三方 `gvinput` 私有接口。

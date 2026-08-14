@@ -9,7 +9,7 @@ public interface ICaptureFrameSink
 
 public sealed record CaptureTickResult(bool Success, string Code, long? FrameId = null);
 
-public sealed class CaptureCoordinator
+public sealed class CaptureCoordinator : IDisposable
 {
     private readonly ITargetWindowLocator targetLocator;
     private readonly ICaptureBackend captureBackend;
@@ -18,6 +18,7 @@ public sealed class CaptureCoordinator
     private readonly Func<long> clock;
     private long frameId;
     private string? activePauseCode;
+    private bool disposed;
 
     public CaptureCoordinator(
         ITargetWindowLocator targetLocator,
@@ -35,6 +36,7 @@ public sealed class CaptureCoordinator
 
     public async ValueTask<CaptureTickResult> CaptureOnceAsync(CancellationToken cancellationToken)
     {
+        ObjectDisposedException.ThrowIf(disposed, this);
         TargetWindowDiscoveryResult discovery = targetLocator.Locate();
         WindowIdentity? target = discovery.Target;
         if (target is null) return Pause(discovery.DiagnosticCode);
@@ -113,5 +115,12 @@ public sealed class CaptureCoordinator
             if (pixels[offset] > 2 || pixels[offset + 1] > 2 || pixels[offset + 2] > 2) return false;
         }
         return true;
+    }
+
+    public void Dispose()
+    {
+        if (disposed) return;
+        disposed = true;
+        if (captureBackend is IDisposable disposable) disposable.Dispose();
     }
 }

@@ -15,10 +15,16 @@ public static class HostCompositionRoot
         var window = new MainWindow(new WebView2Runtime(), new NullInputAdapter(), assetFolder);
         window.ConfigureCapture(
             new WindowsTargetWindowLocator(new Win32WindowSystem()),
-            new WindowsGraphicsCaptureBackend(null, new WindowsBitBltFrameSource()));
+            new WindowsGraphicsCaptureBackend(TryCreateWgcSource(), new WindowsBitBltFrameSource()));
         window.CommandReceived += (_, route) => dispatcher.Handle(route);
         dispatcher.StatusChanged += (_, status) => window.SendCloudStatus(status);
         window.FormClosed += (_, _) => { dispatcher.Dispose(); httpClient.Dispose(); };
         return window;
+    }
+
+    private static IWindowFrameSource? TryCreateWgcSource()
+    {
+        try { return new WindowsWgcFrameSource(); }
+        catch (Exception exception) when (exception is not OutOfMemoryException) { return null; }
     }
 }

@@ -1,12 +1,14 @@
 param(
     [string]$PublishDirectory = 'dist\windows-x64',
-    [string]$EvidencePath = 'dist\windows-runtime-diagnostic.json'
+    [string]$EvidencePath = 'dist\windows-runtime-diagnostic.json',
+    [string]$WgcEvidencePath = 'dist\windows-wgc-self-test.json'
 )
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $publish = [IO.Path]::GetFullPath((Join-Path $root $PublishDirectory))
 $evidence = [IO.Path]::GetFullPath((Join-Path $root $EvidencePath))
+$wgcEvidence = [IO.Path]::GetFullPath((Join-Path $root $WgcEvidencePath))
 $executable = Join-Path $publish 'Maple.exe'
 $localDotnet = Join-Path $env:USERPROFILE '.dotnet\dotnet.exe'
 $dotnet = if (Test-Path -LiteralPath $localDotnet) { $localDotnet } else { (Get-Command dotnet -ErrorAction Stop).Source }
@@ -26,6 +28,14 @@ if ($report.inputAdapter -ne 'NullInputAdapter' -or $report.inputStatus -ne 'INP
 if ($report.wgcStatus -ne 'WINDOWS_PENDING') { throw 'WGC must remain pending until real frame evidence exists' }
 if ($report.modelStatus -ne 'MODEL_PENDING') { throw 'Models must remain pending until real model evidence exists' }
 if ($report.hidStatus -ne 'HID_CONTRACT_UNVERIFIED') { throw 'HID must remain unverified without three-layer evidence' }
+
+$wgcProcess = Start-Process -FilePath $executable -ArgumentList @('--wgc-self-test', $wgcEvidence) -Wait -PassThru
+if ($wgcProcess.ExitCode -ne 0) { throw "WGC self-test failed with exit code $($wgcProcess.ExitCode)" }
+$wgcReport = Get-Content -LiteralPath $wgcEvidence -Raw -Encoding UTF8 | ConvertFrom-Json
+if (-not $wgcReport.success -or $wgcReport.code -ne 'WGC_SELF_TEST_PASS' -or $wgcReport.backend -ne 'Wgc' -or -not $wgcReport.nonBlack) {
+    throw "WGC self-test evidence is invalid: $($wgcReport.code)"
+}
+if ($wgcReport.width -ne 640 -or $wgcReport.height -ne 360) { throw 'WGC self-test client crop is invalid' }
 
 $appProcess = $null
 $closeRequested = $false
@@ -69,4 +79,4 @@ finally {
     --nologo
 if ($LASTEXITCODE -ne 0) { throw 'Windows DPAPI credential test failed' }
 
-Write-Output "WINDOWS_RUNTIME_SMOKE=PASS;OS=$($report.osDescription);WebView2=$($report.webView2.installedVersion);Target=$($report.target.diagnosticCode);DPI=$($report.target.candidates[0].dpi);Input=$($report.inputStatus);CloseRequested=$closeRequested"
+Write-Output "WINDOWS_RUNTIME_SMOKE=PASS;OS=$($report.osDescription);WebView2=$($report.webView2.installedVersion);WGC=$($wgcReport.code);WgcReadbackMs=$($wgcReport.captureDurationMs);Target=$($report.target.diagnosticCode);DPI=$($report.target.candidates[0].dpi);Input=$($report.inputStatus);CloseRequested=$closeRequested"

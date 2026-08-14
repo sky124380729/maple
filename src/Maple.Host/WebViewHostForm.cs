@@ -152,6 +152,7 @@ namespace Maple.Host
                 captureTimer.Stop();
                 captureTimer.Tick -= OnCaptureTick;
                 captureTimer.Dispose();
+                captureCoordinator?.Dispose();
                 webViewRuntime.MessageReceived -= OnMessageReceived;
                 webViewRuntime.RuntimeCrashed -= OnRuntimeCrashed;
                 webViewRuntime.ContentReset -= OnContentReset;

@@ -16,6 +16,17 @@ internal static class Program
             return 0;
         }
 
+        if (args.Length == 2 && string.Equals(args[0], "--wgc-self-test", StringComparison.Ordinal))
+        {
+            ApplicationConfiguration.Initialize();
+            WindowsWgcSelfTestReport report = WindowsWgcSelfTest
+                .RunAsync(CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
+            WindowsRuntimeDiagnostics.WriteJson(args[1], report);
+            return report.Success ? 0 : 2;
+        }
+
         ApplicationConfiguration.Initialize();
         string assetFolder = Path.Combine(AppContext.BaseDirectory, "ui");
         Application.Run(HostCompositionRoot.CreateMainWindow(assetFolder));

@@ -7,7 +7,7 @@ public interface IWindowFrameSource
     ValueTask<CapturedFrame?> TryCaptureAsync(CaptureTarget target, long frameId, long nowMonoMs, CancellationToken cancellationToken);
 }
 
-public sealed class WindowsGraphicsCaptureBackend(IWindowFrameSource? wgcSource, IWindowFrameSource? bitBltSource = null) : ICaptureBackend
+public sealed class WindowsGraphicsCaptureBackend(IWindowFrameSource? wgcSource, IWindowFrameSource? bitBltSource = null) : ICaptureBackend, IDisposable
 {
     public CaptureBackend Backend => CaptureBackend.Wgc;
 
@@ -34,6 +34,12 @@ public sealed class WindowsGraphicsCaptureBackend(IWindowFrameSource? wgcSource,
         Reason = reason,
         Metadata = CaptureValidation.Metadata(target, frameId, nowMonoMs, backend, DroppedFrameReason.Invalid),
     };
+
+    public void Dispose()
+    {
+        if (wgcSource is IDisposable wgcDisposable) wgcDisposable.Dispose();
+        if (!ReferenceEquals(bitBltSource, wgcSource) && bitBltSource is IDisposable bitBltDisposable) bitBltDisposable.Dispose();
+    }
 }
 
 internal static class CaptureValidation

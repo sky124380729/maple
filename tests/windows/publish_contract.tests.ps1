@@ -19,6 +19,8 @@ foreach ($relative in @(
     'Maple.deps.json',
     'Maple.runtimeconfig.json',
     'WebView2Loader.dll',
+    'Vortice.Direct3D11.dll',
+    'Vortice.DXGI.dll',
     'coreclr.dll',
     'ui\index.html'
 )) {

@@ -43,6 +43,11 @@ public static class WindowsRuntimeDiagnostics
 
     public static void Write(string path, WindowsRuntimeDiagnosticReport report)
     {
+        WriteJson(path, report);
+    }
+
+    public static void WriteJson<T>(string path, T report) where T : class
+    {
         if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Diagnostic output path is required", nameof(path));
         ArgumentNullException.ThrowIfNull(report);
         string fullPath = Path.GetFullPath(path);
