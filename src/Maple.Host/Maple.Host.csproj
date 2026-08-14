@@ -8,6 +8,7 @@
     <AssemblyName>Maple</AssemblyName>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <PlatformTarget>x64</PlatformTarget>
+    <SelfContained>true</SelfContained>
     <PublishTrimmed>false</PublishTrimmed>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Nullable>enable</Nullable>
@@ -26,4 +27,14 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4129.50" />
   </ItemGroup>
+  <ItemGroup Condition="Exists('..\..\ui\dist\index.html')">
+    <Content Include="..\..\ui\dist\**\*"
+             Link="ui\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <Target Name="ValidateReactAssets" BeforeTargets="Publish">
+    <Error Condition="!Exists('..\..\ui\dist\index.html')"
+           Text="React assets are missing. Run tools/build-react-ui.ps1 before publishing." />
+  </Target>
 </Project>

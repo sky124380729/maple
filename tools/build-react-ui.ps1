@@ -4,18 +4,23 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $ui = Join-Path $root 'ui'
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw 'Node.js is required' }
-if (-not (Get-Command npm -ErrorAction SilentlyContinue)) { throw 'npm is required' }
+$npmCommand = if ($env:OS -eq 'Windows_NT') {
+    (Get-Command npm.cmd -ErrorAction Stop).Source
+}
+else {
+    (Get-Command npm -ErrorAction Stop).Source
+}
 
 Push-Location $ui
 try {
-    & npm ci
+    & $npmCommand ci
     if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
     foreach ($command in @('lint', 'test', 'build')) {
-        & npm run $command
+        & $npmCommand run $command
         if ($LASTEXITCODE -ne 0) { throw "npm run $command failed" }
     }
     if (-not $SkipE2E) {
-        & npm run e2e
+        & $npmCommand run e2e
         if ($LASTEXITCODE -ne 0) { throw 'npm run e2e failed' }
     }
 }

@@ -1,7 +1,7 @@
-import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { run } from './portable-process.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const ui = path.join(root, 'ui')
@@ -9,13 +9,6 @@ const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 const dotnetCommand = process.env.DOTNET_ROOT
   ? path.join(process.env.DOTNET_ROOT, process.platform === 'win32' ? 'dotnet.exe' : 'dotnet')
   : 'dotnet'
-
-function run(command, args, cwd = root) {
-  console.log(`\n> ${command} ${args.join(' ')}`)
-  const result = spawnSync(command, args, { cwd, stdio: 'inherit' })
-  if (result.error) throw result.error
-  if (result.status !== 0) process.exit(result.status ?? 1)
-}
 
 function walk(directory, predicate, output = []) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
@@ -27,6 +20,7 @@ function walk(directory, predicate, output = []) {
   return output
 }
 
+run(process.execPath, ['--test', 'tests/tools/portable-process.test.mjs'], root)
 run(npmCommand, ['ci'], ui)
 run(npmCommand, ['audit', '--audit-level=high'], ui)
 run(npmCommand, ['run', 'lint'], ui)
