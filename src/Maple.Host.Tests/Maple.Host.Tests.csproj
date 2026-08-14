@@ -25,6 +25,7 @@
     <Compile Include="../Maple.Host/WindowIdentity.cs" Link="WindowIdentity.cs" />
     <Compile Include="../Maple.Host/WindowsTargetWindowLocator.cs" Link="WindowsTargetWindowLocator.cs" />
     <Compile Include="../Maple.Host/CaptureCoordinator.cs" Link="CaptureCoordinator.cs" />
+    <Compile Include="../Maple.Host/MapScanFrameStore.cs" Link="MapScanFrameStore.cs" />
     <Compile Include="../Maple.Host/WebView2EnvironmentProbe.cs" Link="WebView2EnvironmentProbe.cs" />
     <Compile Include="../Maple.Host/WindowsRuntimeDiagnostics.cs" Link="WindowsRuntimeDiagnostics.cs" />
   </ItemGroup>

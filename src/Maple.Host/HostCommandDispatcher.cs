@@ -19,6 +19,7 @@ public sealed class HostCommandDispatcher : IDisposable
     private readonly IBailianCredentialStore credentialStore;
     private readonly BailianHttpClient bailian;
     private readonly BailianMapAnnotationService? mapAnnotation;
+    private readonly IMapScanController? mapScan;
     private bool enabled;
     private bool uploadConsent;
     private string modelId = BailianModelCatalog.DefaultModelId;
@@ -27,11 +28,13 @@ public sealed class HostCommandDispatcher : IDisposable
     public HostCommandDispatcher(
         IBailianCredentialStore credentialStore,
         BailianHttpClient bailian,
-        BailianMapAnnotationService? mapAnnotation = null)
+        BailianMapAnnotationService? mapAnnotation = null,
+        IMapScanController? mapScan = null)
     {
         this.credentialStore = credentialStore ?? throw new ArgumentNullException(nameof(credentialStore));
         this.bailian = bailian ?? throw new ArgumentNullException(nameof(bailian));
         this.mapAnnotation = mapAnnotation;
+        this.mapScan = mapScan;
     }
 
     public CloudRuntimeStatus Status { get; private set; } = new(false, false, BailianModelCatalog.DefaultModelId, "notConfigured", false, null, false);
@@ -52,6 +55,12 @@ public sealed class HostCommandDispatcher : IDisposable
             using JsonDocument payload = JsonDocument.Parse(route.PayloadJson ?? "{}");
             switch (commandType)
             {
+                case UiCommandType.MapScanStart:
+                    mapScan?.StartScan();
+                    break;
+                case UiCommandType.MapCalibrationStart:
+                    mapScan?.StopScan();
+                    break;
                 case UiCommandType.CloudCredentialSet:
                     await SetCredentialAsync(payload.RootElement, cancellationToken).ConfigureAwait(false);
                     break;
@@ -72,6 +81,7 @@ public sealed class HostCommandDispatcher : IDisposable
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (MapFrameSourceException exception) { Publish(Status.ConnectionStatus, exception.Code, false); }
         catch (JsonException) { Publish(Status.ConnectionStatus, "INVALID_PAYLOAD", false); }
         catch (ArgumentException) { Publish(Status.ConnectionStatus, "INVALID_CONFIGURATION", false); }
         catch (Exception) { Publish("unavailable", "CLOUD_REQUEST_FAILED", false); }

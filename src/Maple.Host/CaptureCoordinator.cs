@@ -7,6 +7,11 @@ public interface ICaptureFrameSink
     void Publish(CapturedFrame frame);
 }
 
+public interface ICaptureFrameObserver
+{
+    void Observe(CapturedFrame frame);
+}
+
 public sealed record CaptureTickResult(bool Success, string Code, long? FrameId = null);
 
 public sealed class CaptureCoordinator : IDisposable
@@ -16,6 +21,7 @@ public sealed class CaptureCoordinator : IDisposable
     private readonly ICaptureFrameSink frameSink;
     private readonly HostSafetyCoordinator safety;
     private readonly Func<long> clock;
+    private readonly ICaptureFrameObserver? frameObserver;
     private long frameId;
     private string? activePauseCode;
     private bool disposed;
@@ -25,13 +31,15 @@ public sealed class CaptureCoordinator : IDisposable
         ICaptureBackend captureBackend,
         ICaptureFrameSink frameSink,
         HostSafetyCoordinator safety,
-        Func<long>? clock = null)
+        Func<long>? clock = null,
+        ICaptureFrameObserver? frameObserver = null)
     {
         this.targetLocator = targetLocator ?? throw new ArgumentNullException(nameof(targetLocator));
         this.captureBackend = captureBackend ?? throw new ArgumentNullException(nameof(captureBackend));
         this.frameSink = frameSink ?? throw new ArgumentNullException(nameof(frameSink));
         this.safety = safety ?? throw new ArgumentNullException(nameof(safety));
         this.clock = clock ?? (() => Environment.TickCount64);
+        this.frameObserver = frameObserver;
     }
 
     public async ValueTask<CaptureTickResult> CaptureOnceAsync(CancellationToken cancellationToken)
@@ -82,6 +90,13 @@ public sealed class CaptureCoordinator : IDisposable
             return Pause("CAPTURE_BLACK_FRAME");
         }
 
+        try { frameObserver?.Observe(frame); }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            frame.Dispose();
+            return Pause("MAP_FRAME_OBSERVER_FAILED");
+        }
+
         try { frameSink.Publish(frame); }
         catch (Exception exception)
         {
@@ -122,5 +137,6 @@ public sealed class CaptureCoordinator : IDisposable
         if (disposed) return;
         disposed = true;
         if (captureBackend is IDisposable disposable) disposable.Dispose();
+        if (!ReferenceEquals(frameObserver, captureBackend) && frameObserver is IDisposable observerDisposable) observerDisposable.Dispose();
     }
 }

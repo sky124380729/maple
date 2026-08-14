@@ -25,9 +25,10 @@ Windows 补验环境：Windows x64 build 26200，.NET SDK 8.0.424，WebView2 Eve
 | 范围 | 证据 | 结果 |
 | --- | --- | --- |
 | Windows 自包含发布 | `tools/publish-windows.ps1 -SkipE2E`、`tests/windows/publish_contract.tests.ps1` | PASS；`Maple.exe`、自包含运行时、WebView2Loader 和 React 静态资源齐全 |
-| Windows 全量便携门禁 | `node tools/verify-portable.mjs` | PASS；React 33、Playwright 2、Host 55、Runtime 38、Input 3、Map 2，Host Rebuild 0 warning / 0 error |
+| Windows 全量便携门禁 | `node tools/verify-portable.mjs` | PASS；React 33、Playwright 2、Host 62、Runtime 38、Input 3、Map 2，Host Rebuild 0 warning / 0 error |
 | WebView2 环境与宿主启动 | `tests/windows/windows_runtime_smoke.tests.ps1` | PASS；Evergreen 151.0.4129.78 高于应用兼容线 109.0.1518.78；发布版工作台响应并正常关闭 |
-| WGC 系统链路自检 | `Maple.exe --wgc-self-test` | PASS；真实 `GraphicsCaptureItem + D3D11` 捕获并裁剪 640×360 客户区，BGRA32 非黑帧，单帧 readback 约 2.09ms；授权客户端帧仍待窗口恢复后补验 |
+| WGC 系统链路自检 | `Maple.exe --wgc-self-test` | PASS；真实 `GraphicsCaptureItem + D3D11` 捕获并裁剪 640×360 客户区，BGRA32 非黑帧，单帧 readback 约 2.38ms；授权客户端帧仍待窗口恢复后补验 |
+| WGC 地图关键帧源 | Host.Tests `MapScanFrameStoreTests` / `CaptureCoordinatorTests` / `HostCommandDispatcherTests`、发布版 WGC 自检 | 15/15 PASS；扫描会话隔离、32 张有界内存缓存、缺帧/跨地图拒绝、捕获所有权、百炼服务绑定通过；真实 Windows PNG 为 640×360、2039 bytes；真实地图覆盖率和百炼联网响应仍待验 |
 | 目标窗口身份 | `Maple.exe --windows-diagnostics` | PASS；唯一 `UnityWndClass` 客户端自动绑定，记录 PID、启动时间、版本、DPI 与路径 SHA-256；当次窗口为最小化/失焦 |
 | DPAPI 当前用户存储 | Runtime.Tests `WindowsDpapiCredentialStoreTests` | 1/1 PASS；临时目录完成写入、密文检查、读取、替换、清除 |
 | 安全观察回退 | Host.Tests `CaptureCoordinatorTests`、Host 启动烟雾 | 7/7 PASS；缺失/失焦/最小化/黑帧 fail-closed，重复暂停不重复释放，销毁时释放捕获后端；真实客户区帧仍待窗口恢复后补验 |

@@ -36,6 +36,7 @@ if (-not $wgcReport.success -or $wgcReport.code -ne 'WGC_SELF_TEST_PASS' -or $wg
     throw "WGC self-test evidence is invalid: $($wgcReport.code)"
 }
 if ($wgcReport.width -ne 640 -or $wgcReport.height -ne 360) { throw 'WGC self-test client crop is invalid' }
+if (-not $wgcReport.mapFramePng -or $wgcReport.mapFrameBytes -le 8) { throw 'WGC map-frame PNG encoding evidence is invalid' }
 
 $appProcess = $null
 $closeRequested = $false

@@ -51,8 +51,9 @@ public sealed class CaptureCoordinatorTests
     {
         var input = new RecordingInputAdapter();
         var sink = new RecordingFrameSink();
+        var observer = new RecordingFrameObserver();
         var backend = new RecordingCaptureBackend { Next = SuccessFrame(80) };
-        var coordinator = CreateCoordinator(Found(ValidTarget()), backend, sink, input);
+        var coordinator = CreateCoordinator(Found(ValidTarget()), backend, sink, input, observer);
 
         CaptureTickResult result = await coordinator.CaptureOnceAsync(CancellationToken.None);
 
@@ -60,8 +61,28 @@ public sealed class CaptureCoordinatorTests
         Assert.Equal("OK", result.Code);
         Assert.Equal(1, backend.Calls);
         Assert.Equal(0, input.ReleaseCalls);
+        Assert.Equal(7, observer.LastFrameId);
         Assert.NotNull(sink.Frame);
         sink.Dispose();
+    }
+
+    [Fact]
+    public async Task FrameObserverFailureDisposesFrameAndFailsClosed()
+    {
+        var input = new RecordingInputAdapter();
+        var sink = new RecordingFrameSink();
+        CaptureResult capture = SuccessFrame(80);
+        var backend = new RecordingCaptureBackend { Next = capture };
+        var observer = new RecordingFrameObserver { ThrowOnObserve = true };
+        var coordinator = CreateCoordinator(Found(ValidTarget()), backend, sink, input, observer);
+
+        CaptureTickResult result = await coordinator.CaptureOnceAsync(CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal("MAP_FRAME_OBSERVER_FAILED", result.Code);
+        Assert.Null(sink.Frame);
+        Assert.Equal(1, input.ReleaseCalls);
+        Assert.Throws<ObjectDisposedException>(() => _ = capture.Frame!.Pixels);
     }
 
     [Fact]
@@ -120,14 +141,16 @@ public sealed class CaptureCoordinatorTests
         TargetWindowDiscoveryResult discovery,
         ICaptureBackend backend,
         ICaptureFrameSink sink,
-        RecordingInputAdapter input)
+        RecordingInputAdapter input,
+        ICaptureFrameObserver? observer = null)
     {
         return new CaptureCoordinator(
             new FixedTargetLocator(discovery),
             backend,
             sink,
             new HostSafetyCoordinator(input, () => 500),
-            () => 1000);
+            () => 1000,
+            observer);
     }
 
     private static TargetWindowDiscoveryResult Found(WindowIdentity target) =>
@@ -212,6 +235,18 @@ public sealed class CaptureCoordinatorTests
         public CapturedFrame? Frame { get; private set; }
         public void Publish(CapturedFrame frame) => Frame = frame;
         public void Dispose() { Frame?.Dispose(); Frame = null; }
+    }
+
+    private sealed class RecordingFrameObserver : ICaptureFrameObserver
+    {
+        public long? LastFrameId { get; private set; }
+        public bool ThrowOnObserve { get; init; }
+
+        public void Observe(CapturedFrame frame)
+        {
+            LastFrameId = frame.Metadata.FrameId;
+            if (ThrowOnObserve) throw new InvalidOperationException("observer failed");
+        }
     }
 
     private sealed class RecordingInputAdapter : IInputAdapter

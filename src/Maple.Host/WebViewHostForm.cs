@@ -57,14 +57,15 @@ namespace Maple.Host
         public event EventHandler<BridgeRouteResult>? CommandReceived;
         public NativePreviewSurface PreviewSurface { get { return preview; } }
 
-        public void ConfigureCapture(ITargetWindowLocator locator, ICaptureBackend backend)
+        public void ConfigureCapture(ITargetWindowLocator locator, ICaptureBackend backend, ICaptureFrameObserver? observer = null)
         {
             if (captureCoordinator is not null) throw new InvalidOperationException("Capture is already configured");
             captureCoordinator = new CaptureCoordinator(
                 locator,
                 backend,
                 new NativePreviewFrameSink(preview),
-                safety);
+                safety,
+                frameObserver: observer);
         }
 
         public void SendCloudStatus(CloudRuntimeStatus status)

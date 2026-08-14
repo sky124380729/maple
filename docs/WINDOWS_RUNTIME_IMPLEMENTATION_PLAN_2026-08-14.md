@@ -145,6 +145,66 @@ Host 启动先查询 Evergreen 版本，再加载本地 `maple.local`；烟雾�
 
 Windows 结果：`PORTABLE_VERIFICATION=PASS`；React 33、Playwright 2、Host 54、Runtime 38、Input 3、Map 2 全部通过，Host Rebuild 0 warning / 0 error；Windows runtime smoke 与 DPAPI 实测通过。
 
+### Task 6: WGC 地图扫描关键帧源
+
+**Files:**
+- Create: `src/Maple.Host/MapScanFrameStore.cs`
+- Create: `src/Maple.Host/WindowsPngMapFrameEncoder.cs`
+- Create: `src/Maple.Host.Tests/MapScanFrameStoreTests.cs`
+- Modify: `src/Maple.Host/CaptureCoordinator.cs`
+- Modify: `src/Maple.Host/WebViewHostForm.cs`
+- Modify: `src/Maple.Host/HostCommandDispatcher.cs`
+- Modify: `src/Maple.Host/HostCompositionRoot.cs`
+- Modify: `src/Maple.Host.Tests/CaptureCoordinatorTests.cs`
+- Modify: `src/Maple.Host.Tests/HostCommandDispatcherTests.cs`
+- Modify: `src/Maple.Host.Tests/Maple.Host.Tests.csproj`
+
+- [x] **Step 1: 写失败的关键帧存储测试**
+
+测试 `MapScanFrameStore` 在扫描前不保存画面；`StartScan()` 后按最小时间间隔保存 BGRA32 帧；新扫描清除旧帧；`ReadAsync(mapId, frameIds)` 只按请求顺序返回当前扫描会话的 1–4 张 `image/png`，缺帧、重复 ID 和地图身份冲突抛出稳定的 `MapFrameSourceException.Code`。
+
+- [x] **Step 2: 验证 RED**
+
+Run: `dotnet test src/Maple.Host.Tests/Maple.Host.Tests.csproj --filter MapScanFrameStoreTests`
+
+Expected: FAIL，因为 `MapScanFrameStore`、`IMapFrameEncoder` 和 `MapFrameSourceException` 尚不存在。
+
+- [x] **Step 3: 实现有界内存源和 Windows PNG 编码器**
+
+`MapScanFrameStore : IMapImageSource, ICaptureFrameObserver, IDisposable` 只在显式扫描会话内选帧，容量固定为 32，默认间隔 1000ms；不写磁盘、不向 React 发送像素。`WindowsPngMapFrameEncoder` 使用 `System.Drawing` 把 BGRA32 客户区编码为 PNG；编码失败不得进入云端请求。
+
+- [x] **Step 4: 将观察者接入捕获所有权链路**
+
+`CaptureCoordinator` 在把唯一 `CapturedFrame` 所有权交给原生预览前调用 `ICaptureFrameObserver.Observe(frame)`；观察者异常时释放帧、执行 `PauseAndRelease` 并返回 `MAP_FRAME_OBSERVER_FAILED`。`Dispose()` 同时释放 backend 和 observer。
+
+- [x] **Step 5: 写并运行捕获链路 RED/GREEN 测试**
+
+Run: `dotnet test src/Maple.Host.Tests/Maple.Host.Tests.csproj --filter CaptureCoordinatorTests`
+
+Expected: 观察者先于 sink 读取帧；异常路径不发布预览且帧已释放；销毁只释放一次。
+
+- [x] **Step 6: 绑定扫描命令和百炼地图服务**
+
+`map.scan.start` 调用 `StartScan()`；`map.calibration.start` 停止继续选帧但保留当前关键帧；`HostCompositionRoot` 用同一个 `MapScanFrameStore` 构造 `BailianMapAnnotationService(new BailianMapHttpClient(...), store)`。`HostCommandDispatcher` 将缺帧/跨地图错误映射为明确的 `MAP_FRAME_*` 状态，不降级为通用云端错误。
+
+- [x] **Step 7: 写并运行 dispatcher 集成测试**
+
+Run: `dotnet test src/Maple.Host.Tests/Maple.Host.Tests.csproj --filter "HostCommandDispatcherTests|MapScanFrameStoreTests"`
+
+Expected: 当前扫描帧可到达 `IBailianMapClient`；未扫描帧被明确拒绝；测试客户端不访问网络。
+
+- [x] **Step 8: 全量验证并提交**
+
+Run: `node tools/verify-portable.mjs`
+
+Run: `powershell -NoProfile -ExecutionPolicy Bypass -File tools/publish-windows.ps1 -SkipE2E`
+
+Run: `powershell -NoProfile -ExecutionPolicy Bypass -File tests/windows/windows_runtime_smoke.tests.ps1`
+
+Run: `git diff --check`
+
+只有上述命令全部通过后，更新 `docs/maple-runtime/VERIFICATION_2026-08-14.md` 并提交；不得把地图覆盖率、真实百炼响应或客户端扫描标记为 PASS。
+
 ### 后续独立阶段（不在本计划伪造完成）
 
 - WGC：已实现真实 `GraphicsCaptureItem + D3D11` readback，并用自建 640x360 窗口完成系统通路烟雾测试；冒险岛客户区、Direct2D/Direct3D 预览和 30-60 FPS/DPI/soak 矩阵仍待独立实测。

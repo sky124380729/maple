@@ -50,9 +50,9 @@ Maple 是一个独立的 Windows 桌面观察与自动化控制台。它绑定�
 | 预览与识别框契约 | `DONE (macOS) / WINDOWS_PENDING` | Capture 两槽 latest-frame、Self/其他玩家/怪物颜色语义、过期框隐藏、浏览器模拟画布、OpenCV/OCR/ONNX 后处理和原生 PreviewSurface 已完成；真实帧率/DPI/显卡路径待 Windows 验收 |
 | 可移植核心与反馈驱动动作策略 | `DONE (macOS) / WINDOWS_PENDING` | 安全门、状态机、时长估算、生产编排器、最新观察反馈、取消/异常 ReleaseAll 和 Replay L3 已通过 Runtime.Tests；真实输入仍待 Windows |
 | 地图拓扑与回放 | `DONE (macOS) / WINDOWS_PENDING` | candidate/validated/archived、拓扑、Replay JSONL 和闭环行为已通过可移植测试；真实地图扫描/校准动作待 Windows |
-| 视觉融合与百炼边界 | `DONE (macOS) / MODEL_PENDING` | 百炼固定 endpoint/白名单/凭据边界、真实地图标注 HTTP 客户端、上传同意、图片上限、来源帧校验，以及 OpenCvSharp/OCR/ONNX adapters、manifest SHA-256、TTL/冲突/超时融合均已离线验证；WGC 关键帧源和真实模型准确率待 Windows/模型资产验收 |
+| 视觉融合与百炼边界 | `DONE (macOS) / MODEL_PENDING` | 百炼固定 endpoint/白名单/凭据边界、真实地图标注 HTTP 客户端、上传同意、图片上限、来源帧校验，以及 OpenCvSharp/OCR/ONNX adapters、manifest SHA-256、TTL/冲突/超时融合均已离线验证；WGC 关键帧内存源与 PNG 编码已在 Windows 自建窗口通过，真实客户端扫描、百炼联网响应和模型准确率仍待验 |
 | Null/Replay 输入适配器 | `DONE (macOS) / WINDOWS_PENDING` | Null/Replay/活动键/ReleaseAll 行为已通过便携测试；真实 HID 保持禁用 |
-| WebView2 Host 与原生预览交接 | `SOURCE_READY / WINDOWS_PENDING` | `Maple.Host` 已迁移为 .NET 8 win-x64 可执行入口，WebView2 本地资源映射、严格 bridge、刷新/崩溃/关闭统一 ReleaseAll、WGC 生命周期边界和 BitBlt fallback 源码可交叉编译；WebView2 Runtime/WGC 运行证据待 Windows |
+| WebView2 Host 与原生预览交接 | `SOURCE_READY / WINDOWS_PENDING` | `Maple.Host` 已迁移为 .NET 8 win-x64 可执行入口；WebView2 Evergreen、本地资源映射、系统 WGC/D3D11 自检和 BitBlt fallback 已在 Windows 通过，刷新/崩溃故障注入及真实客户端客户区仍待验；严格 bridge 和关闭 ReleaseAll 保持启用 |
 | 30-60 FPS 实时预览 | `WINDOWS_PENDING` | 两槽位链路和性能验收指标已定义；必须在 Windows 实测 P50/P95/P99、1280×720 和 1440×900 后才能完成 |
 | 虚拟 HID 适配器 | `SOURCE_SCAFFOLD / WINDOWS_PENDING` | 传输/报告编码器边界、ReleaseAll、Heartbeat 和证据模板已建立；设备路径、VID/PID、报告描述符与三层 PASS 证据为空 |
 | 自动战斗闭环 | `DONE (macOS) / WINDOWS_PENDING` | 生产 C# 编排器已以 Replay/替身验证移动到攻击距离提前释放、profile、补给优先级、低置信度、过期帧和 ReleaseAll；真实 HID/客户端画面反馈待 Windows |
