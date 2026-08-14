@@ -1,5 +1,7 @@
 # Maple Visual Automation
 
+项目统一主规格请先阅读 [`docs/MAPLE_PROJECT_SPEC.md`](docs/MAPLE_PROJECT_SPEC.md)。其他规格、交接记录和设计草案仅用于历史追溯；当前 UI 方向是 React + WebView2 工作台，实时预览走 C# 原生高帧率渲染。
+
 当前仓库包含两个彼此独立的 Windows 程序：
 
 - `dist\MapleVisualPrototype.exe`：新的三栏视觉原型。它自动查找标题包含“冒险岛怀旧服”的窗口，只读捕获客户区，展示识别叠加、地图视觉标定、状态安全门和性能指标。原型明确禁用所有键盘/鼠标注入，不会发送 HID 报告。
