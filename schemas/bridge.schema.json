@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maple.local/schemas/bridge.schema.json",
+  "title": "Maple host/UI bridge envelopes v2",
+  "$defs": {
+    "schemaVersion": { "const": 2 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "emptyPayload": { "type": "object", "additionalProperties": false },
+    "emergencyStop": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "session.emergencyStop" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": { "type": "object", "additionalProperties": false, "required": ["message"], "properties": { "message": { "type": "string", "minLength": 1, "maxLength": 200 } } }
+      }
+    },
+    "safeCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "enum": ["snapshot.request", "session.arm", "session.pause", "session.resume", "map.scan.start", "map.calibration.start", "cloud.credential.clear", "cloud.connection.test"] },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": { "$ref": "#/$defs/emptyPayload" }
+      }
+    },
+    "configCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "config.update" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "attackMode": { "enum": ["single", "auto", "group"] },
+            "hpThresholdMode": { "enum": ["percent", "absolute"] },
+            "hpThreshold": { "type": "number", "minimum": 0 },
+            "mpThresholdMode": { "enum": ["percent", "absolute"] },
+            "mpThreshold": { "type": "number", "minimum": 0 },
+            "attackKey": { "type": "string", "minLength": 1, "maxLength": 32 },
+            "jumpKey": { "type": "string", "minLength": 1, "maxLength": 32 },
+            "pickupEnabled": { "type": "boolean" },
+            "pickupKey": { "type": "string", "minLength": 1, "maxLength": 32 }
+          },
+          "allOf": [
+            { "if": { "properties": { "hpThresholdMode": { "const": "percent" } }, "required": ["hpThresholdMode"] }, "then": { "properties": { "hpThreshold": { "maximum": 100 } } } },
+            { "if": { "properties": { "mpThresholdMode": { "const": "percent" } }, "required": ["mpThresholdMode"] }, "then": { "properties": { "mpThreshold": { "maximum": 100 } } } }
+          ]
+        }
+      }
+    },
+    "cloudCredentialSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "cloud.credential.set" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": { "type": "object", "additionalProperties": false, "required": ["apiKey"], "properties": { "apiKey": { "type": "string", "minLength": 16, "maxLength": 256, "pattern": "^\\S+$" } } }
+      }
+    },
+    "cloudConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "cloud.config.update" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled", "modelId", "uploadConsent"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "modelId": { "enum": ["qwen3-vl-plus", "qwen3-vl-flash", "qwen-vl-max"] },
+            "uploadConsent": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "cloudMapAnnotate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "cloud.map.annotate" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mapId", "sourceFrameIds"],
+          "properties": {
+            "mapId": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "sourceFrameIds": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "type": "integer", "minimum": 0 } }
+          }
+        }
+      }
+    },
+    "hostEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "enum": ["target.updated", "capture.frameMetadata", "overlay.updated", "observation.updated", "telemetry.updated", "session.stateChanged", "input.result", "log.appended", "preview.availabilityChanged"] },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": { "type": "object" }
+      }
+    },
+    "cloudStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "cloud.status.updated" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["provider", "enabled", "credentialConfigured", "modelId", "connectionStatus", "requestInFlight", "lastErrorCode"],
+          "properties": {
+            "provider": { "const": "bailian" },
+            "enabled": { "type": "boolean" },
+            "credentialConfigured": { "type": "boolean" },
+            "modelId": { "enum": ["qwen3-vl-plus", "qwen3-vl-flash", "qwen-vl-max"] },
+            "connectionStatus": { "enum": ["notConfigured", "checking", "ready", "unavailable"] },
+            "requestInFlight": { "type": "boolean" },
+            "lastErrorCode": { "type": ["string", "null"], "maxLength": 64 }
+          }
+        }
+      }
+    }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/emergencyStop" },
+    { "$ref": "#/$defs/safeCommand" },
+    { "$ref": "#/$defs/configCommand" },
+    { "$ref": "#/$defs/cloudCredentialSet" },
+    { "$ref": "#/$defs/cloudConfig" },
+    { "$ref": "#/$defs/cloudMapAnnotate" },
+    { "$ref": "#/$defs/hostEvent" },
+    { "$ref": "#/$defs/cloudStatus" }
+  ]
+}

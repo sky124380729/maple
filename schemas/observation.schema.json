@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maple.local/schemas/observation.schema.json",
+  "title": "Maple observation contracts",
+  "$defs": {
+    "schemaVersion": { "const": 2 },
+    "monoMs": { "type": "integer", "minimum": 0 },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "box": {
+      "type": "array",
+      "prefixItems": [
+        { "type": "number", "minimum": 0, "maximum": 1 },
+        { "type": "number", "minimum": 0, "maximum": 1 },
+        { "type": "number", "minimum": 0, "maximum": 1 },
+        { "type": "number", "minimum": 0, "maximum": 1 }
+      ],
+      "items": false,
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "hwnd", "pid", "clientWidth", "clientHeight", "dpi"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "hwnd": { "type": "string", "pattern": "^0x[0-9A-Fa-f]+$" },
+        "pid": { "type": "integer", "exclusiveMinimum": 0 },
+        "startedAtUtc": { "type": "string", "format": "date-time" },
+        "executablePath": { "type": "string", "minLength": 1 },
+        "clientWidth": { "type": "integer", "exclusiveMinimum": 0 },
+        "clientHeight": { "type": "integer", "exclusiveMinimum": 0 },
+        "dpi": { "type": "integer", "minimum": 48, "maximum": 768 }
+      }
+    },
+    "self": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["box", "confidence", "freshUntilMonoMs"],
+      "properties": {
+        "box": { "$ref": "#/$defs/box" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "freshUntilMonoMs": { "$ref": "#/$defs/monoMs" }
+      }
+    },
+    "player": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["box", "confidence", "freshUntilMonoMs", "trackId"],
+      "properties": {
+        "box": { "$ref": "#/$defs/box" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "freshUntilMonoMs": { "$ref": "#/$defs/monoMs" },
+        "trackId": { "type": "string", "minLength": 1, "maxLength": 128 }
+      }
+    },
+    "monster": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "box", "confidence", "freshUntilMonoMs", "targetId"],
+      "properties": {
+        "class": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "box": { "$ref": "#/$defs/box" },
+        "confidence": { "$ref": "#/$defs/confidence" },
+        "freshUntilMonoMs": { "$ref": "#/$defs/monoMs" },
+        "targetId": { "type": "string", "minLength": 1, "maxLength": 128 }
+      }
+    },
+    "resource": {
+      "oneOf": [
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["mode", "value", "confidence", "freshUntilMonoMs"],
+          "properties": { "mode": { "const": "percent" }, "value": { "type": "number", "minimum": 0, "maximum": 1 }, "confidence": { "$ref": "#/$defs/confidence" }, "freshUntilMonoMs": { "$ref": "#/$defs/monoMs" } }
+        },
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["mode", "value", "confidence", "freshUntilMonoMs"],
+          "properties": { "mode": { "const": "absolute" }, "value": { "type": "number", "minimum": 0 }, "confidence": { "$ref": "#/$defs/confidence" }, "freshUntilMonoMs": { "$ref": "#/$defs/monoMs" } }
+        }
+      ]
+    },
+    "loot": {
+      "type": "object", "additionalProperties": false,
+      "required": ["visible", "confidence", "freshUntilMonoMs"],
+      "properties": { "visible": { "type": "boolean" }, "confidence": { "$ref": "#/$defs/confidence" }, "freshUntilMonoMs": { "$ref": "#/$defs/monoMs" } }
+    },
+    "map": {
+      "type": "object", "additionalProperties": false,
+      "required": ["mapId", "state", "confidence", "freshUntilMonoMs"],
+      "properties": { "mapId": { "type": "string", "minLength": 1, "maxLength": 256 }, "state": { "enum": ["candidate", "validated", "archived"] }, "confidence": { "$ref": "#/$defs/confidence" }, "freshUntilMonoMs": { "$ref": "#/$defs/monoMs" } }
+    },
+    "sessionState": { "enum": ["Stopped", "Arming", "Observing", "MapScanning", "MapCalibrating", "Navigating", "Attacking", "Looting", "UsingPotion", "Paused", "ManualIntervention", "EmergencyStop"] }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "frameId", "capturedAtMonoMs", "target", "self", "players", "monsters", "loot", "hp", "mp", "map", "state"],
+  "properties": {
+    "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+    "frameId": { "$ref": "#/$defs/monoMs" },
+    "capturedAtMonoMs": { "$ref": "#/$defs/monoMs" },
+    "target": { "$ref": "#/$defs/target" },
+    "self": { "$ref": "#/$defs/self" },
+    "players": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/player" } },
+    "monsters": { "type": "array", "maxItems": 128, "items": { "$ref": "#/$defs/monster" } },
+    "loot": { "$ref": "#/$defs/loot" },
+    "hp": { "$ref": "#/$defs/resource" },
+    "mp": { "$ref": "#/$defs/resource" },
+    "map": { "$ref": "#/$defs/map" },
+    "state": { "$ref": "#/$defs/sessionState" }
+  }
+}

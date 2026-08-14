@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 2,
+  "planId": "plan-1",
+  "createdAtMonoMs": 100,
+  "actions": [{ "actionId": "action-1", "type": "MoveLeft", "issuedAtMonoMs": 100, "holdMs": 5001, "maxDurationMs": 5000 }]
+}

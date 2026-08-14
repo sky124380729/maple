@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>Maple.Host</RootNamespace>
+    <AssemblyName>Maple</AssemblyName>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PlatformTarget>x64</PlatformTarget>
+    <PublishTrimmed>false</PublishTrimmed>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Nullable>enable</Nullable>
+    <NoWarn>$(NoWarn);MSB3277</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Maple.Contracts/Maple.Contracts.csproj" />
+    <ProjectReference Include="../Maple.Core/Maple.Core.csproj" />
+    <ProjectReference Include="../Maple.Runtime/Maple.Runtime.csproj" />
+    <ProjectReference Include="../Maple.Input/Maple.Input.csproj" />
+    <ProjectReference Include="../Maple.Map/Maple.Map.csproj" />
+    <ProjectReference Include="../Maple.Capture/Maple.Capture.csproj" />
+    <ProjectReference Include="../Maple.Preview/Maple.Preview.csproj" />
+    <ProjectReference Include="../Maple.Cloud/Maple.Cloud.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4129.50" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,5 @@
+[
+  { "schemaVersion": 2, "timestampMonoMs": 1000, "type": "observation.updated", "payloadJson": "{}" },
+  { "schemaVersion": 2, "timestampMonoMs": 1040, "type": "session.stateChanged", "payloadJson": "{}" },
+  { "schemaVersion": 2, "timestampMonoMs": 1080, "type": "action.decided", "payloadJson": "{}" }
+]

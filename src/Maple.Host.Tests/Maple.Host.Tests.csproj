@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Maple.Contracts/Maple.Contracts.csproj" />
+    <ProjectReference Include="../Maple.Cloud/Maple.Cloud.csproj" />
+    <ProjectReference Include="../Maple.Core/Maple.Core.csproj" />
+    <ProjectReference Include="../Maple.Input/Maple.Input.csproj" />
+    <Compile Include="../Maple.Host/BridgeMessageRouter.cs" Link="BridgeMessageRouter.cs" />
+    <Compile Include="../Maple.Host/HostCommandDispatcher.cs" Link="HostCommandDispatcher.cs" />
+    <Compile Include="../Maple.Host/HostSafetyCoordinator.cs" Link="HostSafetyCoordinator.cs" />
+    <Compile Include="../Maple.Host/LocalNavigationPolicy.cs" Link="LocalNavigationPolicy.cs" />
+  </ItemGroup>
+</Project>

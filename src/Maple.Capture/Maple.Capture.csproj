@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Maple.Capture</RootNamespace>
+    <AssemblyName>Maple.Capture</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Maple.Contracts/Maple.Contracts.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="BitBltCaptureBackend.cs" />
+    <Compile Remove="WindowsGraphicsCaptureBackend.cs" />
+  </ItemGroup>
+</Project>

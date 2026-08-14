@@ -1,46 +1,61 @@
-# Maple Visual Automation
+# Maple 自动化工作台
 
-项目统一主规格请先阅读 [`docs/MAPLE_PROJECT_SPEC.md`](docs/MAPLE_PROJECT_SPEC.md)。其他规格、交接记录和设计草案仅用于历史追溯；当前 UI 方向是 React + WebView2 工作台，实时预览走 C# 原生高帧率渲染。
+Maple 是面向授权测试客户端的 Windows 桌面观察与自动化架构。唯一产品规格入口是 [`docs/MAPLE_PROJECT_SPEC.md`](docs/MAPLE_PROJECT_SPEC.md)，Windows 接手摘要是 [`docs/WINDOWS_IMPLEMENTATION_HANDOFF_2026-08-14.md`](docs/WINDOWS_IMPLEMENTATION_HANDOFF_2026-08-14.md)。旧 WinForms、SendInput 探针、net48 静态测试和历史设计文档已经从工作树清除，需要追溯时使用 Git 历史。
 
-当前仓库包含两个彼此独立的 Windows 程序：
+## 架构
 
-- `dist\MapleVisualPrototype.exe`：新的三栏视觉原型。它自动查找标题包含“冒险岛怀旧服”的窗口，只读捕获客户区，展示识别叠加、地图视觉标定、状态安全门和性能指标。原型明确禁用所有键盘/鼠标注入，不会发送 HID 报告。
-- `dist\MapleInputProbe.exe`：早期的前台 `SendInput` 单键诊断工具，仅用于授权测试环境的兼容性排查，不属于新的视觉原型。
-
-## 运行视觉原型
-
-直接双击 `dist\MapleVisualPrototype.exe`。程序会自动发现目标窗口，不要求手动选择；目标窗口最小化、失焦或被遮挡时，预览进入暂停状态。点击“地图标定”可查看多帧视觉录制后的 MapWorld 结构标注演示。
-
-当前版本是 UI 与采集验证原型：OpenCV/YOLO、虚拟 HID 协议和自动战斗闭环尚未接入，所有动作按钮只更新状态日志。
-
-## 运行输入测试器
-
-在 PowerShell 中执行：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\input-probe-ui.ps1
+```text
+Maple.exe（.NET 8 Windows Desktop x64）
+├── WebView2 / React + Ant Design 工作台
+├── WGC + Direct2D/Direct3D 原生 PreviewSurface
+├── Capture / Vision / Map / Core / Replay
+└── 已验证虚拟 HID（唯一生产输入边界）
 ```
 
-使用前：
+- React 只负责界面、配置和用户命令，不接收逐帧 base64 画面，也不能发送原始按键。
+- 原生预览使用固定两槽位 latest-frame-wins 策略，目标为稳定 30 FPS、争取 60 FPS。
+- Self、其他玩家、怪物分别使用绿色、青色、红色识别框；Self 不显示跟踪编号。
+- 低置信度由程序自动校准并暂停动作，不要求用户点击角色或确认错误识别。
+- 动作保持时长由距离、观测位移速度、攻击范围、地图拓扑、平台边界和反馈自动计算。
+- Windows HID 合同不完整、窗口失焦、帧过期、地图未验证或 EmergencyStop 时必须阻止输入并执行 `ReleaseAll`。
 
-1. 先打开并进入授权测试客户端，窗口标题需为 `冒险岛怀旧服`。
-2. 启动测试器，程序会自动捕获这个窗口，不需要手动选择。
-3. 勾选授权确认。
-4. 点击“开始监听全局测试热键”。
-5. 最小化测试器，让游戏窗口保持前台，再按一次对应热键。
+## 当前状态
 
-热键如下：
+| 模块 | 状态 |
+| --- | --- |
+| React 工作台、模拟宿主、浏览器预览与页面测试 | `DONE (macOS)` |
+| TypeScript/JSON 契约和 L2 规格级离线闭环 | `DONE (macOS)` |
+| C# Core、Map、Replay、Vision、Cloud、Input | `DONE (macOS) / WINDOWS_PENDING` |
+| .NET 8 Windows Host 源码与 Host 单测 | `SOURCE_READY / WINDOWS_PENDING` |
+| WebView2 实际运行时、WGC、原生预览性能 | `WINDOWS_PENDING` |
+| 虚拟 HID 设备/OS/客户端三层验收 | `WINDOWS_PENDING` |
+| 真实 OpenCV/OCR/YOLO 模型准确率 | `WINDOWS_PENDING` |
 
-- `Ctrl+Shift+Left`：发送一次左方向键；
-- `Ctrl+Shift+Right`：发送一次右方向键；
-- `Ctrl+Shift+J/A/D/Space`：发送一次对应按键。
+macOS 已完成 React、共享契约、生产编排器、Replay、视觉适配器、百炼客户端和 Host 平台无关逻辑测试，并可交叉编译 win-x64 Host。它仍不能替代真实 Windows 上的 WGC/WebView2、30-60 FPS、虚拟 HID、DPAPI 和授权客户端验收。
 
-每次热键只发送一次按下和释放事件，按键持续时间默认为 80ms。窗口失去前台、标题不匹配或窗口不存在时不会发送。`Alt` 没有用于测试热键，因为它在你的客户端中是跳跃键。
+## macOS 验证
 
-这个工具不读取或修改游戏内存，不发送后台窗口消息，也不执行连续自动化动作。
+```bash
+DOTNET_ROOT=/tmp/maple-dotnet node tools/verify-portable.mjs
+```
 
-## 运行逻辑测试
+该命令执行 npm audit、ESLint、TypeScript、33 个 Vitest、2 个 Playwright、便携契约/闭环、全部 .NET 测试、Host Rebuild、XML 检查、密钥扫描和 `git diff --check`。
+
+## Windows 交接验证
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\input_probe_logic.tests.ps1
+node .\tools\verify-portable.mjs
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build-react-ui.ps1
+dotnet publish .\src\Maple.Host\Maple.Host.csproj -c Release -r win-x64 --self-contained true
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\windows\hid_contract.tests.ps1 -RequireEvidence
 ```
+
+只有完成以下实机证据后，Windows 模块才能从 `WINDOWS_PENDING` 改为 `DONE`：
+
+- WebView2 本地资源加载、页面刷新/崩溃恢复和命令白名单；
+- WGC 优先、BitBlt 回退，以及 1280×720、1440×900 下的 P50/P95/P99 延迟和 30–60 FPS；
+- HID 精确设备路径、VID/PID、报告描述符、签名安装和 neutral report；
+- 设备层、Windows Raw Input 层、授权客户端视觉响应层全部通过；
+- 失焦、进程退出、设备断连、心跳超时和 EmergencyStop 后零卡键、零自动恢复。
+
+HID 证据模板位于 `tests/fixtures/windows-hid/`。模板状态固定为 `PENDING`，不得复制为伪造的通过报告。

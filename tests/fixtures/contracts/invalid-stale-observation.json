@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 2,
+  "frameId": 1842,
+  "capturedAtMonoMs": 441238,
+  "target": { "schemaVersion": 2, "hwnd": "0x1234", "pid": 1008, "clientWidth": 1280, "clientHeight": 720, "dpi": 96 },
+  "self": { "box": [0.42, 0.51, 0.08, 0.18], "confidence": 0.94, "freshUntilMonoMs": 446239 },
+  "players": [], "monsters": [],
+  "loot": { "visible": false, "confidence": 0, "freshUntilMonoMs": 441338 },
+  "hp": { "mode": "percent", "value": 0.99, "confidence": 0.98, "freshUntilMonoMs": 441338 },
+  "mp": { "mode": "percent", "value": 0.35, "confidence": 0.96, "freshUntilMonoMs": 441338 },
+  "map": { "mapId": "forest-east", "state": "validated", "confidence": 0.91, "freshUntilMonoMs": 441338 },
+  "state": "Observing"
+}

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Maple.Replay</RootNamespace>
+    <AssemblyName>Maple.Replay</AssemblyName>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Maple.Contracts/Maple.Contracts.csproj" />
+    <ProjectReference Include="../Maple.Core/Maple.Core.csproj" />
+    <ProjectReference Include="../Maple.Runtime/Maple.Runtime.csproj" />
+  </ItemGroup>
+</Project>

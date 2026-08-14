@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <NoWarn>$(NoWarn);CS9057</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.13.0" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.0.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Maple.Contracts/Maple.Contracts.csproj" />
+    <ProjectReference Include="../Maple.Core/Maple.Core.csproj" />
+    <ProjectReference Include="../Maple.Runtime/Maple.Runtime.csproj" />
+    <ProjectReference Include="../Maple.Replay/Maple.Replay.csproj" />
+    <ProjectReference Include="../Maple.Cloud/Maple.Cloud.csproj" />
+    <ProjectReference Include="../Maple.Capture/Maple.Capture.csproj" />
+    <ProjectReference Include="../Maple.Vision/Maple.Vision.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="../../tests/fixtures/forest-east/runtime-closed-loop.jsonl" Link="Fixtures/runtime-closed-loop.jsonl" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

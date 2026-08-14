@@ -2,4 +2,11 @@
 .vs/
 **/bin/
 **/obj/
-dist/prototype-self-test.txt
+**/node_modules/
+ui/dist/
+ui/playwright-report/
+ui/test-results/
+dist/
+.env
+.env.*
+!.env.example

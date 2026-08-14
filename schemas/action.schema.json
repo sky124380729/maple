@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maple.local/schemas/action.schema.json",
+  "$defs": {
+    "schemaVersion": { "const": 2 },
+    "monoMs": { "type": "integer", "minimum": 0 },
+    "plainActionType": { "enum": ["MoveLeft", "MoveRight", "Jump", "ClimbUp", "ClimbDown", "Pickup", "Pause", "Replan"] },
+    "plainAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actionId", "type", "issuedAtMonoMs", "holdMs", "maxDurationMs"],
+      "properties": {
+        "actionId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "type": { "$ref": "#/$defs/plainActionType" },
+        "issuedAtMonoMs": { "$ref": "#/$defs/monoMs" },
+        "holdMs": { "type": "integer", "minimum": 0, "maximum": 5000 },
+        "maxDurationMs": { "type": "integer", "exclusiveMinimum": 0, "maximum": 5000 }
+      }
+    },
+    "attackAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actionId", "type", "profileId", "issuedAtMonoMs", "holdMs", "maxDurationMs"],
+      "properties": {
+        "actionId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "type": { "const": "Attack" },
+        "profileId": { "enum": ["singleAttack", "areaAttack"] },
+        "issuedAtMonoMs": { "$ref": "#/$defs/monoMs" },
+        "holdMs": { "type": "integer", "minimum": 10, "maximum": 5000 },
+        "maxDurationMs": { "type": "integer", "exclusiveMinimum": 0, "maximum": 5000 }
+      }
+    },
+    "potionAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actionId", "type", "profileId", "issuedAtMonoMs", "holdMs", "maxDurationMs"],
+      "properties": {
+        "actionId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "type": { "const": "UsePotion" },
+        "profileId": { "enum": ["hpPotion", "mpPotion"] },
+        "issuedAtMonoMs": { "$ref": "#/$defs/monoMs" },
+        "holdMs": { "type": "integer", "minimum": 10, "maximum": 5000 },
+        "maxDurationMs": { "type": "integer", "exclusiveMinimum": 0, "maximum": 5000 }
+      }
+    },
+    "abstractAction": {
+      "oneOf": [
+        { "$ref": "#/$defs/plainAction" },
+        { "$ref": "#/$defs/attackAction" },
+        { "$ref": "#/$defs/potionAction" }
+      ]
+    },
+    "inputStatus": { "enum": ["accepted", "rejected", "completed", "cancelled", "failed"] }
+  },
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "planId", "createdAtMonoMs", "actions"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "planId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "createdAtMonoMs": { "$ref": "#/$defs/monoMs" },
+        "actions": { "type": "array", "maxItems": 16, "items": { "$ref": "#/$defs/abstractAction" } }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "actionId", "status", "releasedKeys"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "actionId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "status": { "$ref": "#/$defs/inputStatus" },
+        "startedAtMonoMs": { "$ref": "#/$defs/monoMs" },
+        "endedAtMonoMs": { "$ref": "#/$defs/monoMs" },
+        "releasedKeys": { "type": "array", "maxItems": 16, "items": { "type": "string", "minLength": 1, "maxLength": 32 } },
+        "message": { "type": "string", "maxLength": 200 }
+      }
+    }
+  ]
+}

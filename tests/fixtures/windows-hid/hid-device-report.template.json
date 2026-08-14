@@ -1,0 +1,12 @@
+{
+  "status": "PENDING",
+  "deviceInterfacePath": null,
+  "vid": null,
+  "pid": null,
+  "reportDescriptorSha256": null,
+  "transport": null,
+  "inputReportLength": null,
+  "outputReportLength": null,
+  "signedInstallation": false,
+  "neutralReportVerified": false
+}

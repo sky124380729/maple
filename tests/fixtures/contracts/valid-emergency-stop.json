@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 2,
+  "type": "session.emergencyStop",
+  "timestamp": "2026-08-14T12:00:00Z",
+  "payload": { "message": "Operator requested stop" }
+}

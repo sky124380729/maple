@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 2,
+  "mapId": "forest-east",
+  "state": "candidate",
+  "coverage": 0.92,
+  "calibrationErrorPx": 2.4,
+  "sourceFrames": [
+    { "frameId": 1, "capturedAtMonoMs": 1000, "imageReference": "forest-east/frame-001.png" }
+  ],
+  "cameraTransforms": [
+    { "frameId": 1, "offsetX": 0, "offsetY": 0, "confidence": 0.97 }
+  ],
+  "platforms": [
+    { "platformId": "p-1", "x1": 0, "x2": 300, "y": 0, "safeMarginPx": 24 },
+    { "platformId": "p-2", "x1": 180, "x2": 420, "y": -120, "safeMarginPx": 24 }
+  ],
+  "ladders": [
+    { "ladderId": "l-1", "fromPlatformId": "p-1", "toPlatformId": "p-2", "x": 210 }
+  ],
+  "edges": [
+    { "edgeId": "e-1", "fromPlatformId": "p-1", "toPlatformId": "p-2", "type": "climb", "maximumDistancePx": 150 }
+  ],
+  "unresolvedStructures": []
+}

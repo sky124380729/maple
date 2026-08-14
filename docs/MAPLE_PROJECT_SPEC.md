@@ -2,8 +2,9 @@
 
 > 本文是当前项目唯一的实施入口。后续实现、测试和交接先读本文；其他规格、交接记录和设计草案仅用于历史追溯，不能覆盖本文中的最新决策。
 
+规格版本：1.2
 日期：2026-08-14  
-状态：React UI 与高帧率预览设计已确认方向，等待实现计划  
+状态：Mac 可开发模块已实现并完成离线回归；Windows 原生运行、真实模型准确率、30-60 FPS 和虚拟 HID 保持实机待验
 目标平台：Windows 10/11 x64  
 适用范围：获得授权的测试客户端
 
@@ -11,7 +12,9 @@
 
 Maple 是一个独立的 Windows 桌面观察与自动化控制台。它绑定一个指定的“冒险岛怀旧服”窗口，采集客户区画面，展示实时预览、视觉识别结果、地图标定、运行状态和诊断信息。生产自动化必须以视觉反馈和安全状态为依据，未通过门禁的能力不得进入真实动作闭环。
 
-当前交付物是输入禁用的观察型原型，不是完整自动打怪程序。现有 `dist/MapleVisualPrototype.exe` 只用于窗口发现、客户区捕获、UI 演示和状态安全门；所有动作按钮不会发送键盘、鼠标或 HID。
+产品闭环的唯一正确理解是：`窗口绑定 -> 原生采集 -> 本地视觉 -> ObservationSnapshot -> 安全门 -> 短动作决策 -> 虚拟 HID -> 新画面反馈 -> 提前释放/继续/暂停`。React 只展示状态并提交用户意图，不能生成动作、发送原始按键或承担逐帧画面链路。低频云端模型只能辅助未知地图结构，不进入实时控制闭环。
+
+旧 WinForms 原型、SendInput 探针、net48 静态测试、历史设计文档和 `dist/` 实验输出已从当前工作树清除，只能通过 Git 历史追溯。新实现以模块化 React/.NET 8 架构为唯一基线，不能把旧程序的行为、性能或输入结论当作验收证据。完整自动打怪程序仍未通过 Windows 实机闭环，任何动作能力都必须重新经过本规格定义的安全和设备验收。
 
 ## 2. 已确认边界
 
@@ -39,42 +42,49 @@ Maple 是一个独立的 Windows 桌面观察与自动化控制台。它绑定�
 | 阶段 | 状态 | 说明 |
 | --- | --- | --- |
 | 产品规格和安全边界 | 已完成 | 统一到本文，旧文档仅作历史记录 |
-| WinForms 观察原型 | 已完成 | 可发现窗口、捕获客户区、显示模拟叠加和遥测 |
-| 标准输入探针 | 已完成诊断 | `SendInput` 入队成功，但客户端响应未确认；不进入生产路径 |
-| React 工作台 | 待实现 | 采用 WebView2 承载 React |
-| 30-60 FPS 实时预览 | 待实现 | 当前原型 `300ms` 定时器只有约 3.3 FPS |
-| 真实 OpenCV/YOLO/OCR | 未开始 | 需要先建立离线评测集；低置信度由程序修复，不转嫁给用户 |
-| 地图拓扑运行时 | 未开始 | 先做候选、校验、用户确认 |
-| 虚拟 HID 适配器 | 未开始 | 等待明确设备合同和报告协议 |
-| 自动战斗闭环 | 未开始 | 真实输入必须最后分阶段开启 |
+| 旧 WinForms/输入探针材料 | 未验证、可舍弃 | 仅作历史参考；不作为新实现基线，不承诺兼容 |
+| 模块化共享契约 | `DONE (macOS)` | schema v2、JSON Schema、TypeScript 校验、共享夹具和 C# Contracts/Runtime.Tests 已执行；Self 无跟踪编号，Attack/UsePotion profile 已统一 |
+| React 工作台骨架 | `DONE (macOS) / WINDOWS_PENDING` | Vite + React + Ant Design 壳层、Maple 视觉令牌和响应式工作区已完成；WebView2 宿主绑定待 Windows 验收 |
+| 类型化桥接与模拟宿主 | `DONE (macOS)` | 白名单命令、逐命令 payload 校验、禁止字段递归拦截、宿主事件校验、确定性模拟会话和释放测试已完成；真实 WebView2 事件接线归入 Windows Host 阶段 |
+| 实时工作台 UI | `DONE (macOS) / WINDOWS_PENDING` | 三栏实时工作台、中文优先交互、默认配置、诊断/日志/遥测、响应式布局和紧急停止状态已完成；已在 1440×900、1280×720、390×844 浏览器回归，原生画面承载与 Windows Host 接线待验收 |
+| 预览与识别框契约 | `DONE (macOS) / WINDOWS_PENDING` | Capture 两槽 latest-frame、Self/其他玩家/怪物颜色语义、过期框隐藏、浏览器模拟画布、OpenCV/OCR/ONNX 后处理和原生 PreviewSurface 已完成；真实帧率/DPI/显卡路径待 Windows 验收 |
+| 可移植核心与反馈驱动动作策略 | `DONE (macOS) / WINDOWS_PENDING` | 安全门、状态机、时长估算、生产编排器、最新观察反馈、取消/异常 ReleaseAll 和 Replay L3 已通过 Runtime.Tests；真实输入仍待 Windows |
+| 地图拓扑与回放 | `DONE (macOS) / WINDOWS_PENDING` | candidate/validated/archived、拓扑、Replay JSONL 和闭环行为已通过可移植测试；真实地图扫描/校准动作待 Windows |
+| 视觉融合与百炼边界 | `DONE (macOS) / MODEL_PENDING` | 百炼固定 endpoint/白名单/凭据边界、真实地图标注 HTTP 客户端、上传同意、图片上限、来源帧校验，以及 OpenCvSharp/OCR/ONNX adapters、manifest SHA-256、TTL/冲突/超时融合均已离线验证；WGC 关键帧源和真实模型准确率待 Windows/模型资产验收 |
+| Null/Replay 输入适配器 | `DONE (macOS) / WINDOWS_PENDING` | Null/Replay/活动键/ReleaseAll 行为已通过便携测试；真实 HID 保持禁用 |
+| WebView2 Host 与原生预览交接 | `SOURCE_READY / WINDOWS_PENDING` | `Maple.Host` 已迁移为 .NET 8 win-x64 可执行入口，WebView2 本地资源映射、严格 bridge、刷新/崩溃/关闭统一 ReleaseAll、WGC 生命周期边界和 BitBlt fallback 源码可交叉编译；WebView2 Runtime/WGC 运行证据待 Windows |
+| 30-60 FPS 实时预览 | `WINDOWS_PENDING` | 两槽位链路和性能验收指标已定义；必须在 Windows 实测 P50/P95/P99、1280×720 和 1440×900 后才能完成 |
+| 虚拟 HID 适配器 | `SOURCE_SCAFFOLD / WINDOWS_PENDING` | 传输/报告编码器边界、ReleaseAll、Heartbeat 和证据模板已建立；设备路径、VID/PID、报告描述符与三层 PASS 证据为空 |
+| 自动战斗闭环 | `DONE (macOS) / WINDOWS_PENDING` | 生产 C# 编排器已以 Replay/替身验证移动到攻击距离提前释放、profile、补给优先级、低置信度、过期帧和 ReleaseAll；真实 HID/客户端画面反馈待 Windows |
+| macOS 页面与可移植回归 | `DONE (macOS)` | `verify-portable` 已通过：npm audit 0 漏洞、ESLint、TypeScript、33 个 Vitest、Vite 构建、桌面/移动 Playwright、37 个 Runtime.Tests、30 个 Host.Tests、3 个 Input.Tests、2 个 Map.Tests、portable contracts/closed-loop，以及 Host Rebuild 0 warning |
+
+状态词只有以下含义：`DONE (macOS)` 表示 Mac 可执行测试和构建证据通过；`SOURCE_READY` 表示源码已可交叉编译但运行依赖真实 Windows；`WINDOWS_PENDING`、`MODEL_PENDING` 均属于目标环境未完成。后续 AI 不得把源码存在、交叉编译、XML 可解析或静态 token 检查改写成 Windows 功能完成。
 
 ## 4. 目标技术架构
 
 ```text
-React + TypeScript + Mantine + lucide-react
-                    |
-              WebView2 工作台
-                    |
-       C# Windows Host / Native Runtime
-                    |
-     捕获、视觉、状态机、安全门、输入适配器
-                    |
-          原生高帧率 PreviewSurface
+Maple.exe（.NET 8 Windows Desktop x64 原生宿主）
+├── WebView2：React + TypeScript + Ant Design 工作台
+├── PreviewSurface：WGC / Direct3D / Direct2D 原生高帧率预览
+├── Capture / Vision / Map / Core / Replay：后台工作线程
+└── Input：唯一虚拟 HID 边界、ReleaseAll 和独立 watchdog
 ```
 
 ### 4.1 React 工作台
 
-React 只负责界面和用户意图：运行控制、参数配置、地图档案、模型状态、日志、诊断和遥测。组件采用 Mantine，图标采用 `lucide-react`。界面使用深色、高对比度、紧凑的工作台布局，不使用营销式大卡片或装饰性动画。
+React 只负责界面和用户意图：运行控制、参数配置、地图档案、模型状态、日志、诊断和遥测。组件采用 Ant Design，图标采用 `@ant-design/icons`，再叠加 Maple 自定义视觉令牌。界面使用深色、高对比度、稳定三栏的工作台布局，中文优先，不使用营销式大卡片或无意义装饰动画。
 
 ### 4.2 C# 原生运行核心
 
-C# 保留并逐步拆分现有 `WindowCapture`、`PrototypeState` 和安全逻辑，负责：
+C# 原生运行核心按全新模块边界实现。旧 `WindowCapture`、`PrototypeState`、输入探针和 WinForms 界面只保留为历史参考，不直接迁移，负责：
 
 - 目标窗口身份绑定：HWND、PID、启动时间、路径/版本、客户区尺寸和 DPI；
 - 采集、帧时间戳、帧 TTL、失焦/最小化/黑帧检测；
 - OpenCV/ONNX/OCR、地图拓扑、状态机和动作安全门；
 - 输入设备状态、全键释放、心跳 watchdog 和 EmergencyStop；
 - 将状态和诊断事件以结构化消息发布给 React。
+
+Windows 正式实现统一使用 SDK-style `net8.0-windows10.0.19041.0`、`win-x64`、`SelfContained=true`。发布不是强制单文件；WebView2、ONNX 和原生依赖允许随安装目录部署，以稳定、可诊断和可回滚为先。安装器必须携带或修复已验收版本的 WebView2 Evergreen Runtime，应用启动时检查最低版本。当前工作树只保留 SDK-style .NET 8 工程。
 
 ### 4.3 原生预览
 
@@ -83,6 +93,8 @@ C# 保留并逐步拆分现有 `WindowCapture`、`PrototypeState` 和安全逻�
 ### 4.4 开箱即用原则
 
 默认安装包必须自带默认键位、阈值、模型 manifest、采集后端选择和安全策略。首次启动自动发现目标窗口、校准客户区/DPI/HUD ROI、建立唯一 Self 观察并加载默认配置；用户不需要选择 PID、框选 ROI、点击 Self、填写跟踪编号或逐个标注人物/怪物。任何低置信度都由程序自动重试、重标定、切换兼容后端或修复模型/跟踪链路；在达到高置信度前保持暂停并给出可诊断的原因，不把内部缺陷转成用户操作步骤。已验证地图可以直接运行；未知地图仍必须完成一次自动扫描和地图结构验证门禁。
+
+窗口发现规则必须确定：只有一个合格窗口时在 3 秒内自动绑定；没有窗口时保持 `Stopped` 并等待；存在多个合格窗口时只显示窗口缩略图/标题供用户选择，不要求输入 PID/HWND。绑定后 PID、进程启动时间、路径哈希、客户区和客户端版本任一变化都使旧绑定及地图一致性失效。Self 自动修复按 1/2/5 秒退避持续重试，60 秒仍未达到门槛时自动生成诊断包并继续安全暂停，不能让用户点击确认 Self。仅 `CalibrationRequired` 和短暂 `StaleFrame` 可在已 arm 会话中通过连续稳定帧自动恢复；失焦、未知弹窗、设备断连、手动暂停和 EmergencyStop 必须由用户重新恢复或创建会话。
 
 ## 5. 30-60 FPS 预览方案
 
@@ -143,7 +155,7 @@ C# 与 React 通过版本化 JSON 消息通信。消息只传控制和状态，�
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "type": "telemetry.updated",
   "timestamp": "2026-08-14T12:00:00Z",
   "payload": {
@@ -153,12 +165,13 @@ C# 与 React 通过版本化 JSON 消息通信。消息只传控制和状态，�
     "frameLatencyMs": 42,
     "droppedFrames": 3,
     "state": "Observing",
-    "pauseReason": "无"
+    "queueAgeMs": 12,
+    "pauseReason": "None"
   }
 }
 ```
 
-React 发出的命令只允许抽象动作和配置更新，例如 `session.arm`、`session.pause`、`session.emergencyStop`、`config.update`。后端必须重新检查窗口身份、前台状态、帧新鲜度和设备健康度，不能信任前端状态。
+React 只允许发送会话意图和配置更新，例如 `session.arm`、`session.pause`、`session.emergencyStop`、`config.update`。React 不允许提交 `AbstractAction`、原始按键、HID 报告、HWND 消息或任意 URL。后端必须重新检查窗口身份、前台状态、帧新鲜度和设备健康度，不能信任前端状态。
 
 ### 6.1 观察快照
 
@@ -166,16 +179,17 @@ React 发出的命令只允许抽象动作和配置更新，例如 `session.arm`
 
 ```json
 {
+  "schemaVersion": 2,
   "frameId": 1842,
   "capturedAtMonoMs": 441238,
   "target": { "hwnd": "0x1234", "pid": 1008, "clientWidth": 1280, "clientHeight": 720, "dpi": 96 },
   "self": { "box": [0.42, 0.51, 0.08, 0.18], "confidence": 0.94, "freshUntilMonoMs": 441338 },
   "players": [],
-  "monsters": [{ "class": "snail", "box": [0.66, 0.54, 0.07, 0.13], "confidence": 0.88, "trackId": "monster-12" }],
-  "loot": { "visible": false, "confidence": 0.0 },
-  "hp": { "mode": "percent", "value": 0.99, "confidence": 0.98 },
-  "mp": { "mode": "percent", "value": 0.35, "confidence": 0.96 },
-  "map": { "mapId": "forest-east", "state": "validated", "confidence": 0.91 },
+  "monsters": [{ "class": "snail", "box": [0.66, 0.54, 0.07, 0.13], "confidence": 0.88, "freshUntilMonoMs": 441338, "targetId": "monster-12" }],
+  "loot": { "visible": false, "confidence": 0.0, "freshUntilMonoMs": 441338 },
+  "hp": { "mode": "percent", "value": 0.99, "confidence": 0.98, "freshUntilMonoMs": 441338 },
+  "mp": { "mode": "percent", "value": 0.35, "confidence": 0.96, "freshUntilMonoMs": 441338 },
+  "map": { "mapId": "forest-east", "state": "validated", "confidence": 0.91, "freshUntilMonoMs": 441338 },
   "state": "Observing"
 }
 ```
@@ -195,15 +209,14 @@ React 发出的命令只允许抽象动作和配置更新，例如 `session.arm`
 ## 8. 运行状态机
 
 ```text
-Stopped -> Arming -> Observing -> MapScanning -> MapCalibrating
-                                      |
-                                      v
-                 Navigating -> Attacking -> Looting -> UsingPotion
-                                      |
-                         Paused / ManualIntervention / EmergencyStop
+Stopped -> Arming -> Observing
+                      ├── validated map -> Navigating <-> Attacking / Looting / UsingPotion
+                      └── unknown map -> MapScanning -> MapCalibrating -> Observing
+任意活动态 -> Paused / ManualIntervention / EmergencyStop
+Paused -> Arming（重新执行全部门禁）；EmergencyStop -> 新会话
 ```
 
-失焦、窗口身份变化、黑帧、角色丢失、地图未验证、输入设备断连、心跳超时、系统锁屏/睡眠和未知弹窗必须清空动作队列并进入 `Paused` 或 `EmergencyStop`。恢复必须重新采集稳定帧并由用户确认。
+失焦、窗口身份变化、黑帧、角色丢失、地图未验证、输入设备断连、心跳超时、系统锁屏/睡眠和未知弹窗必须清空动作队列并进入 `Paused` 或 `EmergencyStop`。低置信度自动修复成功后可按 4.4 节自动重新 arm；其他安全中断由用户恢复，且恢复必须重新采集稳定帧、重新执行全部门禁并丢弃旧动作。
 
 ### 8.1 地图扫描和验证门禁
 
@@ -217,6 +230,8 @@ Stopped -> Arming -> Observing -> MapScanning -> MapCalibrating
 
 覆盖率不足、坐标注册冲突、关键平台/梯子未覆盖、标定误差超限或地图身份冲突时，不得进入 `Navigating`。
 
+为避免首次地图验证形成循环依赖，`MapCalibrating` 是唯一例外：输入设备三层验收已经通过时，它可以在当前可见且几何安全的平台范围内执行单次不超过 300ms 的校准移动，只允许 `MoveLeft`、`MoveRight`、`Jump` 和立即 `ReleaseAll`，禁止攻击、补给、拾取和跨未知边界。每次动作后必须重新观察，任何不确定立即暂停。该动作只生成校准证据，不代表 candidate 地图可用于生产导航；没有已验收 HID 时由用户手动移动角色完成扫描。
+
 ### 8.2 战斗、补给和拾取规则
 
 - 攻击模式固定为“单体优先 / 自动 / 群攻优先”。自动模式按同屏怪物数量阈值和最短切换间隔选择技能；
@@ -229,6 +244,8 @@ Stopped -> Arming -> Observing -> MapScanning -> MapCalibrating
 ### 8.3 移动到攻击的感知闭环
 
 基础自动攻击不是预先录制的固定按键序列，而是由每次最新的 `ObservationSnapshot` 驱动：
+
+抽象动作词汇以本节为唯一准绳：`MoveLeft`、`MoveRight`、`Jump`、`ClimbUp`、`ClimbDown`、`Attack`、`UsePotion`、`Pickup`、`Pause`、`Replan`。`Attack` 必须携带 `profileId=singleAttack|areaAttack`，`UsePotion` 必须携带 `profileId=hpPotion|mpPotion`；方向键 `Up/Down` 只是输入映射，不再定义 `MoveUp/MoveDown` 动作。TypeScript/JSON/C# 契约已统一为 schema v2，禁止通过猜测按键来区分攻击或药水类型。
 
 1. 从 Self/Monster 的当前框、相对距离、所在平台、地图拓扑、角色朝向和攻击范围判断是否已经满足攻击前置条件。
 2. 如果不在攻击范围，策略层选择 `MoveLeft`、`MoveRight`、`Jump`、`ClimbUp` 或 `ClimbDown` 等抽象动作，并根据当前距离、历史位移速度、平台边界、镜头状态和动作上下限计算本次移动的保持时间。
@@ -294,6 +311,8 @@ Stopped -> Arming -> Observing -> MapScanning -> MapCalibrating
 
 百分比和绝对值阈值互斥；攻击键、药水键、跳跃键和拾取键必须执行冲突校验。移动键固定为 `Left/Right/Up/Down`，跳跃默认 `Alt` 可修改，拾取默认 `Z` 可关闭或修改。
 
+单位必须在边界处统一：配置文件、React 输入和 bridge 中的百分比均使用 `0..100`（例如 `35` 表示 35%）；`ObservationSnapshot` 和 Core 内部统一使用 `0..1`（例如 `0.35`）。Host 配置适配器负责一次性换算并记录原值/归一化值，禁止在策略层再次猜测单位。绝对值模式保留原始非负数值。
+
 ### 9.4 日志与回放
 
 每个会话写入独立目录和 JSONL 事件流，至少记录：时间戳、单调时间、客户端版本/窗口身份、frameId、采集后端、客户区/DPI、采集/渲染/识别 FPS、延迟、丢帧、Self/Player/Monster 结果、HP/MP 读数和置信度、地图/模型/ROI 版本、状态转换、拟执行动作、实际输入结果和暂停原因。
@@ -341,6 +360,20 @@ YOLO/ONNX 模型 manifest 必须记录：类别清单（`self`、`player`、`mon
 - 内存基线：无 GPU 模式运行时目标不超过 1GB，并记录模型/缓存/预览各自占用；
 - 端到端误动作次数必须为零；未知地图、未知弹窗、不匹配版本和不完整设备合同必须阻止启动。
 
+识别发布门槛按每个受支持地图档案、分辨率和特效组合分别计算：Self precision 不低于 99.9%、recall 不低于 99.5%、中心点误差 P95 不超过 8px；Monster precision 不低于 99%、recall 不低于 97%、中心点误差 P95 不超过 12px；Player 被误判成 Monster 的发布集次数必须为零。HP/MP 百分比误差 P95 不超过 2 个百分点，critical 状态不得被误判为健康。每个组合至少保留 1000 个独立标注帧并包含遮挡、镜头移动和特效；不满足时只能停留在观察/诊断模式。
+
+全量闭环分为五级，必须分别报告，不能用低级别替代高级别：
+
+| 级别 | 范围 | 当前状态 |
+| --- | --- | --- |
+| L1 | Schema、TypeScript、静态资源、源码边界 | macOS 已执行 |
+| L2 | React 单测、浏览器 E2E、规格级离线动作闭环 | macOS 已执行；仅为验收基准 |
+| L3 | .NET 8 生产模块行为：采集 -> 视觉 -> 安全门 -> 决策 -> ReplayInput -> 新观察 | macOS 已执行替身/Replay 闭环；不代表真实 Windows 输入 |
+| L4 | Windows 原生：WebView2/WGC/Direct2D、真实模型、崩溃/失焦/ReleaseAll | 未执行 |
+| L5 | 授权客户端 + 虚拟 HID 三层证据 + 30 分钟/4 小时/8 小时稳定性 | 未执行 |
+
+只有 L1-L5 全部通过，且误动作、卡键和 Player->Monster 误判均为零，才可称为“产品全量闭环完成”。`tests/closed-loop/portable-closed-loop.mjs` 的 PASS 只证明 L2 规格基准，不证明 C# 生产实现。
+
 ## 12. 发布与运维
 
 - 发布目标为 Windows x64 自包含 `.exe`；模型、manifest、默认资源、许可证和采集后端能力随包提供；首次启动检查资源完整性和哈希。
@@ -351,7 +384,7 @@ YOLO/ONNX 模型 manifest 必须记录：类别清单（`self`、`player`、`mon
 
 ## 13. 实施阶段
 
-1. **UI 迁移基础**：建立 React/Vite 工程、WebView2 宿主、JSON bridge 和 Mantine 主题；保留当前 WinForms 原型可回退。
+1. **UI 迁移基础**：建立 React/Vite 工程、WebView2 宿主、JSON bridge 和 Ant Design/Maple 视觉令牌；保留当前 WinForms 原型可回退。
 2. **高帧率预览**：抽出 CaptureWorker、FrameSlot、PreviewSurface，先用录屏/桌面窗口做 30-60 FPS 基准。
 3. **工作台功能迁移**：迁移状态、配置、地图标定演示、日志和遥测；动作保持禁用。
 4. **真实本地视觉**：建立离线样本集，接入 OpenCV、OCR、YOLO/ONNX 和回放验证。
@@ -364,24 +397,26 @@ YOLO/ONNX 模型 manifest 必须记录：类别清单（`self`、`player`、`mon
 Windows 环境执行：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build-prototype.ps1 -Configuration Release
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\prototype_contract.tests.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\input_probe_logic.tests.ps1
-powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\minimal_probe_contract.tests.ps1
+node .\tools\verify-portable.mjs
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build-react-ui.ps1
+dotnet publish .\src\Maple.Host\Maple.Host.csproj -c Release -r win-x64 --self-contained true
 git diff --check
+```
+
+只有真实 HID 三层证据齐全时，才执行：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\windows\hid_contract.tests.ps1 -RequireEvidence
 ```
 
 高帧率阶段另需记录：采集后端、显示器刷新率、窗口尺寸/DPI、P50/P95/P99 延迟、采集 FPS、渲染 FPS、识别 FPS、丢帧和内存。
 
-## 15. 历史资料
+## 15. 文档单一来源
 
-以下文件已移入 `docs/archive/`，只用于追溯，内容不再作为实施入口：
+当前工作树只保留三份有效文档：
 
-- `docs/archive/specs/2026-08-13-maple-auto-hunting-product-spec.md`；
-- `docs/archive/specs/2026-08-13-input-compatibility-handoff-spec.md`；
-- `docs/archive/specs/2026-08-12-maple-visual-automation-design.md`；
-- `docs/archive/plans/2026-08-13-maple-ui-prototype.md`。
+- `docs/MAPLE_PROJECT_SPEC.md`：唯一产品和实施规格；
+- `docs/WINDOWS_IMPLEMENTATION_HANDOFF_2026-08-14.md`：Windows 接手顺序和未完成边界；
+- `docs/maple-runtime/VERIFICATION_2026-08-14.md`：最近一次 macOS/交叉编译验证证据。
 
-`docs/SESSION_HANDOFF_2026-08-14.md` 暂时保留在主目录，因为它包含当前工作区尚未提交的本机交接修改；它不是产品主规格。
-
-当历史文档与本文冲突时，以本文为准；需要恢复历史背景时才打开对应文件。
+所有旧设计、旧计划、旧会话交接和 archive 已从工作树清除。需要历史背景时使用 Git 历史，不得把历史版本重新作为当前实施依据。

@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><TargetFramework>net8.0-windows10.0.19041.0</TargetFramework><EnableWindowsTargeting>true</EnableWindowsTargeting><UseWindowsForms>true</UseWindowsForms><RootNamespace>Maple.Preview</RootNamespace><AssemblyName>Maple.Preview</AssemblyName><Nullable>disable</Nullable></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../Maple.Contracts/Maple.Contracts.csproj" /></ItemGroup>
+</Project>

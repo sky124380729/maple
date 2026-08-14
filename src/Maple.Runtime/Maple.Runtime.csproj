@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Maple.Runtime</RootNamespace>
+    <AssemblyName>Maple.Runtime</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Maple.Contracts/Maple.Contracts.csproj" />
+    <ProjectReference Include="../Maple.Core/Maple.Core.csproj" />
+  </ItemGroup>
+</Project>
