@@ -1,9 +1,0 @@
-{
-  "status": "PENDING",
-  "authorizedClient": null,
-  "singleKeyVisualResponse": false,
-  "focusLossPaused": false,
-  "processExitReleasedAll": false,
-  "emergencyStopReleasedAll": false,
-  "automaticResumeObserved": null
-}

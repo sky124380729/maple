@@ -22,12 +22,11 @@ if (-not (Test-Path -LiteralPath $evidence -PathType Leaf)) { throw "Windows dia
 $report = Get-Content -LiteralPath $evidence -Raw -Encoding UTF8 | ConvertFrom-Json
 
 if ($report.webView2.code -ne 'WEBVIEW2_READY') { throw "WebView2 is not ready: $($report.webView2.code)" }
-if ($report.inputAdapter -ne 'NullInputAdapter' -or $report.inputStatus -ne 'INPUT_INJECTION=DISABLED') {
-    throw 'Windows smoke must keep production input disabled'
+if ($report.inputAdapter -ne 'BrokerInputAdapter' -or $report.inputStatus -ne 'BROKER_NOT_ARMED') {
+    throw 'Windows smoke must keep the production broker unarmed'
 }
 if ($report.wgcStatus -ne 'WINDOWS_PENDING') { throw 'WGC must remain pending until real frame evidence exists' }
 if ($report.modelStatus -ne 'MODEL_PENDING') { throw 'Models must remain pending until real model evidence exists' }
-if ($report.hidStatus -ne 'HID_CONTRACT_UNVERIFIED') { throw 'HID must remain unverified without three-layer evidence' }
 
 $wgcProcess = Start-Process -FilePath $executable -ArgumentList @('--wgc-self-test', $wgcEvidence) -Wait -PassThru
 if ($wgcProcess.ExitCode -ne 0) { throw "WGC self-test failed with exit code $($wgcProcess.ExitCode)" }

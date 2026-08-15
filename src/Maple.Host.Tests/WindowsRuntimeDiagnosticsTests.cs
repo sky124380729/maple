@@ -42,11 +42,10 @@ public sealed class WindowsRuntimeDiagnosticsTests
 
         WindowsRuntimeDiagnosticReport report = WindowsRuntimeDiagnostics.Create(locator, webView);
 
-        Assert.Equal("NullInputAdapter", report.InputAdapter);
-        Assert.Equal("INPUT_INJECTION=DISABLED", report.InputStatus);
+        Assert.Equal("BrokerInputAdapter", report.InputAdapter);
+        Assert.Equal("BROKER_NOT_ARMED", report.InputStatus);
         Assert.Equal("WINDOWS_PENDING", report.WgcStatus);
         Assert.Equal("MODEL_PENDING", report.ModelStatus);
-        Assert.Equal("HID_CONTRACT_UNVERIFIED", report.HidStatus);
         Assert.Equal("TARGET_NOT_FOUND", report.Target.DiagnosticCode);
     }
 

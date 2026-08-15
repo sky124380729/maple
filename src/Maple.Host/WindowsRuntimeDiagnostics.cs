@@ -15,8 +15,7 @@ public sealed record WindowsRuntimeDiagnosticReport(
     string InputAdapter,
     string InputStatus,
     string WgcStatus,
-    string ModelStatus,
-    string HidStatus);
+    string ModelStatus);
 
 public static class WindowsRuntimeDiagnostics
 {
@@ -34,11 +33,10 @@ public static class WindowsRuntimeDiagnostics
             webView2Status,
             targetLocator.Locate(),
             "BitBlt",
-            "NullInputAdapter",
-            "INPUT_INJECTION=DISABLED",
+            "BrokerInputAdapter",
+            "BROKER_NOT_ARMED",
             "WINDOWS_PENDING",
-            "MODEL_PENDING",
-            "HID_CONTRACT_UNVERIFIED");
+            "MODEL_PENDING");
     }
 
     public static void Write(string path, WindowsRuntimeDiagnosticReport report)

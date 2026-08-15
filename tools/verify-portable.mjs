@@ -50,4 +50,4 @@ for (const file of textFiles) {
 
 run('git', ['diff', '--check'])
 console.log('\nPORTABLE_VERIFICATION=PASS')
-console.log('WINDOWS_NATIVE_AND_HID=NOT_VERIFIED')
+console.log('WINDOWS_NATIVE_AND_PRODUCTION_INPUT=NOT_VERIFIED')

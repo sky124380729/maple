@@ -31,7 +31,6 @@
     <Compile Include="../Maple.Host/TargetCaptureEvidenceRunner.cs" Link="TargetCaptureEvidenceRunner.cs" />
     <Compile Include="../Maple.Host/WebView2EnvironmentProbe.cs" Link="WebView2EnvironmentProbe.cs" />
     <Compile Include="../Maple.Host/WindowsRuntimeDiagnostics.cs" Link="WindowsRuntimeDiagnostics.cs" />
-    <Compile Include="../Maple.Host/HidDeviceSelfTestRunner.cs" Link="HidDeviceSelfTestRunner.cs" />
     <Compile Include="../Maple.Host/WgcReadbackResourcePolicy.cs" Link="WgcReadbackResourcePolicy.cs" />
     <Compile Include="../Maple.Host/BrokerProcessLauncher.cs" Link="BrokerProcessLauncher.cs" />
     <Compile Include="../Maple.Host/BrokerClient.cs" Link="BrokerClient.cs" />

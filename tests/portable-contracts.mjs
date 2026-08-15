@@ -37,11 +37,6 @@ const replayFixture = JSON.parse(read('tests/fixtures/forest-east/replay-events.
 for (let index = 1; index < replayFixture.length; index += 1) {
   if (replayFixture[index].timestampMonoMs < replayFixture[index - 1].timestampMonoMs) throw new Error('回放时间戳不是单调递增')
 }
-for (const relative of ['hid-device-report.template.json', 'hid-os-report.template.json', 'hid-client-response.template.json']) {
-  if (JSON.parse(read(`tests/fixtures/windows-hid/${relative}`)).status !== 'PENDING') throw new Error(`${relative} 不得伪造 PASS 证据`)
-}
-
 console.log('PORTABLE_CONTRACTS=PASS')
 console.log('WINDOWS_NATIVE_EVIDENCE=PENDING')
 console.log('WINDOWS_PRODUCTION_INPUT_EVIDENCE=PENDING')
-console.log('WINDOWS_HID_EVIDENCE=PENDING')

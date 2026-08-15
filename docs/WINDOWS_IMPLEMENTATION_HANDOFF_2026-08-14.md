@@ -19,8 +19,8 @@ Maple 不是网页自动化，也不是 WinForms 原型续写。最终产品由�
 - `src/Maple.Capture/WindowsGraphicsCaptureBackend.cs`：已支持 WGC source -> 明确 BitBlt source fallback；没有 source 时返回 `WGC_RUNTIME_NOT_BOUND`，不静默伪造画面。
 - `src/Maple.Capture/WgcFramePool.cs` 与 `src/Maple.Host/WindowsGraphicsCaptureSession.cs`：已建立固定两槽、尺寸变化诊断、取消/错误释放和 latest-frame 所有权边界；真实 Windows Graphics Capture API adapter 仍待 Windows 绑定与实机验证。
 - `src/Maple.Preview/NativePreviewSurface.cs`：GDI+ 原生预览和 Self/Player/Monster 颜色框源码已可交叉编译；不是已测的 Direct2D/Direct3D 30-60 FPS 实现。
-- 生产输入双进程源码已进入 `SOURCE_READY / WINDOWS_PENDING`：`Maple.exe` 保持 `NORMAL_INTEGRITY`，`Maple.InputBroker.exe` 为 `ELEVATED`；共享协议、固定键位、当前用户单客户端 IPC、PID/协议/序列/消息上限、Host `BrokerClient`/adapter/executor、前台/身份/帧 TTL watchdog 和自主 `ReleaseAll` 已通过替身测试及 Release 构建。运行时仍保留 `NullInputAdapter`，原生 F9/F12、正式 Host 组合、发布和授权客户端矩阵待后续步骤。
-- `src/Maple.Input/WindowsVirtualHidAdapter.cs` 与项目 VHF 驱动属于保留的实验线：WDK/Inf2Cat 构建已经 PASS，但测试签名安装及三层实机证据仍未完成；它不再是生产输入的唯一来源或 broker 发布前置。
+- 生产输入双进程源码已进入 `SOURCE_READY / WINDOWS_PENDING`：`Maple.exe` 保持 `NORMAL_INTEGRITY`，`Maple.InputBroker.exe` 为 `ELEVATED`；共享协议、固定键位、当前用户单客户端 IPC、PID/协议/序列/消息上限、Host `BrokerClient`/adapter/executor、前台/身份/帧 TTL watchdog 和自主 `ReleaseAll` 已通过替身测试及 Release 构建。Host 已组合 `BrokerInputAdapter`，默认状态为 `BROKER_NOT_ARMED`；原生 F9/F12、正式发布和授权客户端矩阵仍待后续步骤。
+- 旧 VHF 实验线的源码、驱动、安装工具、夹具和验收脚本已从当前产品路径删除，不得从 Git 历史恢复到生产路径。
 - 2026-08-15 独立 diagnostic-only 探针已证明授权前台客户端 Left/Right 扩展扫描码会产生预期移动并释放全部按键；没有证明其他动作、生产 IPC/Host 集成、异常释放或 soak。
 - 旧 `dist/`、WinForms 原型、SendInput 探针、net48 静态测试和历史设计文档已从工作树清除；需要追溯时只查看 Git 历史，不得恢复到生产路径。
 
@@ -49,7 +49,7 @@ Maple 不是网页自动化，也不是 WinForms 原型续写。最终产品由�
 | P1 | 低置信度自动修复与“恢复需用户确认”冲突 | CalibrationRequired/短暂 StaleFrame 可自动重新 arm，其他安全中断需用户恢复 |
 | P1 | 源码存在被写成“合同完成” | 使用 DONE(macOS)/SOURCE_READY/WINDOWS_PENDING/MODEL_PENDING 和 L1-L5 证据定义 |
 
-仍需外部事实才能关闭的 P0：真实授权客户端的进程路径/版本特征；模型训练与发布数据集；普通 Host 与提权 broker 的发布身份/UAC/IPC 实机行为；目标前台变化、完整性级别、系统锁屏/睡眠和目标退出时的释放证据。这些内容不能猜。VHF 设备路径、测试签名和三层证据只影响可选 HID 实验线，不再阻塞 brokered scan-code 生产路径。
+仍需外部事实才能关闭的 P0：真实授权客户端的进程路径/版本特征；模型训练与发布数据集；普通 Host 与提权 broker 的发布身份/UAC/IPC 实机行为；目标前台变化、完整性级别、系统锁屏/睡眠和目标退出时的释放证据。这些内容不能猜。
 
 ## 4. 本轮验证证据
 
@@ -61,7 +61,7 @@ Maple 不是网页自动化，也不是 WinForms 原型续写。最终产品由�
 - Vitest：33/33 PASS，6 个测试文件。
 - Vite production build：PASS；JS 795.32 kB，gzip 251.47 kB，有非阻塞的单 chunk 警告；中文字体已打包。
 - Playwright：桌面 1440x900、移动 390x844，共 2/2 PASS。
-- `tests/portable-contracts.mjs`：PASS；Windows Native/HID 明确为 PENDING。
+- `tests/portable-contracts.mjs`：PASS；Windows Native/Production Input 明确为 PENDING。
 - `tests/closed-loop/portable-closed-loop.mjs`：L2 规格级闭环 PASS；生产 C# Replay 闭环另由 Runtime.Tests 覆盖。
 - `dotnet test Maple.sln -p:EnableWindowsTargeting=true`：Host 30/30、Runtime 37/37、Input 3/3、Map 2/2 PASS。
 - `dotnet build src/Maple.Host/Maple.Host.csproj -p:EnableWindowsTargeting=true -t:Rebuild`：win-x64 Host 交叉编译 PASS，0 warning / 0 error；这不是 Windows 运行证据。
@@ -69,7 +69,7 @@ Maple 不是网页自动化，也不是 WinForms 原型续写。最终产品由�
 - `data-testid`、疑似硬编码密钥：未发现。
 - `git diff --check`：PASS。
 
-结论：本节记录的 macOS 证据仍只支持可移植构建、离线视觉/Replay/C# 编排器和 UI L1-L3 替身测试；后续 Windows 补验记录另外证明了 Host/WebView2/WGC 系统自检、VHF 构建和 diagnostic-only Left/Right 扩展扫描码。仍不能声明真实客户端 WGC 30-60 FPS、真实模型准确率、生产 broker 或 L4/L5 全量通过。
+结论：本节记录的 macOS 证据仍只支持可移植构建、离线视觉/Replay/C# 编排器和 UI L1-L3 替身测试；后续 Windows 补验记录另外证明了 Host/WebView2/WGC 系统自检和 diagnostic-only Left/Right 扩展扫描码。历史 VHF 构建已被当前架构废弃。仍不能声明真实客户端 WGC 30-60 FPS、真实模型准确率、生产 broker 或 L4/L5 全量通过。
 
 ## 5. Windows 接手顺序
 
@@ -80,7 +80,7 @@ Maple 不是网页自动化，也不是 WinForms 原型续写。最终产品由�
 5. 并行完成真实 `GraphicsCaptureItem`/D3D11、两槽 pool、`IMapImageSource`、GPU readback/Direct2D 和 1280x720、1440x900、100/125/150% DPI 的 FPS/延迟/内存矩阵。
 6. 放入真实模型 manifest/权重并跑 Self/Player/Monster 发布数据集；视觉、地图和 stale 门槛全部通过前，broker 必须保持输入禁用。
 7. 按 `TARGET_MISMATCH`、`FOREGROUND_LOST`、`STALE_FRAME`、`IPC_FAILURE`、`HEARTBEAT_TIMEOUT`、`SHUTDOWN`、`EXCEPTION` 逐项收集 `ReleaseAll` 证据，再验证 jump/climb/attack/pickup/potion、MapCalibrating 和完整视觉反馈闭环。2026-08-15 probe 的 Left/Right 记录只能作为扫描码映射先验证据，不能代替本步骤。
-8. 分别打包普通 Host 和显式 UAC broker，完成同一登录会话/发布身份 IPC、DPAPI、脱敏、资源哈希、30 分钟与 4/8 小时 soak 后才开放生产动作。VHF 安装/三层证据保留为独立可选实验，不阻塞本顺序。
+8. 分别打包普通 Host 和显式 UAC broker，完成同一登录会话/发布身份 IPC、DPAPI、脱敏、资源哈希、30 分钟与 4/8 小时 soak 后才开放生产动作。
 
 每一步必须在主规格状态表中逐项更新证据。不要一次把多个 `WINDOWS_PENDING` 改成 `DONE`。
 
@@ -98,7 +98,7 @@ dotnet publish .\src\Maple.Host\Maple.Host.csproj -c Release -r win-x64 --self-c
 git diff --check
 ```
 
-`verify-portable` 已包含 restore/build/test 和 Host 交叉重编译；生产输入源码当前为 `SOURCE_READY / WINDOWS_PENDING`，不得把替身测试和 Release build 写成运行或客户端 PASS。后续仍必须完成 `Maple.InputBroker.exe` 正式发布、双完整性级别、IPC、原生热键、授权客户端动作和 L4/L5 验证。只有继续评估 VHF 实验线时，才另运行 `tests/windows/hid_contract.tests.ps1 -RequireEvidence`，其结果不替代 broker 验收。
+`verify-portable` 已包含 restore/build/test 和 Host 交叉重编译；生产输入源码当前为 `SOURCE_READY / WINDOWS_PENDING`，不得把替身测试和 Release build 写成运行或客户端 PASS。后续仍必须完成 `Maple.InputBroker.exe` 正式发布、双完整性级别、IPC、原生热键、授权客户端动作和 L4/L5 验证。当前生产边界使用 `tests/windows/production_input_contract.tests.ps1` 验收。
 
 ## 7. 不可改变的产品决策
 

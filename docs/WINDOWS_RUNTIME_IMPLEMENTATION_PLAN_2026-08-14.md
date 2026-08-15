@@ -243,4 +243,4 @@ Run: `dotnet test src/Maple.Host.Tests/Maple.Host.Tests.csproj --filter TargetCa
 - WGC：已实现真实 `GraphicsCaptureItem + D3D11` readback，并用自建 640x360 窗口完成系统通路烟雾测试；冒险岛客户区、Direct2D/Direct3D 预览和 30-60 FPS/DPI/soak 矩阵仍待独立实测。
 - 地图帧源：WGC 关键帧编码并绑定 `IMapImageSource`，再验百炼地图标定。
 - 真实模型：用户提供 manifest/权重/数据集后执行 precision/recall 与 GPU provider 验收。
-- 虚拟 HID：只有拿到本项目设备接口、VID/PID、报告描述符、签名和协议后才实现 transport/encoder，并运行 `tests/windows/hid_contract.tests.ps1 -RequireEvidence`；不得借用或逆向第三方 `gvinput` 私有接口。
+- 生产输入：当前实现已迁移到普通权限 Host + 管理员 `Maple.InputBroker.exe`；旧虚拟 HID 实验和验收命令已删除，不得借用或逆向第三方私有接口。
