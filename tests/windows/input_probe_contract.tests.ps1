@@ -1,8 +1,8 @@
 param(
     [switch]$SourceOnly,
     [switch]$RequirePublished,
-    [string]$PublishDirectory = 'dist\input-probe-win-x64',
-    [string]$SelfTestOutputPath = 'dist\input-probe-self-test.jsonl'
+    [string]$PublishDirectory = 'artifacts\input-probe',
+    [string]$SelfTestOutputPath = 'artifacts\input-probe\self-test\probe-evidence.jsonl'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -127,8 +127,16 @@ foreach ($source in $probeSources) {
     }
 }
 Assert-Contains $combinedProbeSource 'Application.Run' 'Input probe executable entry point'
-Assert-Contains $combinedProbeSource 'Diagnostic-only scaffold' 'Input probe diagnostic-only message'
+Assert-Contains $combinedProbeSource 'Diagnostic-only self-test' 'Input probe diagnostic-only message'
 Assert-Contains $combinedProbeSource 'sends no input' 'Input probe inert-state message'
+$keybdEventDeclaration = [regex]::Matches(
+    $combinedProbeSource,
+    '(?s)\[DllImport\("user32\.dll"[^\]]*\)\]\s*internal\s+static\s+extern\s+void\s+keybd_event\s*\('
+)
+if ($keybdEventDeclaration.Count -ne 1) {
+    throw "Input probe must contain exactly one keybd_event P/Invoke declaration; found $($keybdEventDeclaration.Count)."
+}
+Assert-Contains $combinedProbeSource 'KeyEventFKeyUp' 'Input probe explicit key-up flag'
 
 [xml]$hostProject = Get-Content -LiteralPath $hostProjectPath -Raw -Encoding UTF8
 $hostReferences = @($hostProject.Project.ItemGroup.ProjectReference | ForEach-Object { $_.Include })
@@ -154,8 +162,22 @@ if ($checkPublished) {
     }
 
     $publishedExecutable = Join-Path $publish 'MapleInputProbe.exe'
+    $publishedAssembly = Join-Path $publish 'MapleInputProbe.dll'
     Assert-FileExists $publishedExecutable 'Published input probe executable'
+    Assert-FileExists $publishedAssembly 'Published input probe managed assembly'
     Assert-FileExists $selfTestOutput 'Input probe self-test JSONL output'
+
+    $executableBytes = [IO.File]::ReadAllBytes($publishedExecutable)
+    $executableText = [Text.Encoding]::UTF8.GetString($executableBytes) + [Text.Encoding]::Unicode.GetString($executableBytes)
+    Assert-Contains $executableText 'requireAdministrator' 'Published input probe elevation manifest'
+
+    $assemblyBytes = [IO.File]::ReadAllBytes($publishedAssembly)
+    $assemblyText = [Text.Encoding]::UTF8.GetString($assemblyBytes) + [Text.Encoding]::Unicode.GetString($assemblyBytes)
+    foreach ($forbiddenApi in $forbiddenApis) {
+        if ($assemblyText.IndexOf($forbiddenApi, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+            throw "Published input probe assembly contains forbidden API '$forbiddenApi': $publishedAssembly"
+        }
+    }
 
     $requiredJsonlFields = @(
         'sessionId',
@@ -204,6 +226,12 @@ if ($checkPublished) {
             if ($recordFields -cnotcontains $requiredField) {
                 throw "Input probe self-test JSONL record $lineNumber is missing field '$requiredField': $selfTestOutput"
             }
+        }
+        if ($record.inputAttempted -ne $false) {
+            throw "Input probe self-test must report inputAttempted=false: $selfTestOutput`:$lineNumber"
+        }
+        if ($record.allKeysReleased -ne $true) {
+            throw "Input probe self-test must report allKeysReleased=true: $selfTestOutput`:$lineNumber"
         }
     }
     if ($recordCount -eq 0) {

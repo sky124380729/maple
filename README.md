@@ -50,6 +50,17 @@ dotnet publish .\src\Maple.Host\Maple.Host.csproj -c Release -r win-x64 --self-c
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\windows\hid_contract.tests.ps1 -RequireEvidence
 ```
 
+### 前台输入诊断探针
+
+`MapleInputProbe.exe` 只用于授权客户端的 Windows 前台输入兼容性诊断，不接入自动战斗闭环，也不替代虚拟 HID 的生产验收。它只在用户勾选授权并点击开始后，各发送一次 500ms 左键和右键；目标失焦、最小化、权限不匹配或窗口身份异常时立即停止并释放全部按键。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tools\build-input-probe.ps1 -Configuration Release
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\windows\input_probe_contract.tests.ps1 -RequirePublished
+```
+
+可执行文件输出到 `artifacts\input-probe\MapleInputProbe.exe`。真实测试会请求管理员权限；无输入自检由构建脚本通过 DLL 入口执行，不会调用 `keybd_event`。
+
 只有完成以下实机证据后，Windows 模块才能从 `WINDOWS_PENDING` 改为 `DONE`：
 
 - WebView2 本地资源加载、页面刷新/崩溃恢复和命令白名单；

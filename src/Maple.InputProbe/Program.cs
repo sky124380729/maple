@@ -1,4 +1,6 @@
-using System.Drawing;
+using System;
+using System.IO;
+using System.Text.Json;
 using System.Windows.Forms;
 
 namespace Maple.InputProbe;
@@ -6,29 +8,60 @@ namespace Maple.InputProbe;
 internal static class Program
 {
     [STAThread]
-    private static void Main()
+    private static int Main(string[] args)
     {
+        if (HasArgument(args, "--self-test"))
+        {
+            return RunSelfTest(GetArgumentValue(args, "--output"));
+        }
+
         ApplicationConfiguration.Initialize();
+        Application.Run(new ProbeForm(new ProbeRunner(new TargetWindowInspector(), new WindowsKeybdEventSender())));
+        return 0;
+    }
 
-        var message = new Label
+    private static int RunSelfTest(string outputValue)
+    {
+        string output = string.IsNullOrWhiteSpace(outputValue)
+            ? Path.Combine(AppContext.BaseDirectory, "self-test", "probe-evidence.jsonl")
+            : Path.GetFullPath(outputValue);
+        string path = string.Equals(Path.GetExtension(output), ".jsonl", StringComparison.OrdinalIgnoreCase)
+            ? output
+            : Path.Combine(output, "probe-evidence.jsonl");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+
+        var evidence = new ProbeEvidence
         {
-            AutoSize = false,
-            Dock = DockStyle.Fill,
-            Text = "Diagnostic-only scaffold. This application sends no input.",
-            TextAlign = ContentAlignment.MiddleCenter
+            SessionId = "self-test",
+            ActionId = "self-test",
+            Classification = "SELF_TEST_NO_INPUT",
+            Reason = "Diagnostic-only self-test sends no input",
+            InputAttempted = false,
+            AllKeysReleased = true
         };
-
-        var window = new Form
+        string json = JsonSerializer.Serialize(evidence, new JsonSerializerOptions
         {
-            ClientSize = new Size(440, 140),
-            FormBorderStyle = FormBorderStyle.FixedDialog,
-            MaximizeBox = false,
-            MinimizeBox = false,
-            StartPosition = FormStartPosition.CenterScreen,
-            Text = "Maple Input Probe"
-        };
-        window.Controls.Add(message);
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+        File.WriteAllText(path, json + Environment.NewLine);
+        return 0;
+    }
 
-        Application.Run(window);
+    private static bool HasArgument(string[] args, string name)
+    {
+        foreach (string argument in args)
+        {
+            if (string.Equals(argument, name, StringComparison.OrdinalIgnoreCase)) return true;
+        }
+        return false;
+    }
+
+    private static string GetArgumentValue(string[] args, string name)
+    {
+        for (int index = 0; index < args.Length - 1; index++)
+        {
+            if (string.Equals(args[index], name, StringComparison.OrdinalIgnoreCase)) return args[index + 1];
+        }
+        return null;
     }
 }
