@@ -14,11 +14,15 @@ internal sealed class ProbeForm : Form
     private readonly Button stopButton;
     private readonly Label status;
     private readonly TextBox log;
+    private readonly ProbeRunOptions options;
+    private readonly bool autoStartAuthorized;
     private CancellationTokenSource cancellation;
 
-    public ProbeForm(ProbeRunner runner)
+    public ProbeForm(ProbeRunner runner, ProbeRunOptions options, bool autoStartAuthorized)
     {
         this.runner = runner;
+        this.options = options;
+        this.autoStartAuthorized = autoStartAuthorized;
         Text = "枫叶输入诊断 · keybd_event";
         ClientSize = new Size(720, 500);
         MinimumSize = new Size(680, 460);
@@ -104,6 +108,13 @@ internal sealed class ProbeForm : Form
             cancellation?.Cancel();
             runner.StopAndRelease();
         };
+        Shown += async (_, _) =>
+        {
+            if (!this.autoStartAuthorized) return;
+            authorization.Checked = true;
+            AppendLog("已收到命令行授权口令，只执行本次左右测试。");
+            await StartProbeAsync();
+        };
     }
 
     private async Task StartProbeAsync()
@@ -122,7 +133,7 @@ internal sealed class ProbeForm : Form
         try
         {
             WindowState = FormWindowState.Minimized;
-            ProbeRunResult result = await runner.RunAsync(new ProbeRunOptions(), progress, cancellation.Token);
+            ProbeRunResult result = await runner.RunAsync(options, progress, cancellation.Token);
             WindowState = FormWindowState.Normal;
             status.Text = result.AllKeysReleased
                 ? "状态：测试结束 · 全部按键已释放"
@@ -140,6 +151,10 @@ internal sealed class ProbeForm : Form
             WindowState = FormWindowState.Normal;
             status.Text = "状态：已停止 · 未满足输入安全门";
             AppendLog("停止原因：" + exception.Message);
+            System.IO.Directory.CreateDirectory(options.OutputRoot);
+            System.IO.File.WriteAllText(
+                System.IO.Path.Combine(options.OutputRoot, "last-run-error.txt"),
+                DateTimeOffset.Now.ToString("O") + " " + exception + Environment.NewLine);
         }
         finally
         {
@@ -149,6 +164,7 @@ internal sealed class ProbeForm : Form
             startButton.Enabled = true;
             cancellation.Dispose();
             cancellation = null;
+            if (autoStartAuthorized) Close();
         }
     }
 
