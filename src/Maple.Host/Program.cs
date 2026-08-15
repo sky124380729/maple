@@ -39,6 +39,17 @@ internal static class Program
             return report.Success ? 0 : 2;
         }
 
+        if (args.Length is 1 or 2 && string.Equals(args[0], "--input-broker-evidence", StringComparison.Ordinal))
+        {
+            ApplicationConfiguration.Initialize();
+            string evidenceRoot = args.Length == 2
+                ? args[1]
+                : InputBrokerEvidenceForm.CreateDefaultSessionRoot();
+            using var form = new InputBrokerEvidenceForm(evidenceRoot, AppContext.BaseDirectory);
+            Application.Run(form);
+            return form.ExitCode;
+        }
+
         ApplicationConfiguration.Initialize();
         string assetFolder = Path.Combine(AppContext.BaseDirectory, "ui");
         Application.Run(HostCompositionRoot.CreateMainWindow(assetFolder));

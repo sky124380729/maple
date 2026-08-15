@@ -1,0 +1,22 @@
+{
+  "status": "PENDING",
+  "note": "This template is not real evidence. The validator requires one JSONL record and real before/after PNG files for every action.",
+  "record": {
+    "actionId": "move-left",
+    "observedAtUtc": "1970-01-01T00:00:00Z",
+    "targetHwnd": 0,
+    "targetPid": 0,
+    "foregroundConfirmed": false,
+    "hostIntegrity": 0,
+    "brokerIntegrity": 0,
+    "targetIntegrity": 0,
+    "vk": 0,
+    "scanCode": 0,
+    "flagsDown": 0,
+    "flagsUp": 0,
+    "screenshotBefore": "",
+    "screenshotAfter": "",
+    "classification": "PENDING",
+    "allKeysReleased": false
+  }
+}

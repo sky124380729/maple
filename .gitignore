@@ -7,6 +7,8 @@ ui/dist/
 ui/playwright-report/
 ui/test-results/
 dist/
+artifacts/windows-runtime/
+artifacts/input-probe-extended/
 .env
 .env.*
 !.env.example

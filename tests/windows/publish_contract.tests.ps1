@@ -39,6 +39,13 @@ if (-not $javascript) {
     throw 'Required publish artifact missing: ui/assets/*.js'
 }
 
+$driverArtifacts = @(Get-ChildItem -LiteralPath $publish -File -Recurse | Where-Object {
+    $_.Extension -in @('.sys', '.inf', '.cat')
+})
+if ($driverArtifacts.Count -gt 0) {
+    throw "Driver artifacts are forbidden in the production publish: $($driverArtifacts.Name -join ', ')"
+}
+
 $deps = Get-Content -LiteralPath (Join-Path $publish 'Maple.deps.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($deps.runtimeTarget.name -notmatch '/win-x64$') {
     throw "Publish runtime is not win-x64: $($deps.runtimeTarget.name)"

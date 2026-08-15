@@ -5,13 +5,13 @@ namespace Maple.InputBroker;
 
 public sealed class WindowsKeybdEventSender : IBrokerKeySender
 {
-    public const uint KeyEventFExtendedKey = 0x0001;
-    public const uint KeyEventFKeyUp = 0x0002;
+    public const uint KeyEventFExtendedKey = BrokerKeyFlags.ExtendedKey;
+    public const uint KeyEventFKeyUp = BrokerKeyFlags.KeyUp;
 
     public void Send(BrokerKeyEncoding encoding, bool isKeyUp)
     {
-        uint flags = encoding.Extended ? KeyEventFExtendedKey : 0;
-        if (isKeyUp) flags |= KeyEventFKeyUp;
+        uint flags = encoding.Extended ? BrokerKeyFlags.ExtendedKey : 0;
+        if (isKeyUp) flags |= BrokerKeyFlags.KeyUp;
         NativeKeybdEvent(checked((byte)encoding.VirtualKey), checked((byte)encoding.ScanCode), flags, 0);
     }
 

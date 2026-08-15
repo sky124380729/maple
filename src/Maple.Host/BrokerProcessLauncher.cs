@@ -11,6 +11,18 @@ public sealed class BrokerProcessLauncher : IDisposable
     private readonly object sync = new();
     private Process? ownedProcess;
 
+    public int? OwnedProcessId
+    {
+        get
+        {
+            lock (sync)
+            {
+                try { return ownedProcess is { HasExited: false } ? ownedProcess.Id : null; }
+                catch (InvalidOperationException) { return null; }
+            }
+        }
+    }
+
     public ProcessStartInfo CreateStartInfo(
         string brokerExecutable,
         string pipeName,

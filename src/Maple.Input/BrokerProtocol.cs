@@ -7,6 +7,12 @@ public static class BrokerProtocol
     public const int Version = 1;
 }
 
+public static class BrokerKeyFlags
+{
+    public const uint ExtendedKey = 0x0001;
+    public const uint KeyUp = 0x0002;
+}
+
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum BrokerRequestKind
 {

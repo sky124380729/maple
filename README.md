@@ -61,6 +61,21 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\windows\input_probe_
 
 可执行文件输出到 `artifacts\input-probe\MapleInputProbe.exe`。真实测试会请求管理员权限；无输入自检由构建脚本通过 DLL 入口执行，不会调用 `keybd_event`。
 
+### 生产 Broker 实机验收
+
+正常使用打开 `dist\windows-x64\Maple.exe`。只有采集生产输入证据时，才从 PowerShell 显式进入原生验收模式：
+
+```powershell
+& .\dist\windows-x64\Maple.exe --input-broker-evidence
+```
+
+该模式按固定顺序测试左、右、跳跃、上、下、单体攻击、拾取和全键释放。每项自动等待 3 秒、切回目标客户端、抓取客户区前后帧并执行 `ReleaseAll`，之后必须在审阅窗明确确认；异常时停止，不会自动继续。证据写入 `%LOCALAPPDATA%\Maple\input-broker-evidence`，最终校验命令为：
+
+```powershell
+$latest = Get-ChildItem "$env:LOCALAPPDATA\Maple\input-broker-evidence" -Directory | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\windows\input_broker_evidence.tests.ps1 -EvidenceRoot $latest.FullName -RequireEvidence
+```
+
 只有完成以下实机证据后，Windows 模块才能从 `WINDOWS_PENDING` 改为 `DONE`：
 
 - WebView2 本地资源加载、页面刷新/崩溃恢复和命令白名单；

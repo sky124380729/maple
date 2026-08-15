@@ -1,5 +1,7 @@
 param(
     [string]$OutputDirectory = 'dist\windows-x64',
+    [ValidateSet('Debug', 'Release')]
+    [string]$Configuration = 'Release',
     [switch]$SkipE2E
 )
 
@@ -28,7 +30,7 @@ else {
 if ($LASTEXITCODE -ne 0) { throw 'React UI build failed' }
 
 & $dotnet publish (Join-Path $root 'src\Maple.Host\Maple.Host.csproj') `
-    -c Release `
+    -c $Configuration `
     -r win-x64 `
     --self-contained true `
     --nologo `
