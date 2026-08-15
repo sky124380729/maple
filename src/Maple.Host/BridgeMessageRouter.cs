@@ -29,6 +29,7 @@ public sealed class BridgeMessageRouter
         ["session.emergencyStop"] = UiCommandType.SessionEmergencyStop,
         ["map.scan.start"] = UiCommandType.MapScanStart,
         ["map.calibration.start"] = UiCommandType.MapCalibrationStart,
+        ["preview.boundsChanged"] = UiCommandType.PreviewBoundsChanged,
         ["config.update"] = UiCommandType.ConfigUpdate,
         ["cloud.credential.set"] = UiCommandType.CloudCredentialSet,
         ["cloud.credential.clear"] = UiCommandType.CloudCredentialClear,
@@ -39,7 +40,9 @@ public sealed class BridgeMessageRouter
 
     private static readonly HashSet<string> ForbiddenFields = new(StringComparer.OrdinalIgnoreCase)
     {
-        "action", "actions", "key", "keys", "hid", "report", "image", "frame", "base64", "url", "hwnd",
+        "action", "actions", "abstractAction", "abstractActions", "actionSequence", "actionSequences",
+        "key", "keys", "vk", "scanCode", "flags", "hid", "report", "reportBytes", "rawReport", "rawReportBytes",
+        "rawInput", "rawInputBytes", "inputBytes", "image", "frame", "base64", "url", "hwnd",
     };
 
     public BridgeRouteResult Route(string? json)
@@ -81,6 +84,7 @@ public sealed class BridgeMessageRouter
             UiCommandType.CloudCredentialClear or
             UiCommandType.CloudConnectionTest => !payload.EnumerateObject().Any(),
             UiCommandType.SessionEmergencyStop => ValidateEmergencyStop(payload),
+            UiCommandType.PreviewBoundsChanged => ValidatePreviewBounds(payload),
             UiCommandType.ConfigUpdate => ValidateConfiguration(payload),
             UiCommandType.CloudCredentialSet => ValidateCredential(payload),
             UiCommandType.CloudConfigUpdate => ValidateCloudConfiguration(payload),
@@ -93,6 +97,16 @@ public sealed class BridgeMessageRouter
     {
         if (!HasOnlyFields(payload, ["message"]) || !payload.TryGetProperty("message", out JsonElement message)) return false;
         return IsString(message, 1, 200, trim: true);
+    }
+
+    private static bool ValidatePreviewBounds(JsonElement payload)
+    {
+        if (!HasOnlyFields(payload, ["left", "top", "width", "height", "devicePixelRatio"])) return false;
+        return payload.TryGetProperty("left", out JsonElement left) && IsFiniteNumber(left, 0, 10000)
+            && payload.TryGetProperty("top", out JsonElement top) && IsFiniteNumber(top, 0, 10000)
+            && payload.TryGetProperty("width", out JsonElement width) && IsFiniteNumber(width, 320, 10000)
+            && payload.TryGetProperty("height", out JsonElement height) && IsFiniteNumber(height, 180, 10000)
+            && payload.TryGetProperty("devicePixelRatio", out JsonElement devicePixelRatio) && IsFiniteNumber(devicePixelRatio, 0.5, 4);
     }
 
     private static bool ValidateConfiguration(JsonElement payload)
@@ -138,6 +152,16 @@ public sealed class BridgeMessageRouter
     {
         if (value.ValueKind != JsonValueKind.Number || !value.TryGetDouble(out double number) || number < 0 || double.IsNaN(number) || double.IsInfinity(number)) return false;
         return mode.ValueKind != JsonValueKind.String || mode.GetString() != "percent" || number <= 100;
+    }
+
+    private static bool IsFiniteNumber(JsonElement value, double minimum, double maximum)
+    {
+        return value.ValueKind == JsonValueKind.Number
+            && value.TryGetDouble(out double number)
+            && !double.IsNaN(number)
+            && !double.IsInfinity(number)
+            && number >= minimum
+            && number <= maximum;
     }
 
     private static bool IsString(JsonElement value, int minimumLength, int maximumLength, bool trim = false)

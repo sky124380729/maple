@@ -129,8 +129,14 @@ namespace Maple.Contracts
         [DataMember(Name = "renderFps", IsRequired = true)] public double RenderFps { get; set; }
         [DataMember(Name = "recognitionFps", IsRequired = true)] public double RecognitionFps { get; set; }
         [DataMember(Name = "frameLatencyMs", IsRequired = true)] public double FrameLatencyMs { get; set; }
+        [DataMember(Name = "detectorLatencyMs", IsRequired = true)] public double DetectorLatencyMs { get; set; }
         [DataMember(Name = "droppedFrames", IsRequired = true)] public long DroppedFrames { get; set; }
         [DataMember(Name = "queueAgeMs", IsRequired = true)] public double QueueAgeMs { get; set; }
+        [DataMember(Name = "processMemoryMb", IsRequired = true)] public double ProcessMemoryMb { get; set; }
+        [DataMember(Name = "inferenceProvider", IsRequired = true)] public InferenceProvider InferenceProvider { get; set; }
+        [DataMember(Name = "captureBackend", IsRequired = true)] public CaptureBackend CaptureBackend { get; set; }
+        [DataMember(Name = "lastAction", IsRequired = true)] public string LastAction { get; set; }
+        [DataMember(Name = "warningCode", IsRequired = true)] public string WarningCode { get; set; }
         [DataMember(Name = "state", IsRequired = true)] public SessionState State { get; set; }
         [DataMember(Name = "pauseReason", IsRequired = true)] public PauseReason PauseReason { get; set; }
     }
@@ -211,6 +217,25 @@ namespace Maple.Contracts
     }
 
     [DataContract]
+    public sealed class PreviewBoundsPayload
+    {
+        [DataMember(Name = "left", IsRequired = true)] public double Left { get; set; }
+        [DataMember(Name = "top", IsRequired = true)] public double Top { get; set; }
+        [DataMember(Name = "width", IsRequired = true)] public double Width { get; set; }
+        [DataMember(Name = "height", IsRequired = true)] public double Height { get; set; }
+        [DataMember(Name = "devicePixelRatio", IsRequired = true)] public double DevicePixelRatio { get; set; }
+    }
+
+    [DataContract]
+    public sealed class VisionStatusPayload
+    {
+        [DataMember(Name = "status", IsRequired = true)] public VisionModelStatus Status { get; set; }
+        [DataMember(Name = "modelId", IsRequired = true)] public string ModelId { get; set; }
+        [DataMember(Name = "provider", IsRequired = true)] public InferenceProvider Provider { get; set; }
+        [DataMember(Name = "diagnostic", IsRequired = true)] public string Diagnostic { get; set; }
+    }
+
+    [DataContract]
     public sealed class ContractValidationResult
     {
         private ContractValidationResult(bool isValid, string error)
@@ -256,10 +281,21 @@ namespace Maple.Contracts
                 var payload = command.Payload as EmergencyStopPayload;
                 if (payload == null || string.IsNullOrWhiteSpace(payload.Message) || payload.Message.Length > 200) return ContractValidationResult.Invalid("emergencyStop.message");
             }
+            if (command.Type == UiCommandType.PreviewBoundsChanged)
+            {
+                var payload = command.Payload as PreviewBoundsPayload;
+                if (payload == null
+                    || !ValidFiniteRange(payload.Left, 0, 10000)
+                    || !ValidFiniteRange(payload.Top, 0, 10000)
+                    || !ValidFiniteRange(payload.Width, 320, 10000)
+                    || !ValidFiniteRange(payload.Height, 180, 10000)
+                    || !ValidFiniteRange(payload.DevicePixelRatio, 0.5, 4)) return ContractValidationResult.Invalid("preview.bounds");
+            }
             return ContractValidationResult.Valid();
         }
 
         private static bool ValidConfidence(double value) { return value >= 0 && value <= 1; }
+        private static bool ValidFiniteRange(double value, double minimum, double maximum) { return !double.IsNaN(value) && !double.IsInfinity(value) && value >= minimum && value <= maximum; }
         private static bool ValidFreshness(long freshUntil, long capturedAt) { return freshUntil >= capturedAt && freshUntil - capturedAt <= ContractConstants.MaxObservationTtlMs; }
         private static bool ValidBox(double[] box)
         {
@@ -269,6 +305,23 @@ namespace Maple.Contracts
 
     [DataContract]
     public enum CaptureBackend { [EnumMember(Value = "WGC")] Wgc, [EnumMember(Value = "BitBlt")] BitBlt, [EnumMember(Value = "PrintWindow")] PrintWindow }
+    [DataContract]
+    public enum InferenceProvider
+    {
+        [EnumMember(Value = "none")] None,
+        [EnumMember(Value = "cpu")] Cpu,
+        [EnumMember(Value = "directml")] DirectMl,
+        [EnumMember(Value = "cuda")] Cuda
+    }
+    [DataContract]
+    public enum VisionModelStatus
+    {
+        [EnumMember(Value = "notConfigured")] NotConfigured,
+        [EnumMember(Value = "inspecting")] Inspecting,
+        [EnumMember(Value = "ready")] Ready,
+        [EnumMember(Value = "repairing")] Repairing,
+        [EnumMember(Value = "faulted")] Faulted
+    }
     [DataContract]
     public enum DroppedFrameReason { [EnumMember(Value = "backpressure")] Backpressure, [EnumMember(Value = "occluded")] Occluded, [EnumMember(Value = "invalid")] Invalid, [EnumMember(Value = "none")] None }
     [DataContract]
@@ -320,7 +373,8 @@ namespace Maple.Contracts
         [EnumMember(Value = "input.status.updated")] InputStatusUpdated,
         [EnumMember(Value = "log.appended")] LogAppended,
         [EnumMember(Value = "preview.availabilityChanged")] PreviewAvailabilityChanged,
-        [EnumMember(Value = "cloud.status.updated")] CloudStatusUpdated
+        [EnumMember(Value = "cloud.status.updated")] CloudStatusUpdated,
+        [EnumMember(Value = "vision.status.updated")] VisionStatusUpdated
     }
     [DataContract]
     public enum UiCommandType
@@ -332,6 +386,7 @@ namespace Maple.Contracts
         [EnumMember(Value = "session.emergencyStop")] SessionEmergencyStop,
         [EnumMember(Value = "map.scan.start")] MapScanStart,
         [EnumMember(Value = "map.calibration.start")] MapCalibrationStart,
+        [EnumMember(Value = "preview.boundsChanged")] PreviewBoundsChanged,
         [EnumMember(Value = "config.update")] ConfigUpdate,
         [EnumMember(Value = "cloud.credential.set")] CloudCredentialSet,
         [EnumMember(Value = "cloud.credential.clear")] CloudCredentialClear,

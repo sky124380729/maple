@@ -8,6 +8,8 @@ const schemaVersion = z.literal(CONTRACT_SCHEMA_VERSION)
 const monoMs = z.number().int().nonnegative()
 const confidence = z.number().min(0).max(1)
 const timestamp = z.string().datetime({ offset: true })
+const inferenceProviderSchema = z.enum(['none', 'cpu', 'directml', 'cuda'])
+const captureBackendSchema = z.enum(['WGC', 'BitBlt', 'PrintWindow'])
 
 export const normalizedBoxSchema = z
   .tuple([z.number().min(0).max(1), z.number().min(0).max(1), z.number().min(0).max(1), z.number().min(0).max(1)])
@@ -49,7 +51,7 @@ export const captureFrameMetadataSchema = z
     clientWidth: z.number().int().positive(),
     clientHeight: z.number().int().positive(),
     dpi: z.number().int().min(48).max(768),
-    captureBackend: z.enum(['WGC', 'BitBlt', 'PrintWindow']),
+    captureBackend: captureBackendSchema,
     captureDurationMs: z.number().nonnegative(),
     droppedReason: z.enum(['backpressure', 'occluded', 'invalid', 'none']).default('none'),
   })
@@ -157,8 +159,14 @@ export const telemetrySnapshotSchema = z
     renderFps: z.number().nonnegative(),
     recognitionFps: z.number().nonnegative(),
     frameLatencyMs: z.number().nonnegative(),
+    detectorLatencyMs: z.number().nonnegative(),
     droppedFrames: z.number().int().nonnegative(),
     queueAgeMs: z.number().nonnegative(),
+    processMemoryMb: z.number().nonnegative(),
+    inferenceProvider: inferenceProviderSchema,
+    captureBackend: captureBackendSchema,
+    lastAction: z.string().max(128).nullable(),
+    warningCode: z.string().max(128).nullable(),
     state: sessionStateSchema,
     pauseReason: pauseReasonSchema,
   })
@@ -223,6 +231,21 @@ export const inputBrokerStatusSchema = z
 const commandEnvelope = { schemaVersion, timestamp: timestamp.optional() }
 const emptyPayload = z.object({}).strict()
 
+export const previewBoundsSchema = z.object({
+  left: z.number().finite().min(0).max(10_000),
+  top: z.number().finite().min(0).max(10_000),
+  width: z.number().finite().min(320).max(10_000),
+  height: z.number().finite().min(180).max(10_000),
+  devicePixelRatio: z.number().finite().min(0.5).max(4),
+}).strict()
+
+export const visionStatusSchema = z.object({
+  status: z.enum(['notConfigured', 'inspecting', 'ready', 'repairing', 'faulted']),
+  modelId: z.string().max(128).nullable(),
+  provider: inferenceProviderSchema,
+  diagnostic: z.string().max(128).nullable(),
+}).strict()
+
 export const emergencyStopCommandSchema = z
   .object({
     ...commandEnvelope,
@@ -239,6 +262,7 @@ const uiCommandVariants = [
   emergencyStopCommandSchema,
   z.object({ ...commandEnvelope, type: z.literal('map.scan.start'), payload: emptyPayload }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('map.calibration.start'), payload: emptyPayload }).strict(),
+  z.object({ ...commandEnvelope, type: z.literal('preview.boundsChanged'), payload: previewBoundsSchema }).strict(),
   z.object({
     ...commandEnvelope,
     type: z.literal('config.update'),
@@ -300,6 +324,7 @@ const hostEventVariants = [
   z.object({ ...commandEnvelope, type: z.literal('input.status.updated'), payload: inputBrokerStatusSchema }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('log.appended'), payload: z.object({ level: z.enum(['debug', 'info', 'warn', 'error']), message: z.string().min(1).max(500), code: z.string().max(64).optional() }).strict() }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('preview.availabilityChanged'), payload: z.object({ available: z.boolean(), backend: z.enum(['native', 'browser-mock']).optional(), reason: z.string().max(200).optional() }).strict() }).strict(),
+  z.object({ ...commandEnvelope, type: z.literal('vision.status.updated'), payload: visionStatusSchema }).strict(),
   z.object({
     ...commandEnvelope,
     type: z.literal('cloud.status.updated'),
@@ -328,6 +353,8 @@ export type AbstractAction = z.infer<typeof abstractActionSchema>
 export type ActionPlan = z.infer<typeof actionPlanSchema>
 export type InputResult = z.infer<typeof inputResultSchema>
 export type InputBrokerStatus = z.infer<typeof inputBrokerStatusSchema>
+export type PreviewBounds = z.infer<typeof previewBoundsSchema>
+export type VisionStatus = z.infer<typeof visionStatusSchema>
 export type HostEvent = z.infer<typeof hostEventSchema>
 export type UiCommand = z.infer<typeof uiCommandSchema>
 

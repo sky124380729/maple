@@ -18,6 +18,17 @@ public sealed class BridgeMessageRouterTests
         Assert.Equal(UiCommandType.SnapshotRequest, result.CommandType);
     }
 
+    [Fact]
+    public void AcceptsAValidPreviewBoundsChangedCommand()
+    {
+        BridgeRouteResult result = router.Route("""
+            {"schemaVersion":2,"type":"preview.boundsChanged","payload":{"left":24,"top":80,"width":1280,"height":720,"devicePixelRatio":1.25}}
+            """);
+
+        Assert.True(result.Accepted);
+        Assert.Equal("PreviewBoundsChanged", result.CommandType?.ToString());
+    }
+
     [Theory]
     [InlineData("{\"schemaVersion\":1,\"type\":\"snapshot.request\",\"payload\":{}}", "SCHEMA_VERSION_REJECTED")]
     [InlineData("{\"schemaVersion\":2,\"type\":\"raw.key\",\"payload\":{}}", "UNKNOWN_COMMAND_REJECTED")]
@@ -64,6 +75,39 @@ public sealed class BridgeMessageRouterTests
 
         Assert.False(result.Accepted);
         Assert.Equal("INVALID_PAYLOAD", result.Code);
+    }
+
+    [Theory]
+    [InlineData("{\"schemaVersion\":2,\"type\":\"preview.boundsChanged\",\"payload\":{\"left\":-1,\"top\":0,\"width\":320,\"height\":180,\"devicePixelRatio\":1}}")]
+    [InlineData("{\"schemaVersion\":2,\"type\":\"preview.boundsChanged\",\"payload\":{\"left\":0,\"top\":0,\"width\":319,\"height\":180,\"devicePixelRatio\":1}}")]
+    [InlineData("{\"schemaVersion\":2,\"type\":\"preview.boundsChanged\",\"payload\":{\"left\":0,\"top\":0,\"width\":320,\"height\":180,\"devicePixelRatio\":4.1}}")]
+    [InlineData("{\"schemaVersion\":2,\"type\":\"preview.boundsChanged\",\"payload\":{\"left\":0,\"top\":0,\"width\":320,\"height\":180,\"devicePixelRatio\":1,\"extra\":true}}")]
+    public void RejectsInvalidPreviewBoundsChangedPayloads(string json)
+    {
+        BridgeRouteResult result = router.Route(json);
+
+        Assert.False(result.Accepted);
+        Assert.Equal("INVALID_PAYLOAD", result.Code);
+    }
+
+    [Theory]
+    [InlineData("vk")]
+    [InlineData("scanCode")]
+    [InlineData("flags")]
+    [InlineData("rawInputBytes")]
+    [InlineData("reportBytes")]
+    [InlineData("abstractAction")]
+    [InlineData("actionSequence")]
+    public void RejectsExplicitRawInputAndActionFieldsRecursively(string field)
+    {
+        string json = "{\"schemaVersion\":2,\"type\":\"preview.boundsChanged\",\"payload\":{\"left\":0,\"top\":0,\"width\":320,\"height\":180,\"devicePixelRatio\":1,\"nested\":{\""
+            + field
+            + "\":\"unsafe\"}}}";
+
+        BridgeRouteResult result = router.Route(json);
+
+        Assert.False(result.Accepted);
+        Assert.Equal("UNSAFE_PAYLOAD_REJECTED", result.Code);
     }
 
     [Fact]

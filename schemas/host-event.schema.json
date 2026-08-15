@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://maple.local/schemas/host-event.schema.json",
+  "title": "Maple host events v2",
+  "$defs": {
+    "schemaVersion": { "const": 2 },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "sessionState": { "enum": ["Stopped", "Arming", "Observing", "MapScanning", "MapCalibrating", "Navigating", "Attacking", "Looting", "UsingPotion", "Paused", "ManualIntervention", "EmergencyStop"] },
+    "pauseReason": { "enum": ["None", "CalibrationRequired", "StaleFrame", "TargetLost", "WindowNotForeground", "BlackFrame", "MapNotValidated", "InputUnavailable", "HealthUnknown", "UnknownPopup", "WatchdogTimeout", "OperatorRequested", "SafetyViolation"] },
+    "inferenceProvider": { "enum": ["none", "cpu", "directml", "cuda"] },
+    "captureBackend": { "enum": ["WGC", "BitBlt", "PrintWindow"] },
+    "telemetry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "telemetry.updated" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "timestamp", "captureFps", "renderFps", "recognitionFps", "frameLatencyMs", "detectorLatencyMs", "droppedFrames", "queueAgeMs", "processMemoryMb", "inferenceProvider", "captureBackend", "lastAction", "warningCode", "state", "pauseReason"],
+          "properties": {
+            "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+            "timestamp": { "$ref": "#/$defs/timestamp" },
+            "captureFps": { "type": "number", "minimum": 0 },
+            "renderFps": { "type": "number", "minimum": 0 },
+            "recognitionFps": { "type": "number", "minimum": 0 },
+            "frameLatencyMs": { "type": "number", "minimum": 0 },
+            "detectorLatencyMs": { "type": "number", "minimum": 0 },
+            "droppedFrames": { "type": "integer", "minimum": 0 },
+            "queueAgeMs": { "type": "number", "minimum": 0 },
+            "processMemoryMb": { "type": "number", "minimum": 0 },
+            "inferenceProvider": { "$ref": "#/$defs/inferenceProvider" },
+            "captureBackend": { "$ref": "#/$defs/captureBackend" },
+            "lastAction": { "type": ["string", "null"], "maxLength": 128 },
+            "warningCode": { "type": ["string", "null"], "maxLength": 128 },
+            "state": { "$ref": "#/$defs/sessionState" },
+            "pauseReason": { "$ref": "#/$defs/pauseReason" }
+          }
+        }
+      }
+    },
+    "visionStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "vision.status.updated" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "modelId", "provider", "diagnostic"],
+          "properties": {
+            "status": { "enum": ["notConfigured", "inspecting", "ready", "repairing", "faulted"] },
+            "modelId": { "type": ["string", "null"], "maxLength": 128 },
+            "provider": { "$ref": "#/$defs/inferenceProvider" },
+            "diagnostic": { "type": ["string", "null"], "maxLength": 128 }
+          }
+        }
+      }
+    },
+    "existingEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "enum": ["target.updated", "capture.frameMetadata", "overlay.updated", "observation.updated", "session.stateChanged", "input.result", "input.status.updated", "log.appended", "preview.availabilityChanged", "cloud.status.updated"] },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": { "type": "object" }
+      }
+    }
+  },
+  "oneOf": [
+    { "$ref": "#/$defs/telemetry" },
+    { "$ref": "#/$defs/visionStatus" },
+    { "$ref": "#/$defs/existingEvent" }
+  ]
+}

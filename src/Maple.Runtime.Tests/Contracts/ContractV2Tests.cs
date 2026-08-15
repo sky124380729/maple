@@ -65,4 +65,27 @@ public sealed class ContractV2Tests
         Assert.Contains("CloudMapAnnotate", commands);
         Assert.Contains("CloudStatusUpdated", events);
     }
+
+    [Fact]
+    public void ContractPublishesPreviewAndVisionMessages()
+    {
+        Assert.Contains("PreviewBoundsChanged", Enum.GetNames<UiCommandType>());
+        Assert.Contains("VisionStatusUpdated", Enum.GetNames<HostEventType>());
+    }
+
+    [Fact]
+    public void TelemetryCanRepresentNativeRuntimeDiagnostics()
+    {
+        string[] properties = typeof(TelemetrySnapshot).GetProperties().Select(property => property.Name).ToArray();
+
+        Assert.Contains("DetectorLatencyMs", properties);
+        Assert.Contains("ProcessMemoryMb", properties);
+        Assert.Contains("InferenceProvider", properties);
+        Assert.Contains("CaptureBackend", properties);
+        Assert.Contains("LastAction", properties);
+        Assert.Contains("WarningCode", properties);
+        Type? providerType = typeof(TelemetrySnapshot).Assembly.GetType("Maple.Contracts.InferenceProvider");
+        Assert.NotNull(providerType);
+        Assert.Equal(new[] { "None", "Cpu", "DirectMl", "Cuda" }, Enum.GetNames(providerType));
+    }
 }

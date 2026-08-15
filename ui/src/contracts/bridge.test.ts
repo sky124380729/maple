@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import Ajv2020 from 'ajv/dist/2020'
 import addFormats from 'ajv-formats'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
   CONTRACT_SCHEMA_VERSION,
@@ -10,6 +10,7 @@ import {
   emergencyStopCommandSchema,
   hostEventSchema,
   observationSnapshotSchema,
+  telemetrySnapshotSchema,
   uiCommandSchema,
   validateObservationSnapshot,
 } from './bridge'
@@ -59,6 +60,89 @@ const validObservation = {
 }
 
 describe('shared bridge contracts', () => {
+  test('accepts only finite bounded native preview layout intent', () => {
+    const command = {
+      schemaVersion: 2,
+      type: 'preview.boundsChanged',
+      payload: { left: 24, top: 80, width: 1280, height: 720, devicePixelRatio: 1.25 },
+    }
+
+    expect(uiCommandSchema.safeParse(command).success).toBe(true)
+    expect(uiCommandSchema.safeParse({ ...command, payload: { ...command.payload, left: -1 } }).success).toBe(false)
+    expect(uiCommandSchema.safeParse({ ...command, payload: { ...command.payload, width: 319 } }).success).toBe(false)
+    expect(uiCommandSchema.safeParse({ ...command, payload: { ...command.payload, height: 10_001 } }).success).toBe(false)
+    expect(uiCommandSchema.safeParse({ ...command, payload: { ...command.payload, devicePixelRatio: Number.POSITIVE_INFINITY } }).success).toBe(false)
+    expect(uiCommandSchema.safeParse({ ...command, payload: { ...command.payload, scanCode: 75 } }).success).toBe(false)
+  })
+
+  test('accepts only the explicit closed vision model status', () => {
+    const event = {
+      schemaVersion: 2,
+      type: 'vision.status.updated',
+      payload: { status: 'ready', modelId: 'maple-yolo-v2', provider: 'directml', diagnostic: null },
+    }
+
+    expect(hostEventSchema.safeParse(event).success).toBe(true)
+    expect(hostEventSchema.safeParse({ ...event, payload: { ...event.payload, provider: 'webgpu' } }).success).toBe(false)
+    expect(hostEventSchema.safeParse({ ...event, payload: { ...event.payload, modelId: 'x'.repeat(129) } }).success).toBe(false)
+    expect(hostEventSchema.safeParse({ ...event, payload: { ...event.payload, action: 'Attack' } }).success).toBe(false)
+  })
+
+  test('requires richer bounded telemetry fields', () => {
+    const telemetry = {
+      schemaVersion: 2,
+      timestamp: '2026-08-15T12:00:00Z',
+      captureFps: 58,
+      renderFps: 60,
+      recognitionFps: 18,
+      frameLatencyMs: 42,
+      detectorLatencyMs: 31,
+      droppedFrames: 3,
+      queueAgeMs: 12,
+      processMemoryMb: 384.5,
+      inferenceProvider: 'directml',
+      captureBackend: 'WGC',
+      lastAction: null,
+      warningCode: 'QUEUE_AGE_HIGH',
+      state: 'Observing',
+      pauseReason: 'None',
+    }
+
+    expect(telemetrySnapshotSchema.safeParse(telemetry).success).toBe(true)
+    expect(telemetrySnapshotSchema.safeParse({ ...telemetry, detectorLatencyMs: -1 }).success).toBe(false)
+    expect(telemetrySnapshotSchema.safeParse({ ...telemetry, processMemoryMb: -1 }).success).toBe(false)
+    expect(telemetrySnapshotSchema.safeParse({ ...telemetry, lastAction: 'x'.repeat(129) }).success).toBe(false)
+  })
+
+  test('publishes strict split schemas for preview, vision, and telemetry', () => {
+    const commandPath = resolve(process.cwd(), '../schemas/ui-command.schema.json')
+    const eventPath = resolve(process.cwd(), '../schemas/host-event.schema.json')
+    expect(existsSync(commandPath)).toBe(true)
+    expect(existsSync(eventPath)).toBe(true)
+    if (!existsSync(commandPath) || !existsSync(eventPath)) return
+
+    const ajv = new Ajv2020({ allErrors: true, strict: false })
+    addFormats(ajv)
+    const validateCommand = ajv.compile(JSON.parse(readFileSync(commandPath, 'utf8')))
+    const validateEvent = ajv.compile(JSON.parse(readFileSync(eventPath, 'utf8')))
+    const preview = {
+      schemaVersion: 2,
+      type: 'preview.boundsChanged',
+      payload: { left: 0, top: 0, width: 320, height: 180, devicePixelRatio: 0.5 },
+    }
+    const vision = {
+      schemaVersion: 2,
+      type: 'vision.status.updated',
+      payload: { status: 'notConfigured', modelId: null, provider: 'none', diagnostic: null },
+    }
+
+    expect(validateCommand(preview)).toBe(true)
+    expect(validateCommand({ ...preview, payload: { ...preview.payload, flags: 1 } })).toBe(false)
+    expect(validateCommand({ ...preview, payload: { ...preview.payload, left: 10_001 } })).toBe(false)
+    expect(validateEvent(vision)).toBe(true)
+    expect(validateEvent({ ...vision, payload: { ...vision.payload, diagnostic: 'x'.repeat(129) } })).toBe(false)
+  })
+
   test('accepts only the closed production input broker status shape', () => {
     const event = {
       schemaVersion: 2,
