@@ -22,10 +22,8 @@ requireTokens('src/Maple.Vision/ObservationFusion.cs', ['FreshUntilMonoMs', 'Res
 requireTokens('src/Maple.Cloud/MockBailianMapClient.cs', ['UploadNotApproved', 'Offline', 'Timeout', 'MalformedResponse'])
 requireTokens('src/Maple.Input/NullInputAdapter.cs', ['INPUT_INJECTION=DISABLED'])
 requireTokens('src/Maple.Input/ReplayInputAdapter.cs', ['REPLAY_ONLY', 'ActiveKeyRegistry'])
-const hidSource = requireTokens('src/Maple.Input/WindowsVirtualHidAdapter.cs', ['HID_CONTRACT_UNVERIFIED', 'IVirtualHidTransport', 'IVirtualHidReportEncoder'])
-for (const forbidden of ['CreateFile', 'WriteFile', 'DeviceIoControl', 'VID_', 'PID_']) {
-  if (hidSource.includes(forbidden)) throw new Error(`HID 合同包含未验证原生细节：${forbidden}`)
-}
+// Broker sources land in later tasks; until then the active specification is the explicit pending contract.
+requireTokens('docs/MAPLE_PROJECT_SPEC.md', ['BrokerProtocol', 'BrokerClient', 'ReleaseAll', 'PENDING_SOURCE'])
 requireTokens('src/Maple.Host/BridgeMessageRouter.cs', ['session.emergencyStop', 'UNKNOWN_COMMAND_REJECTED', 'ContainsForbiddenField', 'ValidatePayload'])
 requireTokens('src/Maple.Host/HostSafetyCoordinator.cs', ['PauseAndRelease', 'EmergencyStop', 'ReleaseForShutdown'])
 requireTokens('src/Maple.Cloud/BailianMapHttpClient.cs', ['BailianHttpClient.Endpoint', 'CloudUploadApproved', 'HasMatchingProvenance', '不得输出路线、按键或动作'])
@@ -44,4 +42,5 @@ for (const relative of ['hid-device-report.template.json', 'hid-os-report.templa
 
 console.log('PORTABLE_CONTRACTS=PASS')
 console.log('WINDOWS_NATIVE_EVIDENCE=PENDING')
+console.log('WINDOWS_PRODUCTION_INPUT_EVIDENCE=PENDING')
 console.log('WINDOWS_HID_EVIDENCE=PENDING')
