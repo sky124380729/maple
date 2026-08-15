@@ -24,6 +24,66 @@ public interface IBrokerTransport : IAsyncDisposable
     Task<BrokerResponse> ExchangeAsync(BrokerRequest request, CancellationToken token);
 }
 
+public interface IBrokerClientFactory
+{
+    Task<IBrokerClient> CreateAsync(CancellationToken cancellationToken);
+}
+
+public sealed class LaunchingBrokerClientFactory : IBrokerClientFactory, IDisposable
+{
+    private readonly BrokerProcessLauncher launcher;
+    private readonly string brokerExecutable;
+    private readonly TimeSpan connectionTimeout;
+
+    public LaunchingBrokerClientFactory(
+        BrokerProcessLauncher launcher,
+        string brokerExecutable,
+        TimeSpan? connectionTimeout = null)
+    {
+        this.launcher = launcher ?? throw new ArgumentNullException(nameof(launcher));
+        this.brokerExecutable = string.IsNullOrWhiteSpace(brokerExecutable)
+            ? throw new ArgumentException("BROKER_EXECUTABLE_REQUIRED", nameof(brokerExecutable))
+            : Path.GetFullPath(brokerExecutable);
+        this.connectionTimeout = connectionTimeout ?? TimeSpan.FromSeconds(8);
+    }
+
+    public async Task<IBrokerClient> CreateAsync(CancellationToken cancellationToken)
+    {
+        if (!File.Exists(brokerExecutable))
+            throw new InputUnavailableException("INPUT_BROKER_EXECUTABLE_NOT_FOUND");
+
+        string pipeName = BrokerProcessLauncher.CreatePipeName();
+        try
+        {
+            await Task.Run(
+                () => launcher.Launch(brokerExecutable, pipeName, Environment.ProcessId),
+                cancellationToken).ConfigureAwait(false);
+            NamedPipeBrokerTransport transport = await NamedPipeBrokerTransport.ConnectAsync(
+                pipeName,
+                connectionTimeout,
+                cancellationToken).ConfigureAwait(false);
+            return new BrokerClient(transport, TimeSpan.FromMilliseconds(500));
+        }
+        catch (InputUnavailableException)
+        {
+            launcher.Dispose();
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            launcher.Dispose();
+            throw;
+        }
+        catch (Exception exception)
+        {
+            launcher.Dispose();
+            throw new InputUnavailableException("INPUT_BROKER_CONNECT_FAILED", exception);
+        }
+    }
+
+    public void Dispose() => launcher.Dispose();
+}
+
 public sealed class BrokerClient : IBrokerClient
 {
     private readonly IBrokerTransport transport;

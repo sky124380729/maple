@@ -9,12 +9,14 @@ using Maple.Input;
 
 namespace Maple.Host;
 
-public sealed class BrokerInputAdapter : IInputAdapter, IDisposable
+public sealed class BrokerInputAdapter : IInputAdapter, IInputBrokerSession, IDisposable
 {
-    private readonly IBrokerClient client;
+    private IBrokerClient? client;
+    private readonly IBrokerClientFactory? clientFactory;
     private readonly BlockingCollection<WorkItem> work = new();
-    private readonly Thread worker;
+    private Thread worker = null!;
     private readonly object sync = new();
+    private readonly SemaphoreSlim startLock = new(1, 1);
     private readonly HashSet<string> activeKeys = new(StringComparer.OrdinalIgnoreCase);
     private InputAdapterStatus status = new()
     {
@@ -29,12 +31,51 @@ public sealed class BrokerInputAdapter : IInputAdapter, IDisposable
     public BrokerInputAdapter(IBrokerClient client)
     {
         this.client = client ?? throw new ArgumentNullException(nameof(client));
+        status.Code = "INPUT_BROKER_CONNECTED";
+        status.IsHealthy = true;
+        StartWorker();
+    }
+
+    public BrokerInputAdapter(IBrokerClientFactory clientFactory)
+    {
+        this.clientFactory = clientFactory ?? throw new ArgumentNullException(nameof(clientFactory));
+        status.Code = "INPUT_BROKER_DISCONNECTED";
+        StartWorker();
+    }
+
+    private void StartWorker()
+    {
         worker = new Thread(WorkerMain)
         {
             IsBackground = true,
             Name = "Maple.InputBroker.ClientWorker"
         };
         worker.Start();
+    }
+
+    public async Task EnsureStartedAsync(CancellationToken cancellationToken)
+    {
+        if (disposed) throw new InputUnavailableException("INPUT_BROKER_ADAPTER_DISPOSED");
+        if (client is not null) return;
+        if (clientFactory is null) throw new InputUnavailableException("INPUT_BROKER_FACTORY_MISSING");
+
+        await startLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (client is not null) return;
+            SetStatus(false, false, "INPUT_BROKER_STARTING");
+            try
+            {
+                client = await clientFactory.CreateAsync(cancellationToken).ConfigureAwait(false);
+                SetStatus(true, false, "INPUT_BROKER_CONNECTED");
+            }
+            catch
+            {
+                SetStatus(false, false, "INPUT_BROKER_START_FAILED");
+                throw;
+            }
+        }
+        finally { startLock.Release(); }
     }
 
     public void ArmTarget(ArmTargetPayload target)
@@ -48,6 +89,7 @@ public sealed class BrokerInputAdapter : IInputAdapter, IDisposable
     {
         BrokerActionPayload payload = CreatePayload(action, key);
         Invoke(BrokerRequestKind.KeyDownAction, payload);
+        SetStatus(true, true, "INPUT_BROKER_READY");
         lock (sync) activeKeys.Add(payload.Action.ToString());
         return Result(action, InputStatus.Accepted, nowMonoMs, "BROKER_KEY_DOWN_ACK");
     }
@@ -56,6 +98,7 @@ public sealed class BrokerInputAdapter : IInputAdapter, IDisposable
     {
         BrokerActionPayload payload = CreatePayload(action, key);
         Invoke(BrokerRequestKind.KeyUpAction, payload);
+        SetStatus(true, true, "INPUT_BROKER_READY");
         lock (sync) activeKeys.Remove(payload.Action.ToString());
         return Result(action, InputStatus.Completed, nowMonoMs, "BROKER_KEY_UP_ACK");
     }
@@ -63,15 +106,23 @@ public sealed class BrokerInputAdapter : IInputAdapter, IDisposable
     public InputResult Press(AbstractAction action, string key, long nowMonoMs)
     {
         Invoke(BrokerRequestKind.PressAction, CreatePayload(action, key));
+        SetStatus(true, true, "INPUT_BROKER_READY");
         return Result(action, InputStatus.Completed, nowMonoMs, "BROKER_PRESS_ACK");
     }
 
     public InputResult ReleaseAll(long nowMonoMs)
     {
+        if (client is null)
+        {
+            lock (sync) activeKeys.Clear();
+            SetStatus(false, false, "INPUT_BROKER_DISCONNECTED");
+            return Result(null, InputStatus.Completed, nowMonoMs, "BROKER_NOT_STARTED_RELEASED");
+        }
         try
         {
             Invoke(BrokerRequestKind.ReleaseAll, null);
             lock (sync) activeKeys.Clear();
+            SetStatus(true, false, "INPUT_BROKER_RELEASED");
             return Result(null, InputStatus.Completed, nowMonoMs, "BROKER_RELEASE_ALL_ACK");
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -116,16 +167,19 @@ public sealed class BrokerInputAdapter : IInputAdapter, IDisposable
     public void Dispose()
     {
         if (disposed) return;
-        ReleaseAll(Environment.TickCount64);
+        if (client is not null) ReleaseAll(Environment.TickCount64);
         disposed = true;
         work.CompleteAdding();
         worker.Join(TimeSpan.FromSeconds(2));
         work.Dispose();
+        startLock.Dispose();
+        if (clientFactory is IDisposable disposableFactory) disposableFactory.Dispose();
     }
 
     private BrokerResponse Invoke(BrokerRequestKind kind, BrokerPayload? payload)
     {
         if (disposed) throw new InputUnavailableException("INPUT_BROKER_ADAPTER_DISPOSED");
+        if (client is null) throw new InputUnavailableException("INPUT_BROKER_NOT_STARTED");
         var completion = new TaskCompletionSource<BrokerResponse>(
             TaskCreationOptions.RunContinuationsAsynchronously);
         try
@@ -141,7 +195,6 @@ public sealed class BrokerInputAdapter : IInputAdapter, IDisposable
             .WaitAsync(TimeSpan.FromSeconds(5))
             .GetAwaiter()
             .GetResult();
-        SetStatus(true, true, "INPUT_BROKER_READY");
         return response;
     }
 
@@ -153,7 +206,9 @@ public sealed class BrokerInputAdapter : IInputAdapter, IDisposable
             {
                 try
                 {
-                    BrokerResponse response = client.SendAsync(
+                    IBrokerClient currentClient = client
+                        ?? throw new InputUnavailableException("INPUT_BROKER_NOT_STARTED");
+                    BrokerResponse response = currentClient.SendAsync(
                         item.Kind,
                         item.Payload,
                         CancellationToken.None).GetAwaiter().GetResult();
@@ -167,7 +222,9 @@ public sealed class BrokerInputAdapter : IInputAdapter, IDisposable
         }
         finally
         {
-            client.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            IBrokerClient? currentClient = client;
+            if (currentClient is not null)
+                currentClient.DisposeAsync().AsTask().GetAwaiter().GetResult();
         }
     }
 

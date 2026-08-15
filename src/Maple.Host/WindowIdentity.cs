@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Maple.Host;
 
 public sealed record WindowCandidate(
@@ -31,7 +33,8 @@ public sealed record WindowIdentity(
     int Dpi,
     DateTimeOffset ProcessStartedAtUtc,
     string ProcessPathSha256,
-    string ProcessVersion);
+    string ProcessVersion,
+    [property: JsonIgnore] string ProcessPath = "");
 
 public enum TargetWindowDiscoveryStatus
 {

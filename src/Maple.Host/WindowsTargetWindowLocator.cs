@@ -81,7 +81,8 @@ public sealed class WindowsTargetWindowLocator : ITargetWindowLocator
             Math.Max(96, candidate.Dpi),
             candidate.ProcessStartedAtUtc,
             pathHash,
-            candidate.ProcessVersion ?? string.Empty);
+            candidate.ProcessVersion ?? string.Empty,
+            candidate.ProcessPath);
     }
 }
 

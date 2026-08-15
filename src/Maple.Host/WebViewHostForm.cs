@@ -36,13 +36,30 @@ namespace Maple.Host
         private readonly Button emergencyButton = new Button();
         private readonly string assetFolder;
         private readonly System.Windows.Forms.Timer captureTimer = new() { Interval = CapturePollingPolicy.ActiveIntervalMs };
+        private readonly System.Windows.Forms.Timer foregroundTimer = new() { Interval = 100 };
         private CaptureCoordinator? captureCoordinator;
+        private ForegroundSessionController? foregroundSession;
+        private IForegroundWindowController? foregroundWindow;
+        private GlobalHotKeyManager? globalHotKeys;
+        private IDisposable? inputLifetime;
         private bool captureInProgress;
+        private bool foregroundCheckInProgress;
 
         public WebViewHostForm(IWebViewRuntime webViewRuntime, IInputAdapter inputAdapter, string assetFolder)
+            : this(
+                webViewRuntime,
+                new HostSafetyCoordinator(inputAdapter ?? throw new ArgumentNullException(nameof(inputAdapter))),
+                assetFolder)
+        {
+        }
+
+        public WebViewHostForm(
+            IWebViewRuntime webViewRuntime,
+            HostSafetyCoordinator safety,
+            string assetFolder)
         {
             this.webViewRuntime = webViewRuntime ?? throw new ArgumentNullException("webViewRuntime");
-            safety = new HostSafetyCoordinator(inputAdapter ?? throw new ArgumentNullException("inputAdapter"));
+            this.safety = safety ?? throw new ArgumentNullException(nameof(safety));
             this.assetFolder = ValidateAssetFolder(assetFolder);
             Text = "Maple 工作台";
             ClientSize = new Size(1440, 900);
@@ -52,10 +69,24 @@ namespace Maple.Host
             this.webViewRuntime.ContentReset += OnContentReset;
             Shown += OnShown;
             captureTimer.Tick += OnCaptureTick;
+            foregroundTimer.Tick += OnForegroundTick;
         }
 
         public event EventHandler<BridgeRouteResult>? CommandReceived;
         public NativePreviewSurface PreviewSurface { get { return preview; } }
+
+        public void ConfigureInputSession(
+            ForegroundSessionController session,
+            IForegroundWindowController windowController,
+            GlobalHotKeyManager hotKeys,
+            IDisposable lifetime)
+        {
+            if (foregroundSession is not null) throw new InvalidOperationException("Input session is already configured");
+            foregroundSession = session ?? throw new ArgumentNullException(nameof(session));
+            foregroundWindow = windowController ?? throw new ArgumentNullException(nameof(windowController));
+            globalHotKeys = hotKeys ?? throw new ArgumentNullException(nameof(hotKeys));
+            inputLifetime = lifetime ?? throw new ArgumentNullException(nameof(lifetime));
+        }
 
         public void ConfigureCapture(ITargetWindowLocator locator, ICaptureBackend backend, ICaptureFrameObserver? observer = null)
         {
@@ -110,6 +141,12 @@ namespace Maple.Host
         {
             webViewRuntime.Attach(browserPanel, assetFolder);
             if (captureCoordinator is not null) captureTimer.Start();
+            if (foregroundSession is not null && globalHotKeys is not null)
+            {
+                HotKeyRegistrationResult registration = globalHotKeys.Register(Handle);
+                if (!registration.Success) foregroundSession.Disable(registration.Code);
+                foregroundTimer.Start();
+            }
         }
 
         private async void OnCaptureTick(object? sender, EventArgs e)
@@ -120,9 +157,25 @@ namespace Maple.Host
             {
                 CaptureTickResult result = await captureCoordinator.CaptureOnceAsync(CancellationToken.None);
                 captureTimer.Interval = CapturePollingPolicy.NextIntervalMs(result);
+                if (!result.Success && result.Code == "TARGET_NOT_FOREGROUND" && foregroundSession is not null)
+                    await foregroundSession.OnForegroundChangedAsync(nint.Zero, CancellationToken.None);
             }
             catch (OperationCanceledException) { }
             finally { captureInProgress = false; }
+        }
+
+        private async void OnForegroundTick(object? sender, EventArgs e)
+        {
+            if (foregroundCheckInProgress || foregroundSession is null || foregroundWindow is null) return;
+            foregroundCheckInProgress = true;
+            try
+            {
+                await foregroundSession.OnForegroundChangedAsync(
+                    foregroundWindow.GetForegroundWindow(),
+                    CancellationToken.None);
+            }
+            catch (OperationCanceledException) { }
+            finally { foregroundCheckInProgress = false; }
         }
 
         private void OnMessageReceived(object? sender, WebViewRuntimeMessageEventArgs e)
@@ -134,7 +187,21 @@ namespace Maple.Host
                 return;
             }
             if (result.CommandType == UiCommandType.SessionEmergencyStop) EmergencyStop("React 请求紧急停止");
+            else if (result.CommandType is UiCommandType.SessionArm or UiCommandType.SessionResume)
+                _ = ResumeInputAsync();
+            else if (result.CommandType == UiCommandType.SessionPause)
+                foregroundSession?.Pause(PauseReason.OperatorRequested);
             CommandReceived?.Invoke(this, result);
+        }
+
+        private async Task ResumeInputAsync()
+        {
+            if (foregroundSession is null)
+            {
+                safety.PauseAndRelease(PauseReason.InputUnavailable);
+                return;
+            }
+            await foregroundSession.ResumeAsync(CancellationToken.None);
         }
 
         private void OnRuntimeCrashed(object? sender, EventArgs e)
@@ -146,8 +213,15 @@ namespace Maple.Host
 
         private void EmergencyStop(string reason)
         {
-            safety.EmergencyStop();
+            if (foregroundSession is not null) foregroundSession.EmergencyStop();
+            else safety.EmergencyStop();
             webViewRuntime.Send("{\"schemaVersion\":" + ContractConstants.SchemaVersion + ",\"type\":\"session.stateChanged\",\"payload\":{\"state\":\"EmergencyStop\",\"pauseReason\":\"OperatorRequested\"}}");
+        }
+
+        protected override void WndProc(ref Message message)
+        {
+            if (globalHotKeys?.Dispatch(message.Msg, message.WParam) == true) return;
+            base.WndProc(ref message);
         }
 
         protected override void Dispose(bool disposing)
@@ -157,11 +231,17 @@ namespace Maple.Host
                 captureTimer.Stop();
                 captureTimer.Tick -= OnCaptureTick;
                 captureTimer.Dispose();
+                foregroundTimer.Stop();
+                foregroundTimer.Tick -= OnForegroundTick;
+                foregroundTimer.Dispose();
+                globalHotKeys?.Dispose();
+                foregroundSession?.Dispose();
                 captureCoordinator?.Dispose();
                 webViewRuntime.MessageReceived -= OnMessageReceived;
                 webViewRuntime.RuntimeCrashed -= OnRuntimeCrashed;
                 webViewRuntime.ContentReset -= OnContentReset;
                 safety.ReleaseForShutdown();
+                inputLifetime?.Dispose();
                 webViewRuntime.Dispose();
             }
             base.Dispose(disposing);

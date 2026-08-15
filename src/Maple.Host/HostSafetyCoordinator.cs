@@ -28,11 +28,27 @@ public sealed class HostSafetyCoordinator
         get { lock (sync) return session.PauseReason; }
     }
 
-    public void PauseAndRelease()
+    public bool BeginArming()
     {
         lock (sync)
         {
-            session.Pause(PauseReason.SafetyViolation);
+            SessionTransitionResult transition = session.State == SessionState.Paused
+                ? session.Resume()
+                : session.Request(SessionState.Arming);
+            return transition.Accepted;
+        }
+    }
+
+    public bool MarkObserving()
+    {
+        lock (sync) return session.Request(SessionState.Observing).Accepted;
+    }
+
+    public void PauseAndRelease(PauseReason reason = PauseReason.SafetyViolation)
+    {
+        lock (sync)
+        {
+            session.Pause(reason);
             inputAdapter.ReleaseAll(clock());
         }
     }

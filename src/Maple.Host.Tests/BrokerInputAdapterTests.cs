@@ -12,6 +12,37 @@ namespace Maple.Host.Tests;
 public sealed class BrokerInputAdapterTests
 {
     [Fact]
+    public async Task LazyAdapterStartsOnlyWhenResumeFlowRequestsIt()
+    {
+        var client = new RecordingClient();
+        var factory = new RecordingClientFactory(client);
+        using var adapter = new BrokerInputAdapter(factory);
+
+        Assert.Equal("INPUT_BROKER_DISCONNECTED", adapter.GetStatus().Code);
+        Assert.Equal(0, factory.CreateCalls);
+
+        await adapter.EnsureStartedAsync(CancellationToken.None);
+        adapter.ArmTarget(new ArmTargetPayload(1, 2, 3, "C:\\game.exe"));
+
+        Assert.Equal(1, factory.CreateCalls);
+        Assert.True(adapter.GetStatus().InjectionEnabled);
+        Assert.Contains(client.Requests, request => request.Kind == BrokerRequestKind.ArmTarget);
+    }
+
+    [Fact]
+    public void ReleaseAllBeforeStartDoesNotCreateBrokerOrEnableInput()
+    {
+        var factory = new RecordingClientFactory(new RecordingClient());
+        using var adapter = new BrokerInputAdapter(factory);
+
+        InputResult result = adapter.ReleaseAll(50);
+
+        Assert.Equal(InputStatus.Completed, result.Status);
+        Assert.Equal(0, factory.CreateCalls);
+        Assert.False(adapter.GetStatus().InjectionEnabled);
+    }
+
+    [Fact]
     public void PipeWorkRunsOnDedicatedWorkerAndCarriesNoRawKeyFields()
     {
         int callerThread = Environment.CurrentManagedThreadId;
@@ -60,5 +91,16 @@ public sealed class BrokerInputAdapterTests
         }
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    private sealed class RecordingClientFactory(IBrokerClient client) : IBrokerClientFactory
+    {
+        public int CreateCalls { get; private set; }
+
+        public Task<IBrokerClient> CreateAsync(CancellationToken cancellationToken)
+        {
+            CreateCalls++;
+            return Task.FromResult(client);
+        }
     }
 }
