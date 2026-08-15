@@ -63,7 +63,8 @@ public sealed record BrokerActionPayload(
     BrokerActionKind Action,
     string LogicalKey,
     int HoldMs,
-    int MaximumDurationMs) : BrokerPayload;
+    int MaximumDurationMs,
+    long FrameFreshUntilMonoMs = 0) : BrokerPayload;
 
 public sealed record BrokerKeyEncoding(
     ushort VirtualKey,
