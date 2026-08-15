@@ -7,6 +7,21 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
+        if (args.Length == 4 && string.Equals(args[0], "--inspect-model", StringComparison.Ordinal) && string.Equals(args[2], "--output", StringComparison.Ordinal))
+        {
+            try
+            {
+                Maple.Vision.OnnxModelInspectionReport report = Maple.Vision.OnnxModelInspector.Inspect(args[1]);
+                Maple.Vision.OnnxModelInspector.Write(args[3], report);
+                return report.ModelReady ? 0 : 2;
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                WindowsRuntimeDiagnostics.WriteJson(args[3], new { schemaVersion = 1, modelReady = false, canDriveActions = false, diagnostic = exception.GetType().Name, message = exception.Message });
+                return 2;
+            }
+        }
+
         if (args.Length == 2 && string.Equals(args[0], "--windows-diagnostics", StringComparison.Ordinal))
         {
             WindowsRuntimeDiagnosticReport report = WindowsRuntimeDiagnostics.Create(

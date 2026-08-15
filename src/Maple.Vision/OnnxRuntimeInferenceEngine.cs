@@ -4,7 +4,7 @@ using Maple.Capture;
 
 namespace Maple.Vision;
 
-/// <summary>ONNX adapter for the fixed Maple detector output: cx, cy, width, height, confidence, classIndex.</summary>
+/// <summary>ONNX adapter for supported fixed-NMS and Ultralytics YOLO tensor layouts.</summary>
 public sealed class OnnxRuntimeInferenceEngine : IOnnxInferenceEngine
 {
     private readonly InferenceSession session;
@@ -25,19 +25,11 @@ public sealed class OnnxRuntimeInferenceEngine : IOnnxInferenceEngine
         var tensor = new DenseTensor<float>(input, [1, 3, manifest.InputHeight, manifest.InputWidth]);
         string inputName = session.InputMetadata.Keys.Single();
         using IDisposableReadOnlyCollection<DisposableNamedOnnxValue> outputs = session.Run([NamedOnnxValue.CreateFromTensor(inputName, tensor)]);
-        float[] raw = outputs.First().AsEnumerable<float>().ToArray();
-        var detections = new List<DetectionCandidate>();
-        for (int index = 0; index + 5 < raw.Length; index += 6)
-        {
-            double confidence = raw[index + 4];
-            int classIndex = (int)raw[index + 5];
-            if (confidence < manifest.ConfidenceThreshold || classIndex < 0 || classIndex >= manifest.Classes.Length) continue;
-            double width = raw[index + 2];
-            double height = raw[index + 3];
-            detections.Add(new DetectionCandidate(manifest.Classes[classIndex], confidence,
-                [Math.Clamp(raw[index] - width / 2, 0, 1), Math.Clamp(raw[index + 1] - height / 2, 0, 1), Math.Clamp(width, 0, 1), Math.Clamp(height, 0, 1)]));
-        }
-        return ValueTask.FromResult<IReadOnlyList<DetectionCandidate>>(detections);
+        Tensor<float> output = outputs.Single().AsTensor<float>();
+        IReadOnlyList<DetectionCandidate> detections = YoloTensorDecoder.Decode(
+            output.ToArray(), output.Dimensions.ToArray(), new ModelClassMap(manifest.Classes, manifest.ClassRoles),
+            manifest.ConfidenceThreshold, manifest.NmsThreshold, manifest.InputWidth, manifest.InputHeight);
+        return ValueTask.FromResult(detections);
     }
 
     public ValueTask DisposeAsync()

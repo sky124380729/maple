@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Maple.Vision;
 
@@ -16,6 +17,8 @@ public sealed class ModelManifest
     public double ConfidenceThreshold { get; init; }
     public double NmsThreshold { get; init; }
     public string[] Classes { get; init; } = [];
+    public Dictionary<string, DetectionRole> ClassRoles { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+    public OnnxOutputLayout OutputLayout { get; init; }
 }
 
 public sealed class ModelManifestValidation
@@ -28,22 +31,28 @@ public sealed class ModelManifestValidation
 
 public static class ModelManifestLoader
 {
-    private static readonly string[] RequiredClasses = ["self", "player", "monster"];
-
     public static ModelManifestValidation Load(string manifestPath)
     {
         if (string.IsNullOrWhiteSpace(manifestPath) || !File.Exists(manifestPath)) return Invalid("MODEL_MANIFEST_MISSING");
         try
         {
-            ModelManifest? manifest = JsonSerializer.Deserialize<ModelManifest>(File.ReadAllText(manifestPath), new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            if (manifest is null || manifest.SchemaVersion != 1 || string.IsNullOrWhiteSpace(manifest.ModelId) || manifest.Runtime != "onnx") return Invalid("MODEL_MANIFEST_INVALID");
+            var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+            ModelManifest? manifest = JsonSerializer.Deserialize<ModelManifest>(File.ReadAllText(manifestPath), options);
+            if (manifest is null || manifest.SchemaVersion != 2 || string.IsNullOrWhiteSpace(manifest.ModelId) || manifest.Runtime != "onnx") return Invalid("MODEL_MANIFEST_INVALID");
             if (manifest.InputWidth <= 0 || manifest.InputHeight <= 0 || manifest.ConfidenceThreshold is < 0 or > 1 || manifest.NmsThreshold is < 0 or > 1) return Invalid("MODEL_MANIFEST_INVALID");
-            if (!RequiredClasses.SequenceEqual(manifest.Classes ?? [], StringComparer.Ordinal)) return Invalid("MODEL_CLASSES_INVALID");
+            if (manifest.OutputLayout == OnnxOutputLayout.Unsupported || manifest.Classes is null || manifest.Classes.Length == 0 || manifest.Classes.Distinct(StringComparer.OrdinalIgnoreCase).Count() != manifest.Classes.Length) return Invalid("MODEL_CLASSES_INVALID");
+            if (manifest.ClassRoles is null || manifest.ClassRoles.Keys.Any(key => !manifest.Classes.Contains(key, StringComparer.OrdinalIgnoreCase))
+                || !manifest.ClassRoles.Values.Contains(DetectionRole.CharacterCandidate)
+                || !manifest.ClassRoles.Values.Contains(DetectionRole.Monster)) return Invalid("MODEL_CLASSES_INVALID");
             string modelPath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(manifestPath)!, manifest.ModelFile));
             string root = Path.GetFullPath(Path.GetDirectoryName(manifestPath)! + Path.DirectorySeparatorChar);
             if (!modelPath.StartsWith(root, StringComparison.Ordinal) || !File.Exists(modelPath)) return Invalid("MODEL_FILE_MISSING");
-            string hash = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(modelPath))).ToLowerInvariant();
-            if (!CryptographicOperations.FixedTimeEquals(Convert.FromHexString(hash), Convert.FromHexString(manifest.Sha256))) return Invalid("MODEL_HASH_MISMATCH");
+            if (manifest.Sha256.Length != 64) return Invalid("MODEL_HASH_INVALID");
+            byte[] expected = Convert.FromHexString(manifest.Sha256);
+            byte[] actual;
+            using (FileStream stream = File.OpenRead(modelPath)) actual = SHA256.HashData(stream);
+            if (!CryptographicOperations.FixedTimeEquals(actual, expected)) return Invalid("MODEL_HASH_MISMATCH");
             return new ModelManifestValidation { IsValid = true, Diagnostic = "OK", Manifest = manifest, ModelPath = modelPath };
         }
         catch (JsonException) { return Invalid("MODEL_MANIFEST_INVALID"); }

@@ -10,6 +10,8 @@ public sealed class DynamicVisionResult
     public List<PlayerObservation> Players { get; init; } = [];
     public List<MonsterObservation> Monsters { get; init; } = [];
     public string ModelVersion { get; init; } = "unknown";
+    public bool CanDriveActions { get; init; }
+    public string Diagnostic { get; init; } = string.Empty;
 }
 
 public sealed class FixedUiVisionResult

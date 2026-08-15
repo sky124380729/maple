@@ -13,7 +13,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Nullable>enable</Nullable>
-    <NoWarn>$(NoWarn);MSB3277</NoWarn>
+    <NoWarn>$(NoWarn);MSB3277;CS9057</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Maple.Contracts/Maple.Contracts.csproj" />
@@ -22,6 +22,7 @@
     <ProjectReference Include="../Maple.Input/Maple.Input.csproj" />
     <ProjectReference Include="../Maple.Map/Maple.Map.csproj" />
     <ProjectReference Include="../Maple.Capture/Maple.Capture.csproj" />
+    <ProjectReference Include="../Maple.Vision/Maple.Vision.csproj" />
     <ProjectReference Include="../Maple.Preview/Maple.Preview.csproj" />
     <ProjectReference Include="../Maple.Cloud/Maple.Cloud.csproj" />
     <ProjectReference Include="../Maple.InputBroker/Maple.InputBroker.csproj"

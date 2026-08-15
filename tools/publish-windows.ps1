@@ -2,7 +2,9 @@ param(
     [string]$OutputDirectory = 'dist\windows-x64',
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Release',
-    [switch]$SkipE2E
+    [switch]$SkipE2E,
+    [string]$InspectModelPath,
+    [string]$InspectionOutput = 'artifacts\model-inspection.json'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -42,5 +44,12 @@ if (-not (Test-Path -LiteralPath $publishedBroker -PathType Leaf)) {
 
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root 'tests\windows\publish_contract.tests.ps1') -PublishDirectory $publish
 if ($LASTEXITCODE -ne 0) { throw 'Windows publish contract failed' }
+
+if ($InspectModelPath) {
+    $inspection = [IO.Path]::GetFullPath((Join-Path $root $InspectionOutput))
+    & $publishedExecutable --inspect-model ([IO.Path]::GetFullPath($InspectModelPath)) --output $inspection
+    if ($LASTEXITCODE -ne 0) { throw "ONNX model inspection failed; report: $inspection" }
+    Write-Output "MODEL_INSPECTION=PASS;$inspection"
+}
 
 Write-Output "WINDOWS_PUBLISH=PASS;$publish"

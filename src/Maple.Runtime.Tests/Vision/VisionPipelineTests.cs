@@ -126,7 +126,7 @@ public sealed class VisionPipelineTests
             string manifestPath = Path.Combine(directory, "manifest.json");
             File.WriteAllText(manifestPath, $$"""
                 {
-                  "schemaVersion": 1,
+                  "schemaVersion": 2,
                   "modelId": "maple-dynamic-v1",
                   "version": "1.0.0",
                   "modelFile": "detector.onnx",
@@ -136,7 +136,12 @@ public sealed class VisionPipelineTests
                   "inputHeight": 640,
                   "confidenceThreshold": 0.75,
                   "nmsThreshold": 0.45,
-                  "classes": ["self", "player", "monster"]
+                  "classes": ["character", "mob"],
+                  "classRoles": {
+                    "character": "characterCandidate",
+                    "mob": "monster"
+                  },
+                  "outputLayout": "yoloChannelsFirst"
                 }
                 """);
 
@@ -173,6 +178,29 @@ public sealed class VisionPipelineTests
         Assert.Single(result.Monsters);
         Assert.Equal("player-52-0", result.Players[0].TrackId);
         Assert.Equal("monster-52-0", result.Monsters[0].TargetId);
+    }
+
+    [Fact]
+    public async Task RoleBearingDetectorExposesIdentitySafetyGate()
+    {
+        var engine = new StaticInferenceEngine([
+            new DetectionCandidate("character", 0.95, [0.4, 0.4, 0.1, 0.2], DetectionRole.CharacterCandidate),
+            new DetectionCandidate("mob", 0.90, [0.7, 0.4, 0.1, 0.1], DetectionRole.Monster),
+        ]);
+        var tracker = new SelfIdentityTracker(new SelfIdentityOptions { WarmupFrames = 2, MinimumConfidence = 0.75, OcclusionTtlMs = 120 });
+        var detector = new OnnxDynamicDetector(engine, 0.75, 120, tracker);
+        using var firstFrame = Frame(53);
+        using var secondFrame = Frame(54);
+
+        DynamicVisionResult warming = await detector.ObserveDynamicAsync(firstFrame, CancellationToken.None);
+        DynamicVisionResult ready = await detector.ObserveDynamicAsync(secondFrame, CancellationToken.None);
+
+        Assert.False(warming.CanDriveActions);
+        Assert.Equal("SELF_WARMING_UP", warming.Diagnostic);
+        Assert.True(ready.CanDriveActions);
+        Assert.Equal("OK", ready.Diagnostic);
+        Assert.NotNull(ready.Self);
+        Assert.Single(ready.Monsters);
     }
 
     [Fact]
