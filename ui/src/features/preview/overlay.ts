@@ -15,6 +15,8 @@ export interface OverlayRenderItem {
   freshUntilMonoMs: number
   label: string
   color: string
+  selected: boolean
+  targetId?: string
 }
 
 export function formatCanvasOverlayLabel(item: OverlayRenderItem, compact: boolean) {
@@ -38,6 +40,7 @@ export function buildOverlayRenderItems(snapshot: OverlaySnapshot, nowMonoMs: nu
       freshUntilMonoMs: snapshot.self.freshUntilMonoMs,
       label: `自己 ${formatConfidence(snapshot.self.confidence)}`,
       color: OVERLAY_COLORS.self,
+      selected: false,
     })
   }
 
@@ -50,6 +53,7 @@ export function buildOverlayRenderItems(snapshot: OverlaySnapshot, nowMonoMs: nu
       freshUntilMonoMs: player.freshUntilMonoMs,
       label: `其他玩家 ${formatConfidence(player.confidence)} #${player.trackId}`,
       color: OVERLAY_COLORS.player,
+      selected: false,
     })
   }
 
@@ -62,6 +66,8 @@ export function buildOverlayRenderItems(snapshot: OverlaySnapshot, nowMonoMs: nu
       freshUntilMonoMs: monster.freshUntilMonoMs,
       label: `${monster.class} ${formatConfidence(monster.confidence)} #${monster.targetId}`,
       color: OVERLAY_COLORS.monster,
+      targetId: monster.targetId,
+      selected: snapshot.selectedTargetId === monster.targetId,
     })
   }
 

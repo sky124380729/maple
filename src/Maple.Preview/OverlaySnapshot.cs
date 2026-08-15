@@ -1,3 +1,4 @@
+#nullable enable
 using System.Collections.Generic;
 using Maple.Contracts;
 
@@ -12,9 +13,11 @@ namespace Maple.Preview
         public int SchemaVersion { get; set; }
         public long FrameId { get; set; }
         public long GeneratedAtMonoMs { get; set; }
-        public SelfObservation Self { get; set; }
-        public List<PlayerObservation> Players { get; set; }
-        public List<MonsterObservation> Monsters { get; set; }
+        public SelfObservation? Self { get; set; }
+        public List<PlayerObservation> Players { get; set; } = [];
+        public List<MonsterObservation> Monsters { get; set; } = [];
+        public string? SelectedTargetId { get; set; }
+        public string ModelVersion { get; set; } = string.Empty;
     }
 
     public static class OverlayColors

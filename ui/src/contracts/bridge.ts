@@ -145,6 +145,8 @@ export const overlaySnapshotSchema = z
     schemaVersion,
     frameId: z.number().int().nonnegative(),
     generatedAtMonoMs: monoMs,
+    selectedTargetId: z.string().min(1).max(128).nullable().optional(),
+    modelVersion: z.string().min(1).max(128).optional(),
     self: selfDetectionSchema.optional(),
     players: z.array(playerDetectionSchema).max(64),
     monsters: z.array(monsterDetectionSchema).max(128),

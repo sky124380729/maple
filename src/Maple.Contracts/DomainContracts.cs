@@ -118,6 +118,8 @@ namespace Maple.Contracts
         [DataMember(Name = "self", EmitDefaultValue = false)] public SelfObservation Self { get; set; }
         [DataMember(Name = "players", IsRequired = true)] public List<PlayerObservation> Players { get; set; }
         [DataMember(Name = "monsters", IsRequired = true)] public List<MonsterObservation> Monsters { get; set; }
+        [DataMember(Name = "selectedTargetId", EmitDefaultValue = false)] public string SelectedTargetId { get; set; }
+        [DataMember(Name = "modelVersion", EmitDefaultValue = false)] public string ModelVersion { get; set; }
     }
 
     [DataContract]
