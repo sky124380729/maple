@@ -14,8 +14,12 @@ if ($SourceOnly -and $RequirePublished) {
 $checkPublished = $RequirePublished -or -not $SourceOnly
 
 $projectPath = Join-Path $root 'src\Maple.InputProbe\Maple.InputProbe.csproj'
+$coreProjectPath = Join-Path $root 'src\Maple.InputProbe.Core\Maple.InputProbe.Core.csproj'
 $manifestPath = Join-Path $root 'src\Maple.InputProbe\app.manifest'
 $probeDirectory = Join-Path $root 'src\Maple.InputProbe'
+$probeCoreDirectory = Join-Path $root 'src\Maple.InputProbe.Core'
+$inputAdapterPath = Join-Path $root 'src\Maple.Input\KeybdEventInputAdapter.cs'
+$probeRunnerPath = Join-Path $probeDirectory 'ProbeRunner.cs'
 $hostProjectPath = Join-Path $root 'src\Maple.Host\Maple.Host.csproj'
 $specPath = Join-Path $root 'docs\MAPLE_PROJECT_SPEC.md'
 $handoffPath = Join-Path $root 'docs\WINDOWS_IMPLEMENTATION_HANDOFF_2026-08-14.md'
@@ -54,6 +58,9 @@ function Get-TextBetween([string]$Text, [string]$StartMarker, [string]$EndMarker
 }
 
 Assert-FileExists $projectPath 'Input probe project'
+Assert-FileExists $coreProjectPath 'Input probe core project'
+Assert-FileExists $inputAdapterPath 'Input probe keyboard adapter'
+Assert-FileExists $probeRunnerPath 'Input probe runner'
 Assert-FileExists $manifestPath 'Input probe application manifest'
 Assert-FileExists $hostProjectPath 'Maple.Host project'
 Assert-FileExists $specPath 'Maple project specification'
@@ -76,6 +83,7 @@ Assert-Equal $properties.ApplicationManifest 'app.manifest' 'Input probe manifes
 $projectReferences = @($project.Project.ItemGroup.ProjectReference | ForEach-Object { $_.Include.Replace('/', '\') })
 foreach ($requiredReference in @(
     '..\Maple.Input\Maple.Input.csproj',
+    '..\Maple.InputProbe.Core\Maple.InputProbe.Core.csproj',
     '..\Maple.Contracts\Maple.Contracts.csproj',
     '..\Maple.Core\Maple.Core.csproj'
 )) {
@@ -111,7 +119,10 @@ $forbiddenApis = @(
     'ZwProtectVirtualMemory',
     'VirtualProtect'
 )
-$probeSources = @(Get-ChildItem -LiteralPath $probeDirectory -Filter '*.cs' -File -Recurse)
+$probeSources = @(
+    Get-ChildItem -LiteralPath $probeDirectory -Filter '*.cs' -File -Recurse
+    Get-ChildItem -LiteralPath $probeCoreDirectory -Filter '*.cs' -File -Recurse
+)
 if ($probeSources.Count -eq 0) {
     throw "Input probe must contain at least one C# source file: $probeDirectory"
 }
@@ -126,6 +137,7 @@ foreach ($source in $probeSources) {
         }
     }
 }
+$combinedProbeSource += Get-Content -LiteralPath $inputAdapterPath -Raw -Encoding UTF8
 Assert-Contains $combinedProbeSource 'Application.Run' 'Input probe executable entry point'
 Assert-Contains $combinedProbeSource 'Diagnostic-only self-test' 'Input probe diagnostic-only message'
 Assert-Contains $combinedProbeSource 'sends no input' 'Input probe inert-state message'
@@ -138,6 +150,12 @@ if ($keybdEventDeclaration.Count -ne 1) {
 }
 Assert-Contains $combinedProbeSource 'KeyEventFKeyUp' 'Input probe explicit key-up flag'
 Assert-Contains $combinedProbeSource 'KeyEventFExtendedKey' 'Input probe extended-key flag'
+$probeRunnerSource = Get-Content -LiteralPath $probeRunnerPath -Raw -Encoding UTF8
+Assert-Contains $probeRunnerSource 'ProbeKeyboardEventRecorder' 'Input probe actual-event recorder'
+Assert-Contains $probeRunnerSource 'GetEventsSince' 'Input probe action event capture'
+if ($probeRunnerSource.IndexOf('TryGetArrowScanCode', [StringComparison]::Ordinal) -ge 0) {
+    throw 'Input probe runner must derive evidence from emitted events instead of recomputing expected arrow scan codes.'
+}
 
 [xml]$hostProject = Get-Content -LiteralPath $hostProjectPath -Raw -Encoding UTF8
 $hostReferences = @($hostProject.Project.ItemGroup.ProjectReference | ForEach-Object { $_.Include })
@@ -164,8 +182,10 @@ if ($checkPublished) {
 
     $publishedExecutable = Join-Path $publish 'MapleInputProbe.exe'
     $publishedAssembly = Join-Path $publish 'MapleInputProbe.dll'
+    $publishedCoreAssembly = Join-Path $publish 'Maple.InputProbe.Core.dll'
     Assert-FileExists $publishedExecutable 'Published input probe executable'
     Assert-FileExists $publishedAssembly 'Published input probe managed assembly'
+    Assert-FileExists $publishedCoreAssembly 'Published input probe core assembly'
     Assert-FileExists $selfTestOutput 'Input probe self-test JSONL output'
 
     $executableBytes = [IO.File]::ReadAllBytes($publishedExecutable)
@@ -206,10 +226,19 @@ if ($checkPublished) {
         'screenshotBefore',
         'screenshotAfter',
         'classification',
-        'reason'
+        'reason',
+        'allKeysReleased'
     )
 
+    $expectedSelfTestRecords = @{
+        'self-test-left' = @{ vk = 37; scanCode = 75; flagsDown = 1; flagsUp = 3 }
+        'self-test-up' = @{ vk = 38; scanCode = 72; flagsDown = 1; flagsUp = 3 }
+        'self-test-right' = @{ vk = 39; scanCode = 77; flagsDown = 1; flagsUp = 3 }
+        'self-test-down' = @{ vk = 40; scanCode = 80; flagsDown = 1; flagsUp = 3 }
+    }
+
     $recordCount = 0
+    $seenActionIds = @{}
     $lineNumber = 0
     foreach ($line in Get-Content -LiteralPath $selfTestOutput -Encoding UTF8) {
         $lineNumber++
@@ -235,9 +264,31 @@ if ($checkPublished) {
         if ($record.allKeysReleased -ne $true) {
             throw "Input probe self-test must report allKeysReleased=true: $selfTestOutput`:$lineNumber"
         }
+        if ($record.inputMode -cne 'ExtendedScanCode') {
+            throw "Input probe self-test must report inputMode=ExtendedScanCode: $selfTestOutput`:$lineNumber"
+        }
+        if (-not $expectedSelfTestRecords.ContainsKey([string]$record.actionId)) {
+            throw "Input probe self-test contains unexpected actionId '$($record.actionId)': $selfTestOutput`:$lineNumber"
+        }
+        if ($seenActionIds.ContainsKey([string]$record.actionId)) {
+            throw "Input probe self-test contains duplicate actionId '$($record.actionId)': $selfTestOutput`:$lineNumber"
+        }
+
+        $expectedRecord = $expectedSelfTestRecords[[string]$record.actionId]
+        foreach ($field in @('vk', 'scanCode', 'flagsDown', 'flagsUp')) {
+            if ([uint32]$record.$field -ne [uint32]$expectedRecord[$field]) {
+                throw "Input probe self-test field '$field' for '$($record.actionId)' must be '$($expectedRecord[$field])', but was '$($record.$field)': $selfTestOutput`:$lineNumber"
+            }
+        }
+        $seenActionIds[[string]$record.actionId] = $true
     }
-    if ($recordCount -eq 0) {
-        throw "Input probe self-test JSONL output contains no records: $selfTestOutput"
+    if ($recordCount -ne $expectedSelfTestRecords.Count) {
+        throw "Input probe self-test JSONL output must contain exactly $($expectedSelfTestRecords.Count) records, but contained $recordCount`: $selfTestOutput"
+    }
+    foreach ($expectedActionId in $expectedSelfTestRecords.Keys) {
+        if (-not $seenActionIds.ContainsKey($expectedActionId)) {
+            throw "Input probe self-test JSONL output is missing '$expectedActionId': $selfTestOutput"
+        }
     }
 
     Write-Output 'INPUT_PROBE_CONTRACT=PASS; INPUT_PROBE_PUBLISHED=PASS'

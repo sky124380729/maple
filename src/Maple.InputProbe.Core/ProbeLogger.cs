@@ -1,16 +1,10 @@
 using System;
 using System.IO;
-using System.Text.Json;
 
 namespace Maple.InputProbe;
 
-internal sealed class ProbeLogger
+public sealed class ProbeLogger
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-    };
-
     private readonly object sync = new();
     private readonly string jsonlPath;
 
@@ -26,11 +20,10 @@ internal sealed class ProbeLogger
 
     public void Append(ProbeEvidence evidence)
     {
-        string line = JsonSerializer.Serialize(evidence, JsonOptions);
+        string line = ProbeEvidenceJson.Serialize(evidence);
         lock (sync)
         {
             File.AppendAllText(jsonlPath, line + Environment.NewLine);
         }
     }
 }
-

@@ -12,6 +12,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Maple.Input/Maple.Input.csproj" />
+    <ProjectReference Include="../Maple.InputProbe.Core/Maple.InputProbe.Core.csproj" />
     <ProjectReference Include="../Maple.Contracts/Maple.Contracts.csproj" />
     <ProjectReference Include="../Maple.Core/Maple.Core.csproj" />
   </ItemGroup>

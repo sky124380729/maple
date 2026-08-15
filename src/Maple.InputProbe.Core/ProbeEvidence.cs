@@ -1,6 +1,6 @@
 namespace Maple.InputProbe;
 
-internal sealed class ProbeEvidence
+public sealed class ProbeEvidence
 {
     public string SessionId { get; set; } = "";
     public string ActionId { get; set; } = "";

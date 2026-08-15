@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Text.Json;
 using System.Windows.Forms;
+using Maple.Contracts;
+using Maple.Input;
 
 namespace Maple.InputProbe;
 
@@ -30,21 +32,56 @@ internal static class Program
             : Path.Combine(output, "probe-evidence.jsonl");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
 
-        var evidence = new ProbeEvidence
+        var recordingSender = new ProbeKeyboardEventRecorder(new NoOpKeyboardEventSender());
+        var adapter = new KeybdEventInputAdapter(
+            recordingSender,
+            new SelfTestSafetyGate(),
+            KeybdEventMode.ExtendedScanCode);
+        var lines = new List<string>();
+        (string Key, ActionType ActionType)[] cases =
         {
-            SessionId = "self-test",
-            ActionId = "self-test",
-            InputMode = "ExtendedScanCode",
-            Classification = "SELF_TEST_NO_INPUT",
-            Reason = "Diagnostic-only self-test sends no input",
-            InputAttempted = false,
-            AllKeysReleased = true
+            ("Left", ActionType.MoveLeft),
+            ("Up", ActionType.ClimbUp),
+            ("Right", ActionType.MoveRight),
+            ("Down", ActionType.ClimbDown)
         };
-        string json = JsonSerializer.Serialize(evidence, new JsonSerializerOptions
+
+        foreach ((string key, ActionType actionType) in cases)
         {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        });
-        File.WriteAllText(path, json + Environment.NewLine);
+            string actionId = "self-test-" + key.ToLowerInvariant();
+            var action = new AbstractAction
+            {
+                ActionId = actionId,
+                Type = actionType,
+                HoldMs = 1,
+                MaxDurationMs = 100
+            };
+            int marker = recordingSender.Mark();
+            InputResult down = adapter.KeyDown(action, key, 10);
+            InputResult up = adapter.KeyUp(action, key, 11);
+            InputResult release = adapter.ReleaseAll(12);
+            ProbeActionInputEvidence input = ProbeActionInputEvidence.FromEmittedEvents(
+                KeybdEventMode.ExtendedScanCode,
+                recordingSender.GetEventsSince(marker));
+
+            lines.Add(ProbeEvidenceJson.Serialize(new ProbeEvidence
+            {
+                SessionId = "self-test",
+                ActionId = actionId,
+                InputMode = input.InputMode,
+                Vk = input.VirtualKey,
+                ScanCode = input.ScanCode,
+                FlagsDown = input.FlagsDown,
+                FlagsUp = input.FlagsUp,
+                Classification = "SELF_TEST_NO_INPUT",
+                Reason = $"Diagnostic-only self-test sends no input;{down.Message};{up.Message}",
+                InputAttempted = false,
+                AllKeysReleased = release.Status == InputStatus.Completed &&
+                    adapter.GetStatus().ActiveKeys.Count == 0
+            }));
+        }
+
+        File.WriteAllLines(path, lines);
         return 0;
     }
 
@@ -64,5 +101,17 @@ internal static class Program
             if (string.Equals(args[index], name, StringComparison.OrdinalIgnoreCase)) return args[index + 1];
         }
         return null;
+    }
+
+    private sealed class SelfTestSafetyGate : IInputSafetyGate
+    {
+        public bool CanSend(string reason) => true;
+    }
+
+    private sealed class NoOpKeyboardEventSender : IKeyboardEventSender
+    {
+        public void Send(ushort virtualKey, uint scanCode, uint flags)
+        {
+        }
     }
 }
