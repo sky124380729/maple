@@ -24,6 +24,8 @@
     <ProjectReference Include="../Maple.Capture/Maple.Capture.csproj" />
     <ProjectReference Include="../Maple.Preview/Maple.Preview.csproj" />
     <ProjectReference Include="../Maple.Cloud/Maple.Cloud.csproj" />
+    <ProjectReference Include="../Maple.InputBroker/Maple.InputBroker.csproj"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4129.50" />
@@ -38,5 +40,17 @@
   <Target Name="ValidateReactAssets" BeforeTargets="Publish">
     <Error Condition="!Exists('..\..\ui\dist\index.html')"
            Text="React assets are missing. Run tools/build-react-ui.ps1 before publishing." />
+  </Target>
+  <Target Name="CopyInputBrokerArtifacts" AfterTargets="Build">
+    <ItemGroup>
+      <InputBrokerArtifacts Include="..\Maple.InputBroker\bin\$(Configuration)\net8.0-windows10.0.19041.0\win-x64\Maple.InputBroker.exe" />
+      <InputBrokerArtifacts Include="..\Maple.InputBroker\bin\$(Configuration)\net8.0-windows10.0.19041.0\win-x64\Maple.InputBroker.dll" />
+      <InputBrokerArtifacts Include="..\Maple.InputBroker\bin\$(Configuration)\net8.0-windows10.0.19041.0\win-x64\Maple.InputBroker.deps.json" />
+      <InputBrokerArtifacts Include="..\Maple.InputBroker\bin\$(Configuration)\net8.0-windows10.0.19041.0\win-x64\Maple.InputBroker.runtimeconfig.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(InputBrokerArtifacts)"
+          DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('%(InputBrokerArtifacts.Identity)')" />
   </Target>
 </Project>

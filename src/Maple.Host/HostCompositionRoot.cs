@@ -8,7 +8,7 @@ public static class HostCompositionRoot
 {
     public static MainWindow CreateMainWindow(string assetFolder)
     {
-        // Real HID is intentionally not selected until the Windows three-layer evidence is complete.
+        // Broker artifacts are built now, but runtime input stays disabled until foreground/hotkey gates are composed.
         var store = new WindowsBailianCredentialStore();
         var httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
         var mapFrames = new MapScanFrameStore(new WindowsPngMapFrameEncoder());

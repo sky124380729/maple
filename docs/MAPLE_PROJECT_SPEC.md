@@ -54,7 +54,7 @@ Maple 是一个独立的 Windows 桌面观察与自动化控制台。它绑定�
 | Null/Replay 输入适配器 | `DONE (macOS) / WINDOWS_PENDING` | Null/Replay/活动键/ReleaseAll 行为已通过便携测试；真实生产输入保持禁用 |
 | WebView2 Host 与原生预览交接 | `SOURCE_READY / WINDOWS_PENDING` | `Maple.Host` 已迁移为 .NET 8 win-x64 可执行入口；WebView2 Evergreen、本地资源映射、系统 WGC/D3D11 自检和 BitBlt fallback 已在 Windows 通过，刷新/崩溃故障注入及真实客户端客户区仍待验；严格 bridge 和关闭 ReleaseAll 保持启用 |
 | 30-60 FPS 实时预览 | `WINDOWS_PENDING` | 两槽位链路和性能验收指标已定义；必须在 Windows 实测 P50/P95/P99、1280×720 和 1440×900 后才能完成 |
-| 生产输入 broker | `PENDING_SOURCE / WINDOWS_PENDING` | 双进程、抽象 IPC、前台扩展扫描码、心跳、ReleaseAll 和原生热键合同已定；`BrokerProtocol`、`BrokerClient`、`Maple.InputBroker.exe` 源码及发布/实机证据尚未实现，不得因本文 token 存在宣称完成 |
+| 生产输入 broker | `SOURCE_READY / WINDOWS_PENDING` | `BrokerProtocol`、固定键位、管理员 `Maple.InputBroker.exe`、当前用户单客户端 IPC、Host `BrokerClient`/adapter/executor、前台/身份/帧 TTL watchdog 和 ReleaseAll 已通过替身测试并完成 Windows Release 构建；原生 F9/F12、正式 Host 组合、发布验收、真实动作矩阵和 soak 尚未完成 |
 | 虚拟 HID 实验线（非生产前置） | `DRIVER_BUILD_PASS / WINDOWS_EVIDENCE_PENDING` | 项目自有 KMDF/VHF 驱动、Boot Keyboard 报告编码、唯一接口枚举、IOCTL 传输、Neutral/Heartbeat/watchdog、安装/卸载脚本和 WDK/Inf2Cat 零警告构建已完成；测试签名安装和设备/Windows 输入/授权客户端三层 PASS 仍待重启实测。该历史成果保留但不再是生产输入的唯一方案或发布前置 |
 | 自动战斗闭环 | `DONE (macOS) / WINDOWS_PENDING` | 生产 C# 编排器已以 Replay/替身验证移动到攻击距离提前释放、profile、补给优先级、低置信度、过期帧和 ReleaseAll；真实 broker/客户端画面反馈待 Windows |
 | macOS 页面与可移植回归 | `DONE (macOS)` | `verify-portable` 已通过：npm audit 0 漏洞、ESLint、TypeScript、33 个 Vitest、Vite 构建、桌面/移动 Playwright、38 个 Runtime.Tests、81 个 Host.Tests、30 个 Input.Tests、2 个 Map.Tests、portable contracts/closed-loop，以及 Host Rebuild 0 warning |
@@ -351,7 +351,7 @@ F9 与 F12 是原生安全边界，不由 React 页面监听。F9 在活动态�
 
 2026-08-15 的独立 `keybd_event` diagnostic-only 探针已经记录：授权前台客户端的 Left/Right 使用扩展扫描码后产生预期人物移动且全部按键释放。该证据只证明这两个诊断动作，不证明 jump/climb/attack/pickup/potion、生产 IPC、Host 集成、异常释放或 soak。生产 broker 必须重新完成自己的源码、发布和实机验收，不能复用探针 PASS 冒充 L4/L5。
 
-后续源码交付项当前均为 `PENDING_SOURCE`：共享 `BrokerProtocol`、Host 侧 `BrokerClient`、`Maple.InputBroker.exe` 入口及 broker 自主 `ReleaseAll`/watchdog。portable contract 只允许检查这些待实现 token 和文档边界，在对应源码任务完成前不得要求不存在的文件，也不得把文档 token 写成实现完成。
+共享 `BrokerProtocol`、Host `BrokerClient`/adapter/executor、`Maple.InputBroker.exe` 入口及 broker 自主 `ReleaseAll`/watchdog 当前为 `SOURCE_READY`：源码、替身测试和 Windows Release 构建已通过，但运行时仍保持 `NullInputAdapter`，不代表前台门禁、原生热键、发布包、授权客户端动作或 L4/L5 已完成。portable contract 从本版本起直接检查这些源码边界。
 
 ### 10.1 输入安装和发布边界
 

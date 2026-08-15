@@ -22,8 +22,9 @@ requireTokens('src/Maple.Vision/ObservationFusion.cs', ['FreshUntilMonoMs', 'Res
 requireTokens('src/Maple.Cloud/MockBailianMapClient.cs', ['UploadNotApproved', 'Offline', 'Timeout', 'MalformedResponse'])
 requireTokens('src/Maple.Input/NullInputAdapter.cs', ['INPUT_INJECTION=DISABLED'])
 requireTokens('src/Maple.Input/ReplayInputAdapter.cs', ['REPLAY_ONLY', 'ActiveKeyRegistry'])
-// Broker sources land in later tasks; until then the active specification is the explicit pending contract.
-requireTokens('docs/MAPLE_PROJECT_SPEC.md', ['BrokerProtocol', 'BrokerClient', 'ReleaseAll', 'PENDING_SOURCE'])
+requireTokens('src/Maple.Input/BrokerProtocol.cs', ['BrokerProtocol', 'BrokerRequest', 'ReleaseAll'])
+requireTokens('src/Maple.Host/BrokerClient.cs', ['BrokerClient', 'BrokerProtocol.Version', 'ReleaseAll'])
+requireTokens('src/Maple.InputBroker/BrokerInputSession.cs', ['ReleaseAllAsync', 'HEARTBEAT_TIMEOUT', 'TARGET_NOT_ARMED'])
 requireTokens('src/Maple.Host/BridgeMessageRouter.cs', ['session.emergencyStop', 'UNKNOWN_COMMAND_REJECTED', 'ContainsForbiddenField', 'ValidatePayload'])
 requireTokens('src/Maple.Host/HostSafetyCoordinator.cs', ['PauseAndRelease', 'EmergencyStop', 'ReleaseForShutdown'])
 requireTokens('src/Maple.Cloud/BailianMapHttpClient.cs', ['BailianHttpClient.Endpoint', 'CloudUploadApproved', 'HasMatchingProvenance', '不得输出路线、按键或动作'])

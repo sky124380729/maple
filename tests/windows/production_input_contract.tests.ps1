@@ -41,7 +41,7 @@ foreach ($required in @(
     'EXTENDED_SCANCODE',
     'BrokerProtocol',
     'BrokerClient',
-    'PENDING_SOURCE',
+    'SOURCE_READY',
     'F9',
     'F12',
     'REARM_DELAY_MS=3000'
@@ -78,9 +78,9 @@ foreach ($obsoletePattern in @(
     Assert-NotMatches $combinedDocs $obsoletePattern 'Active production input documentation'
 }
 
-foreach ($required in @('BrokerProtocol', 'BrokerClient', 'ReleaseAll', 'PENDING_SOURCE')) {
-    Assert-Contains $portableContracts $required 'Portable broker contract migration'
+foreach ($required in @('BrokerProtocol', 'BrokerClient', 'ReleaseAll', 'BrokerInputSession')) {
+    Assert-Contains $portableContracts $required 'Portable broker source contract'
 }
 Assert-NotContains $portableContracts "requireTokens('src/Maple.Input/WindowsVirtualHidAdapter.cs'" 'Portable production input source of truth'
 
-Write-Output 'PRODUCTION_INPUT_CONTRACT=PASS; BROKER_SOURCE=PENDING'
+Write-Output 'PRODUCTION_INPUT_CONTRACT=PASS; BROKER_SOURCE=READY; WINDOWS_EVIDENCE=PENDING'

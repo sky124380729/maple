@@ -19,7 +19,7 @@ Maple 不是网页自动化，也不是 WinForms 原型续写。最终产品由�
 - `src/Maple.Capture/WindowsGraphicsCaptureBackend.cs`：已支持 WGC source -> 明确 BitBlt source fallback；没有 source 时返回 `WGC_RUNTIME_NOT_BOUND`，不静默伪造画面。
 - `src/Maple.Capture/WgcFramePool.cs` 与 `src/Maple.Host/WindowsGraphicsCaptureSession.cs`：已建立固定两槽、尺寸变化诊断、取消/错误释放和 latest-frame 所有权边界；真实 Windows Graphics Capture API adapter 仍待 Windows 绑定与实机验证。
 - `src/Maple.Preview/NativePreviewSurface.cs`：GDI+ 原生预览和 Self/Player/Monster 颜色框源码已可交叉编译；不是已测的 Direct2D/Direct3D 30-60 FPS 实现。
-- 生产输入双进程合同已确定：`Maple.exe` 为 `NORMAL_INTEGRITY`，`Maple.InputBroker.exe` 为 `ELEVATED`，仅 broker 可在目标仍为前台时发送 `EXTENDED_SCANCODE`。`BrokerProtocol`、`BrokerClient` 和 broker 自主 `ReleaseAll` 当前均为 `PENDING_SOURCE`，源码不存在，生产输入仍禁用。
+- 生产输入双进程源码已进入 `SOURCE_READY / WINDOWS_PENDING`：`Maple.exe` 保持 `NORMAL_INTEGRITY`，`Maple.InputBroker.exe` 为 `ELEVATED`；共享协议、固定键位、当前用户单客户端 IPC、PID/协议/序列/消息上限、Host `BrokerClient`/adapter/executor、前台/身份/帧 TTL watchdog 和自主 `ReleaseAll` 已通过替身测试及 Release 构建。运行时仍保留 `NullInputAdapter`，原生 F9/F12、正式 Host 组合、发布和授权客户端矩阵待后续步骤。
 - `src/Maple.Input/WindowsVirtualHidAdapter.cs` 与项目 VHF 驱动属于保留的实验线：WDK/Inf2Cat 构建已经 PASS，但测试签名安装及三层实机证据仍未完成；它不再是生产输入的唯一来源或 broker 发布前置。
 - 2026-08-15 独立 diagnostic-only 探针已证明授权前台客户端 Left/Right 扩展扫描码会产生预期移动并释放全部按键；没有证明其他动作、生产 IPC/Host 集成、异常释放或 soak。
 - 旧 `dist/`、WinForms 原型、SendInput 探针、net48 静态测试和历史设计文档已从工作树清除；需要追溯时只查看 Git 历史，不得恢复到生产路径。
@@ -98,7 +98,7 @@ dotnet publish .\src\Maple.Host\Maple.Host.csproj -c Release -r win-x64 --self-c
 git diff --check
 ```
 
-`verify-portable` 已包含 restore/build/test 和 Host 交叉重编译；当前生产输入源码为 `PENDING_SOURCE`，因此上述当前门禁不得假装发布尚不存在的 broker。对应源码完成后必须增加 `Maple.InputBroker.exe` 发布、双完整性级别、IPC、原生热键、授权客户端动作和 L4/L5 验证。只有继续评估 VHF 实验线时，才另运行 `tests/windows/hid_contract.tests.ps1 -RequireEvidence`，其结果不替代 broker 验收。
+`verify-portable` 已包含 restore/build/test 和 Host 交叉重编译；生产输入源码当前为 `SOURCE_READY / WINDOWS_PENDING`，不得把替身测试和 Release build 写成运行或客户端 PASS。后续仍必须完成 `Maple.InputBroker.exe` 正式发布、双完整性级别、IPC、原生热键、授权客户端动作和 L4/L5 验证。只有继续评估 VHF 实验线时，才另运行 `tests/windows/hid_contract.tests.ps1 -RequireEvidence`，其结果不替代 broker 验收。
 
 ## 7. 不可改变的产品决策
 

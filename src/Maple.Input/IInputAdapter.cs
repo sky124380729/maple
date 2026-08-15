@@ -15,11 +15,11 @@ namespace Maple.Input
 
     public sealed class InputAdapterStatus
     {
-        public string AdapterName { get; internal set; }
-        public string Code { get; internal set; }
-        public bool IsHealthy { get; internal set; }
-        public bool InjectionEnabled { get; internal set; }
-        public long LastHeartbeatMonoMs { get; internal set; }
-        public IList<string> ActiveKeys { get; internal set; }
+        public string AdapterName { get; set; }
+        public string Code { get; set; }
+        public bool IsHealthy { get; set; }
+        public bool InjectionEnabled { get; set; }
+        public long LastHeartbeatMonoMs { get; set; }
+        public IList<string> ActiveKeys { get; set; }
     }
 }

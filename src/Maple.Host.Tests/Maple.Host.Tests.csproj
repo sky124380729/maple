@@ -18,6 +18,7 @@
     <ProjectReference Include="../Maple.Core/Maple.Core.csproj" />
     <ProjectReference Include="../Maple.Input/Maple.Input.csproj" />
     <ProjectReference Include="../Maple.Capture/Maple.Capture.csproj" />
+    <ProjectReference Include="../Maple.Runtime/Maple.Runtime.csproj" />
     <Compile Include="../Maple.Host/BridgeMessageRouter.cs" Link="BridgeMessageRouter.cs" />
     <Compile Include="../Maple.Host/HostCommandDispatcher.cs" Link="HostCommandDispatcher.cs" />
     <Compile Include="../Maple.Host/HostSafetyCoordinator.cs" Link="HostSafetyCoordinator.cs" />
@@ -32,6 +33,10 @@
     <Compile Include="../Maple.Host/WindowsRuntimeDiagnostics.cs" Link="WindowsRuntimeDiagnostics.cs" />
     <Compile Include="../Maple.Host/HidDeviceSelfTestRunner.cs" Link="HidDeviceSelfTestRunner.cs" />
     <Compile Include="../Maple.Host/WgcReadbackResourcePolicy.cs" Link="WgcReadbackResourcePolicy.cs" />
+    <Compile Include="../Maple.Host/BrokerProcessLauncher.cs" Link="BrokerProcessLauncher.cs" />
+    <Compile Include="../Maple.Host/BrokerClient.cs" Link="BrokerClient.cs" />
+    <Compile Include="../Maple.Host/BrokerInputAdapter.cs" Link="BrokerInputAdapter.cs" />
+    <Compile Include="../Maple.Host/BrokerActionExecutor.cs" Link="BrokerActionExecutor.cs" />
     <Compile Include="../Maple.Preview/FrameSlot.cs" Link="FrameSlot.cs" />
   </ItemGroup>
 </Project>
