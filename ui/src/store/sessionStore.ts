@@ -1,5 +1,5 @@
 import { createStore } from 'zustand/vanilla'
-import type { HostEvent, InputBrokerStatus, ObservationSnapshot, PauseReason, SessionState, TargetBinding } from '../contracts/bridge'
+import type { HostEvent, InputBrokerStatus, ObservationSnapshot, PauseReason, SessionState, TargetBinding, VisionStatus } from '../contracts/bridge'
 
 type PreviewAvailability = Extract<HostEvent, { type: 'preview.availabilityChanged' }>['payload']
 type LogEntry = Extract<HostEvent, { type: 'log.appended' }>['payload']
@@ -15,6 +15,7 @@ export interface SessionStoreState {
   logs: LogEntry[]
   cloudStatus: CloudStatus
   inputStatus: InputBrokerStatus
+  visionStatus: VisionStatus
   applyHostEvent(event: HostEvent): void
   reset(): void
 }
@@ -34,6 +35,7 @@ const initialState = {
     hotkeys: { pauseResume: 'F9' as const, emergencyStop: 'F12' as const },
     errorCode: null,
   },
+  visionStatus: { status: 'notConfigured' as const, modelId: null, provider: 'none' as const, diagnostic: 'MODEL_NOT_CONFIGURED' },
   cloudStatus: {
     provider: 'bailian' as const,
     enabled: false,
@@ -57,6 +59,10 @@ export function createSessionStore() {
         case 'log.appended': set((state) => ({ logs: [...state.logs, event.payload].slice(-200) })); break
         case 'cloud.status.updated': set({ cloudStatus: event.payload }); break
         case 'input.status.updated': set({ inputStatus: event.payload }); break
+        case 'vision.status.updated': set((state) => ({
+          visionStatus: event.payload,
+          observation: event.payload.status === 'ready' ? state.observation : undefined,
+        })); break
       }
     },
     reset() { set(initialState) },

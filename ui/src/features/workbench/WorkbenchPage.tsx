@@ -32,6 +32,7 @@ export function WorkbenchPage({ bridge: suppliedBridge }: { bridge?: HostBridge 
   const [telemetryStore] = useState(() => createTelemetryStore())
   const runtimeBridgeRef = useRef<HostBridge | undefined>(suppliedBridge)
   const session = useStore(sessionStore, (state) => state)
+  const telemetry = useStore(telemetryStore, (state) => state.latest)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [pausedForSettings, setPausedForSettings] = useState(false)
 
@@ -84,8 +85,8 @@ export function WorkbenchPage({ bridge: suppliedBridge }: { bridge?: HostBridge 
       </header>
       <div className="workbench-grid">
         <SessionControls sessionState={session.sessionState} inputStatus={session.inputStatus} resumeCountdown={session.resumeCountdown} sendCommand={sendCommand} />
-        <PreviewRegion preview={session.preview} observation={session.observation} onRequestSnapshot={requestSnapshot} sendCommand={sendCommand} />
-        <HealthPanel sessionState={session.sessionState} pauseReason={session.pauseReason} observation={session.observation} preview={session.preview} inputStatus={session.inputStatus} logs={session.logs} onRefresh={requestSnapshot} />
+        <PreviewRegion preview={session.preview} observation={session.observation} telemetry={telemetry} onRequestSnapshot={requestSnapshot} sendCommand={sendCommand} />
+        <HealthPanel sessionState={session.sessionState} pauseReason={session.pauseReason} observation={session.observation} telemetry={telemetry} visionStatus={session.visionStatus} preview={session.preview} inputStatus={session.inputStatus} logs={session.logs} onRefresh={requestSnapshot} />
       </div>
       <Drawer
         className="settings-drawer"

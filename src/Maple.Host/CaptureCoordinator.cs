@@ -1,4 +1,5 @@
 using Maple.Capture;
+using Maple.Contracts;
 
 namespace Maple.Host;
 
@@ -26,6 +27,18 @@ public sealed class CaptureCoordinator : IDisposable
     private long frameId;
     private string? activePauseCode;
     private bool disposed;
+
+    public TargetBinding? ActiveTargetBinding => activeTarget is null ? null : new TargetBinding
+    {
+        SchemaVersion = ContractConstants.SchemaVersion,
+        Hwnd = activeTarget.Hwnd,
+        Pid = activeTarget.Pid,
+        StartedAtUtc = activeTarget.ProcessStartedAtUtc,
+        ExecutablePath = activeTarget.ProcessPath,
+        ClientWidth = activeTarget.ClientWidth,
+        ClientHeight = activeTarget.ClientHeight,
+        Dpi = activeTarget.Dpi,
+    };
 
     public CaptureCoordinator(
         ITargetWindowLocator targetLocator,

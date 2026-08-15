@@ -45,6 +45,17 @@ namespace Maple.Host
         private PreviewBoundsIntent? previewBoundsIntent;
         private bool captureInProgress;
         private bool foregroundCheckInProgress;
+        private LatestVisionFrameQueue? visionFrames;
+        private VisionRuntimeService? visionService;
+        private CancellationTokenSource? visionCancellation;
+        private Task? visionTask;
+        private VisionStatusPayload pendingVisionStatus = new()
+        {
+            Status = VisionModelStatus.NotConfigured,
+            ModelId = null!,
+            Provider = InferenceProvider.None,
+            Diagnostic = "MODEL_NOT_CONFIGURED",
+        };
 
         public WebViewHostForm(IWebViewRuntime webViewRuntime, IInputAdapter inputAdapter, string assetFolder)
             : this(
@@ -75,6 +86,7 @@ namespace Maple.Host
 
         public event EventHandler<BridgeRouteResult>? CommandReceived;
         public NativePreviewSurface PreviewSurface { get { return preview; } }
+        public TargetBinding? CurrentCaptureTarget => captureCoordinator?.ActiveTargetBinding;
 
         public void ConfigureInputSession(
             ForegroundSessionController session,
@@ -101,6 +113,28 @@ namespace Maple.Host
                 safety,
                 frameObserver: observer);
         }
+
+        public ObservationEventPublisher CreateVisionPublisher(RuntimeTelemetryCollector telemetry, string modelId)
+        {
+            return new ObservationEventPublisher(
+                new NativePreviewVisionSink(preview, SendOnUiThread),
+                json => SendOnUiThread(() => webViewRuntime.Send(json)),
+                telemetry,
+                () => safety.State,
+                () => Environment.TickCount64,
+                modelId,
+                () => safety.PauseReason);
+        }
+
+        public void ConfigureVision(LatestVisionFrameQueue frames, VisionRuntimeService service, VisionStatusPayload status)
+        {
+            if (visionService is not null) throw new InvalidOperationException("Vision is already configured");
+            visionFrames = frames ?? throw new ArgumentNullException(nameof(frames));
+            visionService = service ?? throw new ArgumentNullException(nameof(service));
+            pendingVisionStatus = status ?? throw new ArgumentNullException(nameof(status));
+        }
+
+        public void ConfigureVisionStatus(VisionStatusPayload status) => pendingVisionStatus = status ?? throw new ArgumentNullException(nameof(status));
 
         public void SendCloudStatus(CloudRuntimeStatus status)
         {
@@ -142,7 +176,13 @@ namespace Maple.Host
         {
             webViewRuntime.Attach(browserPanel, assetFolder);
             if (foregroundSession is not null) PublishInputSessionStatus(foregroundSession.CurrentStatus);
+            SendVisionStatus(pendingVisionStatus);
             if (captureCoordinator is not null) captureTimer.Start();
+            if (visionService is not null)
+            {
+                visionCancellation = new CancellationTokenSource();
+                visionTask = Task.Run(() => visionService.RunAsync(visionCancellation.Token));
+            }
             if (foregroundSession is not null && globalHotKeys is not null)
             {
                 HotKeyRegistrationResult registration = globalHotKeys.Register(Handle);
@@ -313,6 +353,23 @@ namespace Maple.Host
             webViewRuntime.Send(JsonSerializer.Serialize(sessionEvent));
         }
 
+        private void SendVisionStatus(VisionStatusPayload status)
+        {
+            string json = JsonSerializer.Serialize(new
+            {
+                schemaVersion = ContractConstants.SchemaVersion,
+                type = "vision.status.updated",
+                payload = new
+                {
+                    status = status.Status switch { VisionModelStatus.NotConfigured => "notConfigured", VisionModelStatus.Inspecting => "inspecting", VisionModelStatus.Ready => "ready", VisionModelStatus.Repairing => "repairing", _ => "faulted" },
+                    modelId = status.ModelId,
+                    provider = RuntimeTelemetryCollector.ProviderLabel(status.Provider),
+                    diagnostic = status.Diagnostic,
+                },
+            });
+            webViewRuntime.Send(json);
+        }
+
         private void SendOnUiThread(Action send)
         {
             if (IsDisposed || Disposing) return;
@@ -367,6 +424,13 @@ namespace Maple.Host
                     foregroundSession.StatusChanged -= OnInputStatusChanged;
                 }
                 foregroundSession?.Dispose();
+                visionCancellation?.Cancel();
+                if (visionTask is not null)
+                {
+                    try { visionTask.GetAwaiter().GetResult(); }
+                    catch (OperationCanceledException) { }
+                }
+                visionCancellation?.Dispose();
                 captureCoordinator?.Dispose();
                 webViewRuntime.MessageReceived -= OnMessageReceived;
                 webViewRuntime.RuntimeCrashed -= OnRuntimeCrashed;

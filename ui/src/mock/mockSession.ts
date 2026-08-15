@@ -59,6 +59,7 @@ export function createMockSessionEvents(tick = 0): HostEvent[] {
       },
     },
     createMockTelemetryEvent(tick),
+    { schemaVersion: CONTRACT_SCHEMA_VERSION, type: 'vision.status.updated', timestamp, payload: { status: 'ready', modelId: 'maple-yolo-demo', provider: 'directml', diagnostic: 'OK' } },
     {
       schemaVersion: CONTRACT_SCHEMA_VERSION,
       type: 'cloud.status.updated',

@@ -1,6 +1,6 @@
 import { CheckCircleFilled, RadarChartOutlined, ReloadOutlined, SafetyCertificateOutlined, WarningOutlined } from '@ant-design/icons'
 import { Button, Progress, Tag, Tooltip, Typography } from 'antd'
-import type { HostEvent, InputBrokerStatus, ObservationSnapshot, PauseReason, SessionState } from '../../contracts/bridge'
+import type { HostEvent, InputBrokerStatus, ObservationSnapshot, PauseReason, SessionState, TelemetrySnapshot, VisionStatus } from '../../contracts/bridge'
 import { MetricRow, SectionHeading, sessionStateLabels } from './presentation'
 
 const { Text } = Typography
@@ -11,12 +11,13 @@ const pauseReasonLabels: Record<PauseReason, string> = {
   None: '无', CalibrationRequired: '需要自动校准', StaleFrame: '画面已过期', TargetLost: '目标丢失', WindowNotForeground: '窗口不在前台', BlackFrame: '黑屏', MapNotValidated: '地图未验证', InputUnavailable: '输入不可用', HealthUnknown: '生命值未知', UnknownPopup: '未知弹窗', WatchdogTimeout: '监控超时', OperatorRequested: '用户请求', SafetyViolation: '安全门阻止',
 }
 
-export function HealthPanel({ sessionState, pauseReason, observation, preview, inputStatus, logs, onRefresh }: { sessionState: SessionState; pauseReason: PauseReason; observation?: ObservationSnapshot; preview: PreviewAvailability; inputStatus: InputBrokerStatus; logs: LogEntry[]; onRefresh(): void }) {
+export function HealthPanel({ sessionState, pauseReason, observation, telemetry, visionStatus, preview, inputStatus, logs, onRefresh }: { sessionState: SessionState; pauseReason: PauseReason; observation?: ObservationSnapshot; telemetry?: TelemetrySnapshot; visionStatus: VisionStatus; preview: PreviewAvailability; inputStatus: InputBrokerStatus; logs: LogEntry[]; onRefresh(): void }) {
   const selfConfidence = observation ? Math.round(observation.self.confidence * 100) : 0
   const latestLog = logs.at(-1)
   const latestLogTitle = latestLog?.message ?? '等待宿主事件'
   const inputReady = inputStatus.status === 'ready'
   const inputLabel = inputReady ? '输入服务已就绪' : inputStatus.status === 'paused' ? '输入服务已暂停' : inputStatus.status === 'faulted' ? '输入服务异常' : '输入服务待命'
+  const visionLabel = visionStatus.status === 'ready' ? visionStatus.modelId ?? '模型已就绪' : visionStatus.status === 'repairing' ? '正在重新识别' : visionStatus.status === 'faulted' ? '模型异常' : visionStatus.status === 'inspecting' ? '正在检查模型' : '模型未配置'
   return (
     <aside className="side-panel side-panel--diagnostics">
       <div className="side-panel__scroll">
@@ -34,6 +35,8 @@ export function HealthPanel({ sessionState, pauseReason, observation, preview, i
             <MetricRow label="所在平台" value="待拓扑识别" />
             <MetricRow label="地图版本" value={observation?.map.mapId === 'forest-east' ? '森林东部 0.1' : '未识别'} />
             <MetricRow label="采集后端" value={preview.backend === 'browser-mock' ? '浏览器模拟' : preview.backend === 'native' ? '原生采集' : '不可用'} />
+            <MetricRow label="视觉模型" value={visionLabel} detail={visionStatus.diagnostic ?? undefined} />
+            <MetricRow label="推理性能" value={telemetry ? `${Math.round(telemetry.recognitionFps)} FPS / ${Math.round(telemetry.detectorLatencyMs)} ms` : '等待首帧'} detail={telemetry?.inferenceProvider ?? 'none'} />
           </div>
         </section>
         <section className="safety-card" aria-labelledby="safety-title">

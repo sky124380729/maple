@@ -46,6 +46,9 @@
     <Compile Include="../Maple.Host/LatestVisionFrameQueue.cs" Link="LatestVisionFrameQueue.cs" />
     <Compile Include="../Maple.Host/CompositeCaptureFrameObserver.cs" Link="CompositeCaptureFrameObserver.cs" />
     <Compile Include="../Maple.Host/VisionRuntimeService.cs" Link="VisionRuntimeService.cs" />
+    <Compile Include="../Maple.Host/RuntimeTelemetryCollector.cs" Link="RuntimeTelemetryCollector.cs" />
+    <Compile Include="../Maple.Host/ObservationEventPublisher.cs" Link="ObservationEventPublisher.cs" />
+    <Compile Include="../Maple.Host/VisionRuntimeBootstrap.cs" Link="VisionRuntimeBootstrap.cs" />
     <Compile Include="../Maple.Preview/OverlaySnapshot.cs" Link="OverlaySnapshot.cs" />
     <Compile Include="../Maple.Preview/PreviewTelemetrySnapshot.cs" Link="PreviewTelemetrySnapshot.cs" />
     <Compile Include="../Maple.Preview/PreviewRenderModel.cs" Link="PreviewRenderModel.cs" />

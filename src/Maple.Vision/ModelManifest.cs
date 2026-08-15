@@ -45,9 +45,18 @@ public static class ModelManifestLoader
             if (manifest.ClassRoles is null || manifest.ClassRoles.Keys.Any(key => !manifest.Classes.Contains(key, StringComparer.OrdinalIgnoreCase))
                 || !manifest.ClassRoles.Values.Contains(DetectionRole.CharacterCandidate)
                 || !manifest.ClassRoles.Values.Contains(DetectionRole.Monster)) return Invalid("MODEL_CLASSES_INVALID");
-            string modelPath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(manifestPath)!, manifest.ModelFile));
-            string root = Path.GetFullPath(Path.GetDirectoryName(manifestPath)! + Path.DirectorySeparatorChar);
-            if (!modelPath.StartsWith(root, StringComparison.Ordinal) || !File.Exists(modelPath)) return Invalid("MODEL_FILE_MISSING");
+            if (string.IsNullOrWhiteSpace(manifest.ModelFile)) return Invalid("MODEL_FILE_MISSING");
+            string manifestDirectory = Path.GetFullPath(Path.GetDirectoryName(manifestPath)!);
+            string modelPath = Path.IsPathRooted(manifest.ModelFile)
+                ? Path.GetFullPath(manifest.ModelFile)
+                : Path.GetFullPath(Path.Combine(manifestDirectory, manifest.ModelFile));
+            if (!Path.IsPathRooted(manifest.ModelFile))
+            {
+                string root = manifestDirectory + Path.DirectorySeparatorChar;
+                if (!modelPath.StartsWith(root, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                    return Invalid("MODEL_FILE_MISSING");
+            }
+            if (!File.Exists(modelPath)) return Invalid("MODEL_FILE_MISSING");
             if (manifest.Sha256.Length != 64) return Invalid("MODEL_HASH_INVALID");
             byte[] expected = Convert.FromHexString(manifest.Sha256);
             byte[] actual;

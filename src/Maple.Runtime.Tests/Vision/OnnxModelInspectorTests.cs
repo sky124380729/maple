@@ -44,6 +44,33 @@ public sealed class OnnxModelInspectorTests
         }
     }
 
+    [Fact]
+    public void ManifestAllowsHashPinnedAbsoluteModelOutsideManifestDirectory()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"maple-model-external-{Guid.NewGuid():N}");
+        string manifestDirectory = Path.Combine(root, "active");
+        string modelDirectory = Path.Combine(root, "external");
+        Directory.CreateDirectory(manifestDirectory);
+        Directory.CreateDirectory(modelDirectory);
+        try
+        {
+            string modelPath = Path.Combine(modelDirectory, "detector.onnx");
+            File.WriteAllBytes(modelPath, [4, 3, 2, 1]);
+            string checksum = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(modelPath))).ToLowerInvariant();
+            string manifestPath = Path.Combine(manifestDirectory, "manifest.json");
+            File.WriteAllText(manifestPath, Manifest(checksum, includeMonster: true).Replace("detector.onnx", modelPath.Replace("\\", "\\\\")));
+
+            ModelManifestValidation result = ModelManifestLoader.Load(manifestPath);
+
+            Assert.True(result.IsValid, result.Diagnostic);
+            Assert.Equal(modelPath, result.ModelPath);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static string Manifest(string checksum, bool includeMonster) => $$"""
         {
           "schemaVersion": 2,
