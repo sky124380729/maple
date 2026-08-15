@@ -1,7 +1,18 @@
-param([switch]$SourceOnly)
+param(
+    [switch]$SourceOnly,
+    [switch]$RequirePublished,
+    [string]$PublishDirectory = 'dist\input-probe-win-x64',
+    [string]$SelfTestOutputPath = 'dist\input-probe-self-test.jsonl'
+)
 
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+if ($SourceOnly -and $RequirePublished) {
+    throw 'Input probe contract modes -SourceOnly and -RequirePublished are mutually exclusive.'
+}
+# A no-switch invocation verifies published evidence; only -SourceOnly opts out.
+$checkPublished = $RequirePublished -or -not $SourceOnly
+
 $projectPath = Join-Path $root 'src\Maple.InputProbe\Maple.InputProbe.csproj'
 $manifestPath = Join-Path $root 'src\Maple.InputProbe\app.manifest'
 $probeDirectory = Join-Path $root 'src\Maple.InputProbe'
@@ -88,7 +99,18 @@ foreach ($requiredText in @('keybd_event', 'diagnostic-only', 'Host', 'HID', 'L4
     Assert-Contains $windowsSequenceSection $requiredText 'Windows handoff diagnostic probe milestone'
 }
 
-$forbiddenApis = @('SendInput', 'PostMessage', 'mouse_event', 'WriteProcessMemory', 'VirtualProtect')
+$forbiddenApis = @(
+    'SendInput',
+    'PostMessage',
+    'mouse_event',
+    'NtWriteVirtualMemory',
+    'ZwWriteVirtualMemory',
+    'WriteProcessMemory',
+    'VirtualProtectEx',
+    'NtProtectVirtualMemory',
+    'ZwProtectVirtualMemory',
+    'VirtualProtect'
+)
 $probeSources = @(Get-ChildItem -LiteralPath $probeDirectory -Filter '*.cs' -File -Recurse)
 if ($probeSources.Count -eq 0) {
     throw "Input probe must contain at least one C# source file: $probeDirectory"
@@ -98,8 +120,9 @@ foreach ($source in $probeSources) {
     $sourceText = Get-Content -LiteralPath $source.FullName -Raw -Encoding UTF8
     $combinedProbeSource += $sourceText
     foreach ($forbiddenApi in $forbiddenApis) {
-        if ($sourceText.IndexOf($forbiddenApi, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
-            throw "Input probe source contains forbidden API '$forbiddenApi': $($source.FullName)"
+        $match = Select-String -LiteralPath $source.FullName -Pattern $forbiddenApi -SimpleMatch | Select-Object -First 1
+        if ($null -ne $match) {
+            throw "Input probe source contains forbidden API '$forbiddenApi' at $($source.FullName):$($match.LineNumber)."
         }
     }
 }
@@ -116,4 +139,79 @@ if ($hostReferences | Where-Object { $_ -match 'Maple\.InputProbe' }) {
 $solution = Get-Content -LiteralPath $solutionPath -Raw -Encoding UTF8
 Assert-Contains $solution 'src\Maple.InputProbe\Maple.InputProbe.csproj' 'Maple solution probe project entry'
 
-Write-Output 'INPUT_PROBE_CONTRACT=PASS'
+if ($checkPublished) {
+    $publish = if ([IO.Path]::IsPathRooted($PublishDirectory)) {
+        [IO.Path]::GetFullPath($PublishDirectory)
+    }
+    else {
+        [IO.Path]::GetFullPath((Join-Path $root $PublishDirectory))
+    }
+    $selfTestOutput = if ([IO.Path]::IsPathRooted($SelfTestOutputPath)) {
+        [IO.Path]::GetFullPath($SelfTestOutputPath)
+    }
+    else {
+        [IO.Path]::GetFullPath((Join-Path $root $SelfTestOutputPath))
+    }
+
+    $publishedExecutable = Join-Path $publish 'MapleInputProbe.exe'
+    Assert-FileExists $publishedExecutable 'Published input probe executable'
+    Assert-FileExists $selfTestOutput 'Input probe self-test JSONL output'
+
+    $requiredJsonlFields = @(
+        'sessionId',
+        'actionId',
+        'targetHwnd',
+        'targetPid',
+        'targetClass',
+        'targetTitle',
+        'clientWidth',
+        'clientHeight',
+        'dpi',
+        'targetIntegrity',
+        'probeIntegrity',
+        'foregroundBefore',
+        'foregroundAfter',
+        'foregroundConfirmed',
+        'isMinimized',
+        'holdMs',
+        'vk',
+        'scanCode',
+        'flagsDown',
+        'flagsUp',
+        'inputAttempted',
+        'screenshotBefore',
+        'screenshotAfter',
+        'classification',
+        'reason'
+    )
+
+    $recordCount = 0
+    $lineNumber = 0
+    foreach ($line in Get-Content -LiteralPath $selfTestOutput -Encoding UTF8) {
+        $lineNumber++
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+
+        try {
+            $record = $line | ConvertFrom-Json -ErrorAction Stop
+        }
+        catch {
+            throw "Input probe self-test output is not valid JSONL at $selfTestOutput`:$lineNumber. $($_.Exception.Message)"
+        }
+
+        $recordCount++
+        $recordFields = @($record.PSObject.Properties.Name)
+        foreach ($requiredField in $requiredJsonlFields) {
+            if ($recordFields -cnotcontains $requiredField) {
+                throw "Input probe self-test JSONL record $lineNumber is missing field '$requiredField': $selfTestOutput"
+            }
+        }
+    }
+    if ($recordCount -eq 0) {
+        throw "Input probe self-test JSONL output contains no records: $selfTestOutput"
+    }
+
+    Write-Output 'INPUT_PROBE_CONTRACT=PASS; INPUT_PROBE_PUBLISHED=PASS'
+}
+else {
+    Write-Output 'INPUT_PROBE_CONTRACT=PASS; INPUT_PROBE_PUBLISHED=NOT_REQUESTED'
+}
