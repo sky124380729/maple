@@ -18,6 +18,7 @@ internal sealed class ProbeEvidence
     public bool ForegroundConfirmed { get; set; }
     public bool IsMinimized { get; set; }
     public int HoldMs { get; set; }
+    public string InputMode { get; set; } = "";
     public ushort Vk { get; set; }
     public uint ScanCode { get; set; }
     public uint FlagsDown { get; set; }
@@ -29,4 +30,3 @@ internal sealed class ProbeEvidence
     public string Reason { get; set; } = "";
     public bool AllKeysReleased { get; set; }
 }
-

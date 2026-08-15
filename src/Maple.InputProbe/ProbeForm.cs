@@ -19,7 +19,7 @@ internal sealed class ProbeForm : Form
     public ProbeForm(ProbeRunner runner)
     {
         this.runner = runner;
-        Text = "枫叶输入诊断 · keybd_event";
+        Text = "枫叶输入诊断 · 扩展扫描码";
         ClientSize = new Size(720, 500);
         MinimumSize = new Size(680, 460);
         StartPosition = FormStartPosition.CenterScreen;
@@ -38,7 +38,7 @@ internal sealed class ProbeForm : Form
         var description = new Label
         {
             AutoSize = false,
-            Text = "只测试一次左键和一次右键。不会修改内存，不会后台运行，不会自动重复。",
+            Text = "扩展扫描码模式：只测试一次左键和一次右键。不会修改内存，不会后台运行，不会自动重复。",
             ForeColor = Color.FromArgb(161, 177, 184),
             Location = new Point(31, 70),
             Size = new Size(640, 46)

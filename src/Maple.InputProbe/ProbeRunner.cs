@@ -34,7 +34,7 @@ internal sealed class ProbeRunner
         string sessionId = DateTimeOffset.Now.ToString("yyyyMMdd-HHmmss-fff");
         var logger = new ProbeLogger(options.OutputRoot, sessionId);
         var gate = new ProbeSafetyGate(inspector, target.Hwnd);
-        var adapter = new KeybdEventInputAdapter(sender, gate);
+        var adapter = new KeybdEventInputAdapter(sender, gate, options.InputMode);
         lock (sync) activeAdapter = adapter;
 
         bool released = false;
@@ -70,6 +70,7 @@ internal sealed class ProbeRunner
                 "Left",
                 ActionType.MoveLeft,
                 options.HoldMs,
+                options.InputMode,
                 cancellationToken);
 
             await Task.Delay(options.BetweenActionsMs, cancellationToken);
@@ -88,6 +89,7 @@ internal sealed class ProbeRunner
                 "Right",
                 ActionType.MoveRight,
                 options.HoldMs,
+                options.InputMode,
                 cancellationToken);
 
             InputResult releaseResult = adapter.ReleaseAll(Environment.TickCount64);
@@ -128,6 +130,7 @@ internal sealed class ProbeRunner
         string key,
         ActionType actionType,
         int holdMs,
+        KeybdEventMode inputMode,
         CancellationToken cancellationToken)
     {
         TargetWindowInfo before = inspector.Inspect(hwnd);
@@ -181,6 +184,19 @@ internal sealed class ProbeRunner
 
         InputResult release = adapter.ReleaseAll(Environment.TickCount64);
         bool allReleased = release.Status == InputStatus.Completed && adapter.GetStatus().ActiveKeys.Count == 0;
+        ushort virtualKey = key.Equals("Left", StringComparison.OrdinalIgnoreCase)
+            ? VirtualKeyMap.Left
+            : VirtualKeyMap.Right;
+        uint scanCode = 0;
+        uint flagsDown = 0;
+        uint flagsUp = KeybdEventInputAdapter.KeyEventFKeyUp;
+        if (inputMode == KeybdEventMode.ExtendedScanCode && VirtualKeyMap.TryGetArrowScanCode(key, out uint arrowScanCode))
+        {
+            scanCode = arrowScanCode;
+            flagsDown |= KeybdEventInputAdapter.KeyEventFExtendedKey;
+            flagsUp |= KeybdEventInputAdapter.KeyEventFExtendedKey;
+        }
+
         logger.Append(new ProbeEvidence
         {
             SessionId = System.IO.Path.GetFileName(logger.SessionDirectory),
@@ -199,10 +215,11 @@ internal sealed class ProbeRunner
             ForegroundConfirmed = foregroundConfirmed,
             IsMinimized = before.IsMinimized || after.IsMinimized,
             HoldMs = holdMs,
-            Vk = key.Equals("Left", StringComparison.OrdinalIgnoreCase) ? VirtualKeyMap.Left : VirtualKeyMap.Right,
-            ScanCode = 0,
-            FlagsDown = 0,
-            FlagsUp = KeybdEventInputAdapter.KeyEventFKeyUp,
+            InputMode = inputMode.ToString(),
+            Vk = virtualKey,
+            ScanCode = scanCode,
+            FlagsDown = flagsDown,
+            FlagsUp = flagsUp,
             InputAttempted = attempted,
             ScreenshotBefore = beforePath,
             ScreenshotAfter = afterPath,

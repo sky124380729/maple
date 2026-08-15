@@ -20,6 +20,11 @@ namespace Maple.Input
         public const ushort X = 0x58;
         public const ushort Z = 0x5A;
 
+        public const uint LeftScanCode = 0x4B;
+        public const uint UpScanCode = 0x48;
+        public const uint RightScanCode = 0x4D;
+        public const uint DownScanCode = 0x50;
+
         private static readonly IDictionary<string, ushort> Values =
             new Dictionary<string, ushort>(StringComparer.OrdinalIgnoreCase)
             {
@@ -43,6 +48,20 @@ namespace Maple.Input
         {
             virtualKey = 0;
             return !string.IsNullOrWhiteSpace(key) && Values.TryGetValue(key, out virtualKey);
+        }
+
+        public static bool TryGetArrowScanCode(string key, out uint scanCode)
+        {
+            scanCode = 0;
+            if (string.IsNullOrWhiteSpace(key)) return false;
+
+            if (string.Equals(key, "left", StringComparison.OrdinalIgnoreCase)) scanCode = LeftScanCode;
+            else if (string.Equals(key, "up", StringComparison.OrdinalIgnoreCase)) scanCode = UpScanCode;
+            else if (string.Equals(key, "right", StringComparison.OrdinalIgnoreCase)) scanCode = RightScanCode;
+            else if (string.Equals(key, "down", StringComparison.OrdinalIgnoreCase)) scanCode = DownScanCode;
+            else return false;
+
+            return true;
         }
     }
 }

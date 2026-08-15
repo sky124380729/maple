@@ -137,6 +137,7 @@ if ($keybdEventDeclaration.Count -ne 1) {
     throw "Input probe must contain exactly one keybd_event P/Invoke declaration; found $($keybdEventDeclaration.Count)."
 }
 Assert-Contains $combinedProbeSource 'KeyEventFKeyUp' 'Input probe explicit key-up flag'
+Assert-Contains $combinedProbeSource 'KeyEventFExtendedKey' 'Input probe extended-key flag'
 
 [xml]$hostProject = Get-Content -LiteralPath $hostProjectPath -Raw -Encoding UTF8
 $hostReferences = @($hostProject.Project.ItemGroup.ProjectReference | ForEach-Object { $_.Include })
@@ -196,6 +197,7 @@ if ($checkPublished) {
         'foregroundConfirmed',
         'isMinimized',
         'holdMs',
+        'inputMode',
         'vk',
         'scanCode',
         'flagsDown',

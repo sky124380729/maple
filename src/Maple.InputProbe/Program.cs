@@ -34,6 +34,7 @@ internal static class Program
         {
             SessionId = "self-test",
             ActionId = "self-test",
+            InputMode = "ExtendedScanCode",
             Classification = "SELF_TEST_NO_INPUT",
             Reason = "Diagnostic-only self-test sends no input",
             InputAttempted = false,

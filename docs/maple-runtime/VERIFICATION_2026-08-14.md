@@ -62,3 +62,11 @@ Windows 补验环境：Windows x64 build 26200，.NET SDK 8.0.424，WebView2 Eve
 - WGC API 通过 `IWgcRuntimeAdapter` 注入，避免 Mac 直接引用 `.winmd`；Windows AI 必须绑定系统 API，不得把 fake adapter 当成采集完成。
 - `Maple.Input.WindowsVirtualHidAdapter` 仍在 `HID_CONTRACT_UNVERIFIED` 时拒绝生产发送；项目自有 VHF 设备身份已固定，但测试签名安装和三层实机证据完成前不得切换默认适配器。
 - 百炼地图客户端源码与协议测试已完成，但生产 Host 尚无 WGC `IMapImageSource`；这属于 Windows 帧源绑定，不是百炼协议未实现。
+
+### 2026-08-15 extended-scan-code probe
+
+- Evidence session: `%LOCALAPPDATA%\Maple\input-probe\20260815-122248-925`
+- Left: `VK=37`, `scanCode=75 (0x4B)`, `flagsDown=1`, `flagsUp=3`, foreground confirmed, all keys released; avatar moved left from about x=318 to x=194.
+- Right: `VK=39`, `scanCode=77 (0x4D)`, `flagsDown=1`, `flagsUp=3`, foreground confirmed, all keys released; avatar moved right from about x=194 to x=318.
+- Classification: `CLIENT_MOVEMENT_CONFIRMED` for left/right only.
+- Not established: jump, climb, attack, pickup, potion, production Host integration, or soak stability.

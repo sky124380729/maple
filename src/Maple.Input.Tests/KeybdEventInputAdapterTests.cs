@@ -24,6 +24,89 @@ public sealed class KeybdEventInputAdapterTests
         Assert.Empty(adapter.GetStatus().ActiveKeys);
     }
 
+    [Fact]
+    public void ExtendedScanCodeModeEncodesLeftArrowAsExtendedKey()
+    {
+        var sender = new RecordingSender();
+        var adapter = new KeybdEventInputAdapter(
+            sender,
+            new SwitchGate { Allowed = true },
+            KeybdEventMode.ExtendedScanCode);
+        var action = Move("left-scan", ActionType.MoveLeft);
+
+        adapter.KeyDown(action, "Left", 10);
+        adapter.KeyUp(action, "Left", 20);
+
+        Assert.Collection(sender.Events,
+            item => Assert.Equal(
+                (VirtualKeyMap.Left, VirtualKeyMap.LeftScanCode, KeybdEventInputAdapter.KeyEventFExtendedKey),
+                item),
+            item => Assert.Equal(
+                (VirtualKeyMap.Left, VirtualKeyMap.LeftScanCode,
+                    KeybdEventInputAdapter.KeyEventFExtendedKey | KeybdEventInputAdapter.KeyEventFKeyUp),
+                item));
+    }
+
+    [Fact]
+    public void ExtendedScanCodeModeUsesRightArrowScanCodeDuringReleaseAll()
+    {
+        var sender = new RecordingSender();
+        var adapter = new KeybdEventInputAdapter(
+            sender,
+            new SwitchGate { Allowed = true },
+            KeybdEventMode.ExtendedScanCode);
+
+        adapter.KeyDown(Move("right-scan", ActionType.MoveRight), "Right", 10);
+        adapter.ReleaseAll(20);
+
+        Assert.Collection(sender.Events,
+            item => Assert.Equal(
+                (VirtualKeyMap.Right, VirtualKeyMap.RightScanCode, KeybdEventInputAdapter.KeyEventFExtendedKey),
+                item),
+            item => Assert.Equal(
+                (VirtualKeyMap.Right, VirtualKeyMap.RightScanCode,
+                    KeybdEventInputAdapter.KeyEventFExtendedKey | KeybdEventInputAdapter.KeyEventFKeyUp),
+                item));
+    }
+
+    [Fact]
+    public void ExtendedScanCodeModeReleasesOppositeDirectionWithOriginalScanCode()
+    {
+        var sender = new RecordingSender();
+        var adapter = new KeybdEventInputAdapter(
+            sender,
+            new SwitchGate { Allowed = true },
+            KeybdEventMode.ExtendedScanCode);
+
+        adapter.KeyDown(Move("left-scan", ActionType.MoveLeft), "Left", 10);
+        adapter.KeyDown(Move("right-scan", ActionType.MoveRight), "Right", 20);
+
+        Assert.Equal(new[]
+        {
+            (VirtualKeyMap.Left, VirtualKeyMap.LeftScanCode, KeybdEventInputAdapter.KeyEventFExtendedKey),
+            (VirtualKeyMap.Left, VirtualKeyMap.LeftScanCode,
+                KeybdEventInputAdapter.KeyEventFExtendedKey | KeybdEventInputAdapter.KeyEventFKeyUp),
+            (VirtualKeyMap.Right, VirtualKeyMap.RightScanCode, KeybdEventInputAdapter.KeyEventFExtendedKey)
+        }, sender.Events);
+        Assert.Equal(new[] { "Right" }, adapter.GetStatus().ActiveKeys);
+    }
+
+    [Fact]
+    public void UpstreamVirtualKeyModeKeepsScanCodeZeroDuringReleaseAll()
+    {
+        var sender = new RecordingSender();
+        var adapter = Create(sender);
+
+        adapter.KeyDown(Move("left-upstream", ActionType.MoveLeft), "Left", 10);
+        adapter.ReleaseAll(20);
+
+        Assert.Equal(new[]
+        {
+            (VirtualKeyMap.Left, 0u, 0u),
+            (VirtualKeyMap.Left, 0u, KeybdEventInputAdapter.KeyEventFKeyUp)
+        }, sender.Events);
+    }
+
     [Theory]
     [InlineData("left", VirtualKeyMap.Left)]
     [InlineData("RIGHT", VirtualKeyMap.Right)]

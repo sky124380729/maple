@@ -5,20 +5,32 @@ using Maple.Contracts;
 
 namespace Maple.Input
 {
+    public enum KeybdEventMode
+    {
+        UpstreamVirtualKey,
+        ExtendedScanCode
+    }
+
     public sealed class KeybdEventInputAdapter : IInputAdapter
     {
+        public const uint KeyEventFExtendedKey = 0x0001;
         public const uint KeyEventFKeyUp = 0x0002;
 
         private readonly IKeyboardEventSender sender;
         private readonly IInputSafetyGate safetyGate;
+        private readonly KeybdEventMode mode;
         private readonly ActiveKeyRegistry registry = new ActiveKeyRegistry();
         private bool lastGateAllowed;
         private long lastHeartbeat;
 
-        public KeybdEventInputAdapter(IKeyboardEventSender sender, IInputSafetyGate safetyGate)
+        public KeybdEventInputAdapter(
+            IKeyboardEventSender sender,
+            IInputSafetyGate safetyGate,
+            KeybdEventMode mode = KeybdEventMode.UpstreamVirtualKey)
         {
             this.sender = sender ?? throw new ArgumentNullException(nameof(sender));
             this.safetyGate = safetyGate ?? throw new ArgumentNullException(nameof(safetyGate));
+            this.mode = mode;
         }
 
         public InputResult KeyDown(AbstractAction action, string key, long nowMonoMs)
@@ -47,7 +59,7 @@ namespace Maple.Input
 
                 try
                 {
-                    sender.Send(virtualKey, 0, 0);
+                    SendKey(key, virtualKey, isKeyUp: false);
                 }
                 catch
                 {
@@ -74,7 +86,7 @@ namespace Maple.Input
             registry.KeyUp(key);
             try
             {
-                sender.Send(virtualKey, 0, KeyEventFKeyUp);
+                SendKey(key, virtualKey, isKeyUp: true);
                 return Result(actionId, InputStatus.Completed, nowMonoMs, new List<string> { key }, "KEY_UP_SENT");
             }
             catch (Exception exception)
@@ -109,7 +121,7 @@ namespace Maple.Input
 
                 try
                 {
-                    sender.Send(virtualKey, 0, KeyEventFKeyUp);
+                    SendKey(key, virtualKey, isKeyUp: true);
                 }
                 catch
                 {
@@ -158,8 +170,21 @@ namespace Maple.Input
                 return;
             }
 
-            sender.Send(virtualKey, 0, KeyEventFKeyUp);
+            SendKey(opposite, virtualKey, isKeyUp: true);
             registry.KeyUp(opposite);
+        }
+
+        private void SendKey(string key, ushort virtualKey, bool isKeyUp)
+        {
+            uint scanCode = 0;
+            uint flags = isKeyUp ? KeyEventFKeyUp : 0;
+            if (mode == KeybdEventMode.ExtendedScanCode && VirtualKeyMap.TryGetArrowScanCode(key, out uint arrowScanCode))
+            {
+                scanCode = arrowScanCode;
+                flags |= KeyEventFExtendedKey;
+            }
+
+            sender.Send(virtualKey, scanCode, flags);
         }
 
         private static string OppositeOf(string key)
