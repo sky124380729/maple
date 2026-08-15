@@ -1,5 +1,6 @@
 using Maple.Contracts;
 using Maple.Core;
+using System.Security.Cryptography;
 
 namespace Maple.Runtime;
 
@@ -14,6 +15,7 @@ public sealed class ProductionOrchestrator
     private readonly ActionPolicySettings policySettings;
     private readonly OrchestratorOptions options;
     private readonly IRuntimeJournal journal;
+    private readonly ActionTimingRandomizer timingRandomizer;
     private RuntimeObservationContext? pendingObservation;
 
     public ProductionOrchestrator(
@@ -23,7 +25,8 @@ public sealed class ProductionOrchestrator
         ActionPolicy actionPolicy,
         ActionPolicySettings policySettings,
         OrchestratorOptions options,
-        IRuntimeJournal? journal = null)
+        IRuntimeJournal? journal = null,
+        ActionTimingRandomizer? timingRandomizer = null)
     {
         this.observationSource = observationSource ?? throw new ArgumentNullException(nameof(observationSource));
         this.actionExecutor = actionExecutor ?? throw new ArgumentNullException(nameof(actionExecutor));
@@ -32,6 +35,9 @@ public sealed class ProductionOrchestrator
         this.policySettings = policySettings ?? throw new ArgumentNullException(nameof(policySettings));
         this.options = options ?? throw new ArgumentNullException(nameof(options));
         this.journal = journal ?? NullRuntimeJournal.Instance;
+        this.timingRandomizer = timingRandomizer ?? new ActionTimingRandomizer(
+            RandomNumberGenerator.GetInt32(int.MaxValue),
+            maximumFraction: 0.08);
         options.Validate();
     }
 
@@ -69,8 +75,15 @@ public sealed class ProductionOrchestrator
                     return new OrchestratorRunResult(PauseReason.CalibrationRequired, executedActions, lastFrameId);
                 }
 
-                await WriteJournalAsync("action.decided", observation, decision.Action, null, cancellationToken).ConfigureAwait(false);
-                RuntimeObservationContext feedback = await ExecuteWithFeedbackAsync(decision.Action, cancellationToken).ConfigureAwait(false);
+                (AbstractAction action, ActionTimingDecision timing) = ApplyTiming(decision.Action);
+                await WriteJournalAsync(
+                    "action.decided",
+                    observation,
+                    action,
+                    null,
+                    cancellationToken,
+                    timing).ConfigureAwait(false);
+                RuntimeObservationContext feedback = await ExecuteWithFeedbackAsync(action, cancellationToken).ConfigureAwait(false);
                 pendingObservation = feedback;
                 lastFrameId = feedback.Snapshot.FrameId;
                 executedActions++;
@@ -191,7 +204,8 @@ public sealed class ProductionOrchestrator
         RuntimeObservationContext observation,
         AbstractAction? action,
         PauseReason? pauseReason,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        ActionTimingDecision? timing = null)
     {
         return journal.WriteAsync(new RuntimeJournalEntry(
             ContractConstants.SchemaVersion,
@@ -202,6 +216,63 @@ public sealed class ProductionOrchestrator
             action?.Type.ToString(),
             action?.ProfileId?.ToString(),
             action?.HoldMs,
-            pauseReason?.ToString()), cancellationToken);
+            pauseReason?.ToString(),
+            timing?.Seed,
+            timing?.BaselineHoldMs,
+            timing?.VariationMs,
+            timing?.FinalHoldMs), cancellationToken);
+    }
+
+    private (AbstractAction Action, ActionTimingDecision Timing) ApplyTiming(AbstractAction action)
+    {
+        int minimum;
+        int maximum = action.MaxDurationMs;
+        bool randomize = true;
+        switch (action.Type)
+        {
+            case ActionType.MoveLeft:
+            case ActionType.MoveRight:
+                minimum = policySettings.MinMoveHoldMs;
+                maximum = Math.Min(maximum, policySettings.MaxMoveHoldMs);
+                break;
+            case ActionType.Jump:
+            case ActionType.ClimbUp:
+            case ActionType.ClimbDown:
+                minimum = 60;
+                break;
+            case ActionType.Attack:
+                minimum = 20;
+                break;
+            case ActionType.Pickup:
+                minimum = 40;
+                break;
+            case ActionType.UsePotion:
+                minimum = Math.Clamp(action.HoldMs, 0, maximum);
+                randomize = false;
+                break;
+            default:
+                minimum = 0;
+                randomize = false;
+                break;
+        }
+
+        minimum = Math.Min(minimum, maximum);
+        ActionTimingDecision timing = randomize
+            ? timingRandomizer.ApplyWithTrace(action.HoldMs, minimum, maximum)
+            : new ActionTimingDecision(
+                timingRandomizer.Seed,
+                action.HoldMs,
+                0,
+                Math.Clamp(action.HoldMs, minimum, maximum));
+        var adjusted = new AbstractAction
+        {
+            ActionId = action.ActionId,
+            Type = action.Type,
+            ProfileId = action.ProfileId,
+            IssuedAtMonoMs = action.IssuedAtMonoMs,
+            HoldMs = timing.FinalHoldMs,
+            MaxDurationMs = action.MaxDurationMs
+        };
+        return (adjusted, timing);
     }
 }

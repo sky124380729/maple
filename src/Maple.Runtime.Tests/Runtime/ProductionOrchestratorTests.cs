@@ -82,7 +82,36 @@ public sealed class ProductionOrchestratorTests
         Assert.Equal(["MoveRight.down", "MoveRight.up", "releaseAll"], executor.Events);
     }
 
-    private static ProductionOrchestrator CreateOrchestrator(IObservationSource source, IActionExecutor executor)
+    [Fact]
+    public async Task TimingDecisionIsJournaledWithItsSessionSeed()
+    {
+        var source = new QueueObservationSource(
+            Observation(frameId: 1, capturedAt: 1_000, selfX: 0.20, monsterX: 0.70),
+            Observation(frameId: 2, capturedAt: 1_080, selfX: 0.645, monsterX: 0.70));
+        var executor = new RecordingActionExecutor();
+        var journal = new RecordingJournal();
+        var orchestrator = CreateOrchestrator(
+            source,
+            executor,
+            journal,
+            new ActionTimingRandomizer(42, 0.08));
+
+        await orchestrator.RunUntilPausedAsync(1, CancellationToken.None);
+
+        RuntimeJournalEntry entry = Assert.Single(
+            journal.Entries,
+            item => item.Type == "action.decided");
+        Assert.Equal(42, entry.TimingSeed);
+        Assert.NotNull(entry.BaselineHoldMs);
+        Assert.Equal(entry.ComputedHoldMs, entry.FinalHoldMs);
+        Assert.Equal(entry.FinalHoldMs - entry.BaselineHoldMs, entry.VariationMs);
+    }
+
+    private static ProductionOrchestrator CreateOrchestrator(
+        IObservationSource source,
+        IActionExecutor executor,
+        IRuntimeJournal? journal = null,
+        ActionTimingRandomizer? timingRandomizer = null)
     {
         var settings = new ActionPolicySettings
         {
@@ -105,7 +134,9 @@ public sealed class ProductionOrchestratorTests
             new SafetyGate(settings.SelfConfidenceThreshold),
             new ActionPolicy(new MovementDurationEstimator()),
             settings,
-            new OrchestratorOptions { MaximumFeedbackFramesPerAction = 16 });
+            new OrchestratorOptions { MaximumFeedbackFramesPerAction = 16 },
+            journal,
+            timingRandomizer);
     }
 
     private static RuntimeObservationContext Observation(long frameId, long capturedAt, double selfX, double? monsterX, bool includePlayer = true)
@@ -195,5 +226,16 @@ public sealed class ProductionOrchestratorTests
         private static string Label(AbstractAction action) => action.ProfileId.HasValue
             ? $"{action.Type}:{action.ProfileId.Value}"
             : action.Type.ToString();
+    }
+
+    private sealed class RecordingJournal : IRuntimeJournal
+    {
+        public List<RuntimeJournalEntry> Entries { get; } = [];
+
+        public ValueTask WriteAsync(RuntimeJournalEntry entry, CancellationToken cancellationToken)
+        {
+            Entries.Add(entry);
+            return ValueTask.CompletedTask;
+        }
     }
 }
