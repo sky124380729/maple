@@ -3,6 +3,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <NoWarn>$(NoWarn);CS9057</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
@@ -19,6 +20,7 @@
     <ProjectReference Include="../Maple.Input/Maple.Input.csproj" />
     <ProjectReference Include="../Maple.Capture/Maple.Capture.csproj" />
     <ProjectReference Include="../Maple.Runtime/Maple.Runtime.csproj" />
+    <ProjectReference Include="../Maple.Vision/Maple.Vision.csproj" />
     <Compile Include="../Maple.Host/BridgeMessageRouter.cs" Link="BridgeMessageRouter.cs" />
     <Compile Include="../Maple.Host/HostCommandDispatcher.cs" Link="HostCommandDispatcher.cs" />
     <Compile Include="../Maple.Host/HostSafetyCoordinator.cs" Link="HostSafetyCoordinator.cs" />
@@ -41,6 +43,9 @@
     <Compile Include="../Maple.Host/GlobalHotKeyManager.cs" Link="GlobalHotKeyManager.cs" />
     <Compile Include="../Maple.Host/ForegroundSessionController.cs" Link="ForegroundSessionController.cs" />
     <Compile Include="../Maple.Host/PreviewLayout.cs" Link="PreviewLayout.cs" />
+    <Compile Include="../Maple.Host/LatestVisionFrameQueue.cs" Link="LatestVisionFrameQueue.cs" />
+    <Compile Include="../Maple.Host/CompositeCaptureFrameObserver.cs" Link="CompositeCaptureFrameObserver.cs" />
+    <Compile Include="../Maple.Host/VisionRuntimeService.cs" Link="VisionRuntimeService.cs" />
     <Compile Include="../Maple.Preview/OverlaySnapshot.cs" Link="OverlaySnapshot.cs" />
     <Compile Include="../Maple.Preview/PreviewTelemetrySnapshot.cs" Link="PreviewTelemetrySnapshot.cs" />
     <Compile Include="../Maple.Preview/PreviewRenderModel.cs" Link="PreviewRenderModel.cs" />
