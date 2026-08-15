@@ -139,8 +139,64 @@ describe('shared bridge contracts', () => {
     expect(validateCommand(preview)).toBe(true)
     expect(validateCommand({ ...preview, payload: { ...preview.payload, flags: 1 } })).toBe(false)
     expect(validateCommand({ ...preview, payload: { ...preview.payload, left: 10_001 } })).toBe(false)
+    expect(validateCommand({
+      schemaVersion: 2,
+      type: 'config.update',
+      payload: { hpThresholdMode: 'percent', hpThreshold: 101 },
+    })).toBe(false)
+    expect(validateCommand({
+      schemaVersion: 2,
+      type: 'config.update',
+      payload: { hpThresholdMode: 'absolute', hpThreshold: 101 },
+    })).toBe(true)
+    expect(validateCommand({
+      schemaVersion: 2,
+      type: 'config.update',
+      payload: { mpThresholdMode: 'percent', mpThreshold: 101 },
+    })).toBe(false)
+    expect(validateCommand({
+      schemaVersion: 2,
+      type: 'config.update',
+      payload: { mpThresholdMode: 'absolute', mpThreshold: 101 },
+    })).toBe(true)
     expect(validateEvent(vision)).toBe(true)
     expect(validateEvent({ ...vision, payload: { ...vision.payload, diagnostic: 'x'.repeat(129) } })).toBe(false)
+    expect(validateEvent({
+      schemaVersion: 2,
+      type: 'input.status.updated',
+      payload: { scanCode: 75 },
+    })).toBe(false)
+    expect(validateEvent({
+      schemaVersion: 2,
+      type: 'cloud.status.updated',
+      payload: { actionSequence: ['Attack'] },
+    })).toBe(false)
+    expect(validateEvent({
+      schemaVersion: 2,
+      type: 'input.status.updated',
+      payload: {
+        provider: 'inputBroker',
+        status: 'ready',
+        integrity: 'high',
+        activeKeys: [],
+        lastReleaseSucceeded: true,
+        hotkeys: { pauseResume: 'F9', emergencyStop: 'F12' },
+        errorCode: null,
+      },
+    })).toBe(true)
+    expect(validateEvent({
+      schemaVersion: 2,
+      type: 'cloud.status.updated',
+      payload: {
+        provider: 'bailian',
+        enabled: true,
+        credentialConfigured: true,
+        modelId: 'qwen3-vl-plus',
+        connectionStatus: 'ready',
+        requestInFlight: false,
+        lastErrorCode: null,
+      },
+    })).toBe(true)
   })
 
   test('accepts only the closed production input broker status shape', () => {

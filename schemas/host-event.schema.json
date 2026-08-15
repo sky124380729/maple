@@ -63,13 +63,69 @@
         }
       }
     },
+    "inputBrokerStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "input.status.updated" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["provider", "status", "integrity", "activeKeys", "lastReleaseSucceeded", "hotkeys", "errorCode"],
+          "properties": {
+            "provider": { "const": "inputBroker" },
+            "status": { "enum": ["disconnected", "starting", "ready", "paused", "faulted"] },
+            "integrity": { "enum": ["unknown", "medium", "high"] },
+            "activeKeys": { "type": "array", "maxItems": 16, "items": { "type": "string", "minLength": 1, "maxLength": 32 } },
+            "lastReleaseSucceeded": { "type": "boolean" },
+            "hotkeys": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["pauseResume", "emergencyStop"],
+              "properties": {
+                "pauseResume": { "const": "F9" },
+                "emergencyStop": { "const": "F12" }
+              }
+            },
+            "errorCode": { "type": ["string", "null"], "minLength": 1, "maxLength": 64 }
+          }
+        }
+      }
+    },
+    "cloudStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "cloud.status.updated" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["provider", "enabled", "credentialConfigured", "modelId", "connectionStatus", "requestInFlight", "lastErrorCode"],
+          "properties": {
+            "provider": { "const": "bailian" },
+            "enabled": { "type": "boolean" },
+            "credentialConfigured": { "type": "boolean" },
+            "modelId": { "enum": ["qwen3-vl-plus", "qwen3-vl-flash", "qwen-vl-max"] },
+            "connectionStatus": { "enum": ["notConfigured", "checking", "ready", "unavailable"] },
+            "requestInFlight": { "type": "boolean" },
+            "lastErrorCode": { "type": ["string", "null"], "maxLength": 64 }
+          }
+        }
+      }
+    },
     "existingEvent": {
       "type": "object",
       "additionalProperties": false,
       "required": ["schemaVersion", "type", "payload"],
       "properties": {
         "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
-        "type": { "enum": ["target.updated", "capture.frameMetadata", "overlay.updated", "observation.updated", "session.stateChanged", "input.result", "input.status.updated", "log.appended", "preview.availabilityChanged", "cloud.status.updated"] },
+        "type": { "enum": ["target.updated", "capture.frameMetadata", "overlay.updated", "observation.updated", "session.stateChanged", "input.result", "log.appended", "preview.availabilityChanged"] },
         "timestamp": { "$ref": "#/$defs/timestamp" },
         "payload": { "type": "object" }
       }
@@ -78,6 +134,8 @@
   "oneOf": [
     { "$ref": "#/$defs/telemetry" },
     { "$ref": "#/$defs/visionStatus" },
+    { "$ref": "#/$defs/inputBrokerStatus" },
+    { "$ref": "#/$defs/cloudStatus" },
     { "$ref": "#/$defs/existingEvent" }
   ]
 }

@@ -70,7 +70,11 @@
             "jumpKey": { "type": "string", "minLength": 1, "maxLength": 32 },
             "pickupEnabled": { "type": "boolean" },
             "pickupKey": { "type": "string", "minLength": 1, "maxLength": 32 }
-          }
+          },
+          "allOf": [
+            { "if": { "properties": { "hpThresholdMode": { "const": "percent" } }, "required": ["hpThresholdMode"] }, "then": { "properties": { "hpThreshold": { "maximum": 100 } } } },
+            { "if": { "properties": { "mpThresholdMode": { "const": "percent" } }, "required": ["mpThresholdMode"] }, "then": { "properties": { "mpThreshold": { "maximum": 100 } } } }
+          ]
         }
       }
     },
