@@ -37,7 +37,21 @@ export function createMockSessionEvents(tick = 0): HostEvent[] {
 
   return [
     { schemaVersion: CONTRACT_SCHEMA_VERSION, type: 'target.updated', timestamp, payload: target },
-    { schemaVersion: CONTRACT_SCHEMA_VERSION, type: 'session.stateChanged', timestamp, payload: { state: 'Observing', pauseReason: 'None' } },
+    { schemaVersion: CONTRACT_SCHEMA_VERSION, type: 'session.stateChanged', timestamp, payload: { state: 'Stopped', pauseReason: 'None' } },
+    {
+      schemaVersion: CONTRACT_SCHEMA_VERSION,
+      type: 'input.status.updated',
+      timestamp,
+      payload: {
+        provider: 'inputBroker',
+        status: 'disconnected',
+        integrity: 'unknown',
+        activeKeys: [],
+        lastReleaseSucceeded: true,
+        hotkeys: { pauseResume: 'F9', emergencyStop: 'F12' },
+        errorCode: null,
+      },
+    },
     createMockTelemetryEvent(tick),
     {
       schemaVersion: CONTRACT_SCHEMA_VERSION,
@@ -77,7 +91,7 @@ export function createMockSessionEvents(tick = 0): HostEvent[] {
       schemaVersion: CONTRACT_SCHEMA_VERSION,
       type: 'log.appended',
       timestamp,
-      payload: { level: 'info', code: 'INPUT_INJECTION_DISABLED', message: 'INPUT_INJECTION=DISABLED' },
+      payload: { level: 'info', code: 'INPUT_BROKER_STANDBY', message: '输入服务将在开始运行时连接' },
     },
   ]
 }

@@ -18,7 +18,9 @@ public sealed class ForegroundSessionControllerTests
         var delay = new RecordingDelay();
         var controller = new ForegroundSessionController(locator, activation, broker, safety, delay);
         var countdown = new List<int>();
+        var statuses = new List<InputSessionStatus>();
         controller.CountdownChanged += (_, value) => countdown.Add(value);
+        controller.StatusChanged += (_, value) => statuses.Add(value);
 
         ForegroundResumeResult result = await controller.ResumeAsync(CancellationToken.None);
 
@@ -31,6 +33,10 @@ public sealed class ForegroundSessionControllerTests
         Assert.Equal(target.ProcessPath, broker.ArmedTarget.ExecutablePath);
         Assert.True(controller.IsArmed);
         Assert.Equal(SessionState.Observing, safety.State);
+        Assert.Contains(statuses, status => status.Status == "starting" && status.SessionState == SessionState.Arming);
+        Assert.Equal("ready", statuses[^1].Status);
+        Assert.Equal("unknown", statuses[^1].Integrity);
+        Assert.True(statuses[^1].LastReleaseSucceeded);
     }
 
     [Fact]
@@ -56,6 +62,8 @@ public sealed class ForegroundSessionControllerTests
         Assert.False(controller.IsArmed);
         Assert.Equal(SessionState.Paused, safety.State);
         Assert.Equal(PauseReason.WindowNotForeground, safety.PauseReason);
+        Assert.Equal("paused", controller.CurrentStatus.Status);
+        Assert.True(controller.CurrentStatus.LastReleaseSucceeded);
     }
 
     [Fact]
@@ -103,6 +111,63 @@ public sealed class ForegroundSessionControllerTests
         Assert.Equal(1, broker.ReleaseAllCalls);
         Assert.False(controller.IsArmed);
         Assert.Equal(PauseReason.WindowNotForeground, safety.PauseReason);
+    }
+
+    [Fact]
+    public async Task ToggleDuringCountdownCancelsResumeAndReleases()
+    {
+        WindowIdentity target = Target(isForeground: false);
+        var broker = new RecordingBrokerSession();
+        var safety = new HostSafetyCoordinator(broker, () => 750);
+        var delay = new BlockingDelay();
+        var controller = new ForegroundSessionController(
+            new SequenceLocator(target),
+            new RecordingActivation { ForegroundHwnd = ParseHwnd(target.Hwnd) },
+            broker,
+            safety,
+            delay);
+
+        Task<ForegroundResumeResult> resume = controller.ResumeAsync(CancellationToken.None);
+        await delay.Started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await controller.ToggleAsync(CancellationToken.None);
+        ForegroundResumeResult result = await resume;
+
+        Assert.False(result.Success);
+        Assert.Equal("RESUME_CANCELLED", result.Code);
+        Assert.False(controller.IsArmed);
+        Assert.False(controller.IsArming);
+        Assert.Equal(SessionState.Paused, safety.State);
+        Assert.True(broker.ReleaseAllCalls >= 1);
+        Assert.Null(broker.ArmedTarget);
+    }
+
+    [Fact]
+    public async Task RefreshPublishesActiveKeysAndPausesOnHeartbeatFailure()
+    {
+        WindowIdentity target = Target(isForeground: true);
+        var broker = new RecordingBrokerSession();
+        var safety = new HostSafetyCoordinator(broker, () => 800);
+        long now = 1_000;
+        var controller = new ForegroundSessionController(
+            new SequenceLocator(target, target),
+            new RecordingActivation { ForegroundHwnd = ParseHwnd(target.Hwnd) },
+            broker,
+            safety,
+            new RecordingDelay(),
+            () => now);
+        Assert.True((await controller.ResumeAsync(CancellationToken.None)).Success);
+
+        broker.ActiveKeys.Add("MoveLeft");
+        controller.RefreshStatus();
+        Assert.Contains("MoveLeft", controller.CurrentStatus.ActiveKeys);
+        Assert.Equal("unknown", controller.CurrentStatus.Integrity);
+
+        broker.HeartbeatHealthy = false;
+        now = 1_600;
+        controller.RefreshStatus();
+        Assert.False(controller.IsArmed);
+        Assert.Equal("faulted", controller.CurrentStatus.Status);
+        Assert.Equal(PauseReason.InputUnavailable, safety.PauseReason);
     }
 
     private static WindowIdentity Target(bool isForeground) => new(
@@ -164,11 +229,24 @@ public sealed class ForegroundSessionControllerTests
         }
     }
 
+    private sealed class BlockingDelay : IForegroundSessionDelay
+    {
+        public TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task DelayAsync(TimeSpan delay, CancellationToken cancellationToken)
+        {
+            Started.TrySetResult();
+            return Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        }
+    }
+
     private sealed class RecordingBrokerSession : IInputBrokerSession, IInputAdapter
     {
         public int StartCalls { get; private set; }
         public int ReleaseAllCalls { get; private set; }
         public ArmTargetPayload? ArmedTarget { get; private set; }
+        public List<string> ActiveKeys { get; } = [];
+        public bool HeartbeatHealthy { get; set; } = true;
 
         public Task EnsureStartedAsync(CancellationToken cancellationToken)
         {
@@ -184,7 +262,7 @@ public sealed class ForegroundSessionControllerTests
             Code = "INPUT_BROKER_READY",
             IsHealthy = true,
             InjectionEnabled = ArmedTarget is not null,
-            ActiveKeys = []
+            ActiveKeys = ActiveKeys.ToArray()
         };
 
         public InputResult ReleaseAll(long nowMonoMs)
@@ -196,7 +274,7 @@ public sealed class ForegroundSessionControllerTests
         public InputResult KeyDown(AbstractAction action, string key, long nowMonoMs) => Result(action.ActionId, nowMonoMs);
         public InputResult KeyUp(AbstractAction action, string key, long nowMonoMs) => Result(action.ActionId, nowMonoMs);
         public InputResult Press(AbstractAction action, string key, long nowMonoMs) => Result(action.ActionId, nowMonoMs);
-        public bool Heartbeat(long nowMonoMs) => true;
+        public bool Heartbeat(long nowMonoMs) => HeartbeatHealthy;
 
         private static InputResult Result(string actionId, long nowMonoMs) => new()
         {

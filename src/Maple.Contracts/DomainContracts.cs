@@ -168,6 +168,25 @@ namespace Maple.Contracts
     }
 
     [DataContract]
+    public sealed class InputHotKeyBindings
+    {
+        [DataMember(Name = "pauseResume", IsRequired = true)] public string PauseResume { get; set; }
+        [DataMember(Name = "emergencyStop", IsRequired = true)] public string EmergencyStop { get; set; }
+    }
+
+    [DataContract]
+    public sealed class InputBrokerStatusPayload
+    {
+        [DataMember(Name = "provider", IsRequired = true)] public string Provider { get; set; }
+        [DataMember(Name = "status", IsRequired = true)] public InputBrokerStatus Status { get; set; }
+        [DataMember(Name = "integrity", IsRequired = true)] public InputBrokerIntegrity Integrity { get; set; }
+        [DataMember(Name = "activeKeys", IsRequired = true)] public List<string> ActiveKeys { get; set; }
+        [DataMember(Name = "lastReleaseSucceeded", IsRequired = true)] public bool LastReleaseSucceeded { get; set; }
+        [DataMember(Name = "hotkeys", IsRequired = true)] public InputHotKeyBindings Hotkeys { get; set; }
+        [DataMember(Name = "errorCode", IsRequired = true)] public string ErrorCode { get; set; }
+    }
+
+    [DataContract]
     public sealed class HostEvent
     {
         [DataMember(Name = "schemaVersion", IsRequired = true)] public int SchemaVersion { get; set; }
@@ -273,6 +292,22 @@ namespace Maple.Contracts
     [DataContract]
     public enum InputStatus { Accepted, Rejected, Completed, Cancelled, Failed }
     [DataContract]
+    public enum InputBrokerStatus
+    {
+        [EnumMember(Value = "disconnected")] Disconnected,
+        [EnumMember(Value = "starting")] Starting,
+        [EnumMember(Value = "ready")] Ready,
+        [EnumMember(Value = "paused")] Paused,
+        [EnumMember(Value = "faulted")] Faulted
+    }
+    [DataContract]
+    public enum InputBrokerIntegrity
+    {
+        [EnumMember(Value = "unknown")] Unknown,
+        [EnumMember(Value = "medium")] Medium,
+        [EnumMember(Value = "high")] High
+    }
+    [DataContract]
     public enum HostEventType
     {
         [EnumMember(Value = "target.updated")] TargetUpdated,
@@ -282,6 +317,7 @@ namespace Maple.Contracts
         [EnumMember(Value = "telemetry.updated")] TelemetryUpdated,
         [EnumMember(Value = "session.stateChanged")] SessionStateChanged,
         [EnumMember(Value = "input.result")] InputResult,
+        [EnumMember(Value = "input.status.updated")] InputStatusUpdated,
         [EnumMember(Value = "log.appended")] LogAppended,
         [EnumMember(Value = "preview.availabilityChanged")] PreviewAvailabilityChanged,
         [EnumMember(Value = "cloud.status.updated")] CloudStatusUpdated

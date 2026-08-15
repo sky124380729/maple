@@ -9,6 +9,7 @@ type BailianModelId = CloudStatus['modelId']
 
 export interface SettingsPageProps {
   cloudStatus: CloudStatus
+  pausedForSettings?: boolean
   sendCommand(command: UiCommand): void
 }
 
@@ -25,7 +26,7 @@ const statusLabels: Record<CloudStatus['connectionStatus'], string> = {
   unavailable: '不可用',
 }
 
-export function SettingsPage({ cloudStatus, sendCommand }: SettingsPageProps) {
+export function SettingsPage({ cloudStatus, pausedForSettings = false, sendCommand }: SettingsPageProps) {
   const [credential, setCredential] = useState('')
   const [uploadConsent, setUploadConsent] = useState(false)
 
@@ -62,6 +63,8 @@ export function SettingsPage({ cloudStatus, sendCommand }: SettingsPageProps) {
           {statusLabels[cloudStatus.connectionStatus]}
         </span>
       </div>
+
+      {pausedForSettings && <div className="settings-pause-notice" role="status">修改设置时已暂停</div>}
 
       <div className="settings-row settings-row--split">
         <div><Text className="settings-label">启用服务</Text><Text className="settings-value">地图结构复核</Text></div>

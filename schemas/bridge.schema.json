@@ -118,6 +118,38 @@
         "payload": { "type": "object" }
       }
     },
+    "inputBrokerStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "input.status.updated" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["provider", "status", "integrity", "activeKeys", "lastReleaseSucceeded", "hotkeys", "errorCode"],
+          "properties": {
+            "provider": { "const": "inputBroker" },
+            "status": { "enum": ["disconnected", "starting", "ready", "paused", "faulted"] },
+            "integrity": { "enum": ["unknown", "medium", "high"] },
+            "activeKeys": { "type": "array", "maxItems": 16, "items": { "type": "string", "minLength": 1, "maxLength": 32 } },
+            "lastReleaseSucceeded": { "type": "boolean" },
+            "hotkeys": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["pauseResume", "emergencyStop"],
+              "properties": {
+                "pauseResume": { "const": "F9" },
+                "emergencyStop": { "const": "F12" }
+              }
+            },
+            "errorCode": { "type": ["string", "null"], "minLength": 1, "maxLength": 64 }
+          }
+        }
+      }
+    },
     "cloudStatus": {
       "type": "object",
       "additionalProperties": false,
@@ -151,6 +183,7 @@
     { "$ref": "#/$defs/cloudConfig" },
     { "$ref": "#/$defs/cloudMapAnnotate" },
     { "$ref": "#/$defs/hostEvent" },
+    { "$ref": "#/$defs/inputBrokerStatus" },
     { "$ref": "#/$defs/cloudStatus" }
   ]
 }

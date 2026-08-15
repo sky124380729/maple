@@ -77,9 +77,10 @@ describe('typed host bridge', () => {
       'preview.availabilityChanged',
       'observation.updated',
       'log.appended',
+      'input.status.updated',
     ]))
     expect(received.some((event) => event.type === 'input.result')).toBe(false)
-    expect(received.some((event) => event.type === 'log.appended' && event.payload.code === 'INPUT_INJECTION_DISABLED')).toBe(true)
+    expect(received.some((event) => event.type === 'log.appended' && event.payload.code === 'INPUT_BROKER_STANDBY')).toBe(true)
     expect(received.filter((event) => event.type === 'session.stateChanged').at(-1)?.payload.state).toBe('EmergencyStop')
   })
 
@@ -123,7 +124,11 @@ describe('typed host bridge', () => {
     telemetryStore.getState().applyHostEvent({ ...telemetryEvent, payload: { ...telemetryEvent.payload, captureFps: 59 } })
     telemetryStore.getState().applyHostEvent({ ...telemetryEvent, payload: { ...telemetryEvent.payload, captureFps: 58 } })
 
-    expect(sessionStore.getState()).toMatchObject({ sessionState: 'Paused', pauseReason: 'OperatorRequested', inputInjection: 'DISABLED' })
+    expect(sessionStore.getState()).toMatchObject({
+      sessionState: 'Paused',
+      pauseReason: 'OperatorRequested',
+      inputStatus: { provider: 'inputBroker', status: 'disconnected' },
+    })
     expect(telemetryStore.getState().latest?.captureFps).toBe(58)
     expect(telemetryStore.getState().history.map((item) => item.captureFps)).toEqual([59, 58])
   })

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { OverlaySnapshot } from '../../contracts/bridge'
 import { OverlayLegend } from './OverlayLegend'
-import { buildOverlayRenderItems, type OverlayRenderItem } from './overlay'
+import { buildOverlayRenderItems, formatCanvasOverlayLabel, type OverlayRenderItem } from './overlay'
 
 const CANVAS_WIDTH = 1280
 const CANVAS_HEIGHT = 720
@@ -16,7 +16,7 @@ function cancelFrame(handle: number) {
   else window.clearTimeout(handle)
 }
 
-function drawOverlay(context: CanvasRenderingContext2D, item: OverlayRenderItem) {
+function drawOverlay(context: CanvasRenderingContext2D, item: OverlayRenderItem, compact: boolean) {
   const [x, y, width, height] = item.box
   const left = x * CANVAS_WIDTH
   const top = y * CANVAS_HEIGHT
@@ -27,15 +27,16 @@ function drawOverlay(context: CanvasRenderingContext2D, item: OverlayRenderItem)
   context.lineWidth = 3
   context.strokeRect(left, top, boxWidth, boxHeight)
   context.font = '600 18px "Noto Sans SC", sans-serif'
-  const labelWidth = context.measureText(item.label).width + 16
+  const label = formatCanvasOverlayLabel(item, compact)
+  const labelWidth = context.measureText(label).width + 16
   const labelTop = Math.max(0, top - 28)
   context.fillStyle = 'rgba(8, 13, 18, 0.9)'
   context.fillRect(left, labelTop, labelWidth, 26)
   context.fillStyle = item.color
-  context.fillText(item.label, left + 8, labelTop + 19)
+  context.fillText(label, left + 8, labelTop + 19)
 }
 
-function drawScene(context: CanvasRenderingContext2D, items: OverlayRenderItem[]) {
+function drawScene(context: CanvasRenderingContext2D, items: OverlayRenderItem[], compact: boolean) {
   context.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
   context.fillStyle = '#080d12'
   context.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT)
@@ -61,7 +62,7 @@ function drawScene(context: CanvasRenderingContext2D, items: OverlayRenderItem[]
   context.arc(CANVAS_WIDTH / 2, CANVAS_HEIGHT / 2, 210, 0, Math.PI * 2)
   context.stroke()
 
-  for (const item of items) drawOverlay(context, item)
+  for (const item of items) drawOverlay(context, item, compact)
 }
 
 export function MockPreviewCanvas({ snapshot, nowMonoMs = snapshot.generatedAtMonoMs }: { snapshot: OverlaySnapshot; nowMonoMs?: number }) {
@@ -84,7 +85,7 @@ export function MockPreviewCanvas({ snapshot, nowMonoMs = snapshot.generatedAtMo
     let frameHandle = 0
     const draw = () => {
       if (!active || !context) return
-      drawScene(context, items)
+      drawScene(context, items, canvas.clientWidth < 520)
       frameHandle = requestFrame(draw)
     }
     draw()

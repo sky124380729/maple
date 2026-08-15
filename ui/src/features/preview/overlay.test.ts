@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import type { OverlaySnapshot } from '../../contracts/bridge'
-import { buildOverlayRenderItems } from './overlay'
+import { buildOverlayRenderItems, formatCanvasOverlayLabel } from './overlay'
 
 const snapshot: OverlaySnapshot = {
   schemaVersion: 2,
@@ -26,5 +26,12 @@ describe('preview overlay semantics', () => {
     const items = buildOverlayRenderItems(snapshot, 10_200)
 
     expect(items).toHaveLength(0)
+  })
+
+  test('uses short canvas labels on narrow previews while preserving the legend label', () => {
+    const items = buildOverlayRenderItems(snapshot, 10_100)
+
+    expect(items.map((item) => formatCanvasOverlayLabel(item, true))).toEqual(['自己 94%', '玩家 81%', '怪物 88%'])
+    expect(items[1].label).toBe('其他玩家 81% #player-7')
   })
 })

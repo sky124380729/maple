@@ -1,6 +1,6 @@
 import { CheckCircleFilled, RadarChartOutlined, ReloadOutlined, SafetyCertificateOutlined, WarningOutlined } from '@ant-design/icons'
 import { Button, Progress, Tag, Tooltip, Typography } from 'antd'
-import type { HostEvent, ObservationSnapshot, PauseReason, SessionState } from '../../contracts/bridge'
+import type { HostEvent, InputBrokerStatus, ObservationSnapshot, PauseReason, SessionState } from '../../contracts/bridge'
 import { MetricRow, SectionHeading, sessionStateLabels } from './presentation'
 
 const { Text } = Typography
@@ -11,10 +11,12 @@ const pauseReasonLabels: Record<PauseReason, string> = {
   None: '无', CalibrationRequired: '需要自动校准', StaleFrame: '画面已过期', TargetLost: '目标丢失', WindowNotForeground: '窗口不在前台', BlackFrame: '黑屏', MapNotValidated: '地图未验证', InputUnavailable: '输入不可用', HealthUnknown: '生命值未知', UnknownPopup: '未知弹窗', WatchdogTimeout: '监控超时', OperatorRequested: '用户请求', SafetyViolation: '安全门阻止',
 }
 
-export function HealthPanel({ sessionState, pauseReason, observation, preview, logs, onRefresh }: { sessionState: SessionState; pauseReason: PauseReason; observation?: ObservationSnapshot; preview: PreviewAvailability; logs: LogEntry[]; onRefresh(): void }) {
+export function HealthPanel({ sessionState, pauseReason, observation, preview, inputStatus, logs, onRefresh }: { sessionState: SessionState; pauseReason: PauseReason; observation?: ObservationSnapshot; preview: PreviewAvailability; inputStatus: InputBrokerStatus; logs: LogEntry[]; onRefresh(): void }) {
   const selfConfidence = observation ? Math.round(observation.self.confidence * 100) : 0
   const latestLog = logs.at(-1)
-  const latestLogTitle = latestLog?.code === 'INPUT_INJECTION_DISABLED' ? '输入注入已禁用' : latestLog?.message ?? '等待宿主事件'
+  const latestLogTitle = latestLog?.message ?? '等待宿主事件'
+  const inputReady = inputStatus.status === 'ready'
+  const inputLabel = inputReady ? '输入服务已就绪' : inputStatus.status === 'paused' ? '输入服务已暂停' : inputStatus.status === 'faulted' ? '输入服务异常' : '输入服务待命'
   return (
     <aside className="side-panel side-panel--diagnostics">
       <div className="side-panel__scroll">
@@ -35,8 +37,8 @@ export function HealthPanel({ sessionState, pauseReason, observation, preview, l
           </div>
         </section>
         <section className="safety-card" aria-labelledby="safety-title">
-          <div className="safety-card__head"><span className="safety-card__icon"><SafetyCertificateOutlined /></span><div><Text id="safety-title" className="field-title">安全门</Text><Text className="field-hint">输入注入已禁用</Text></div><Tag className="gate-tag">已关闭</Tag></div>
-          <Text className="safety-card__copy">当前为{sessionStateLabels[sessionState]}，暂停原因：{pauseReasonLabels[pauseReason]}。目标窗口、前台焦点和新鲜画面全部通过后，才会开放动作通道。</Text>
+          <div className="safety-card__head"><span className="safety-card__icon"><SafetyCertificateOutlined /></span><div><Text id="safety-title" className="field-title">安全门</Text><Text className="field-hint">{inputLabel}</Text></div><Tag className={`gate-tag ${inputReady ? 'gate-tag--ready' : ''}`}>{inputReady ? '可运行' : '已锁定'}</Tag></div>
+          <Text className="safety-card__copy">当前为{sessionStateLabels[sessionState]}，暂停原因：{pauseReasonLabels[pauseReason]}。最近释放{inputStatus.lastReleaseSucceeded ? '成功' : '失败'}，活动按键 {inputStatus.activeKeys.length} 个。</Text>
         </section>
         <section className="event-section" aria-labelledby="event-title">
           <div className="section-label-row"><Text id="event-title" className="section-label">最近事件</Text><span className="section-label__meta">最新</span></div>

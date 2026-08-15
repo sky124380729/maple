@@ -1,5 +1,5 @@
 import { createStore } from 'zustand/vanilla'
-import type { HostEvent, ObservationSnapshot, PauseReason, SessionState, TargetBinding } from '../contracts/bridge'
+import type { HostEvent, InputBrokerStatus, ObservationSnapshot, PauseReason, SessionState, TargetBinding } from '../contracts/bridge'
 
 type PreviewAvailability = Extract<HostEvent, { type: 'preview.availabilityChanged' }>['payload']
 type LogEntry = Extract<HostEvent, { type: 'log.appended' }>['payload']
@@ -9,11 +9,12 @@ export interface SessionStoreState {
   target?: TargetBinding
   sessionState: SessionState
   pauseReason: PauseReason
+  resumeCountdown: number | null
   preview: PreviewAvailability
   observation?: ObservationSnapshot
   logs: LogEntry[]
   cloudStatus: CloudStatus
-  inputInjection: 'DISABLED'
+  inputStatus: InputBrokerStatus
   applyHostEvent(event: HostEvent): void
   reset(): void
 }
@@ -21,9 +22,18 @@ export interface SessionStoreState {
 const initialState = {
   sessionState: 'Stopped' as SessionState,
   pauseReason: 'None' as PauseReason,
+  resumeCountdown: null,
   preview: { available: false, reason: '等待宿主连接' },
   logs: [] as LogEntry[],
-  inputInjection: 'DISABLED' as const,
+  inputStatus: {
+    provider: 'inputBroker' as const,
+    status: 'disconnected' as const,
+    integrity: 'unknown' as const,
+    activeKeys: [],
+    lastReleaseSucceeded: true,
+    hotkeys: { pauseResume: 'F9' as const, emergencyStop: 'F12' as const },
+    errorCode: null,
+  },
   cloudStatus: {
     provider: 'bailian' as const,
     enabled: false,
@@ -41,11 +51,12 @@ export function createSessionStore() {
     applyHostEvent(event) {
       switch (event.type) {
         case 'target.updated': set({ target: event.payload }); break
-        case 'session.stateChanged': set({ sessionState: event.payload.state, pauseReason: event.payload.pauseReason }); break
+        case 'session.stateChanged': set({ sessionState: event.payload.state, pauseReason: event.payload.pauseReason, resumeCountdown: event.payload.resumeCountdown ?? null }); break
         case 'preview.availabilityChanged': set({ preview: event.payload }); break
         case 'observation.updated': set({ observation: event.payload }); break
         case 'log.appended': set((state) => ({ logs: [...state.logs, event.payload].slice(-200) })); break
         case 'cloud.status.updated': set({ cloudStatus: event.payload }); break
+        case 'input.status.updated': set({ inputStatus: event.payload }); break
       }
     },
     reset() { set(initialState) },

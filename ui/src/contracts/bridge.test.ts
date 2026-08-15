@@ -59,6 +59,28 @@ const validObservation = {
 }
 
 describe('shared bridge contracts', () => {
+  test('accepts only the closed production input broker status shape', () => {
+    const event = {
+      schemaVersion: 2,
+      type: 'input.status.updated',
+      payload: {
+        provider: 'inputBroker',
+        status: 'ready',
+        integrity: 'high',
+        activeKeys: [],
+        lastReleaseSucceeded: true,
+        hotkeys: { pauseResume: 'F9', emergencyStop: 'F12' },
+        errorCode: null,
+      },
+    }
+
+    expect(hostEventSchema.safeParse(event).success).toBe(true)
+    expect(hostEventSchema.safeParse({
+      ...event,
+      payload: { ...event.payload, scanCode: 0x4b },
+    }).success).toBe(false)
+  })
+
   test('uses schema version 2 and rejects version 1 envelopes', () => {
     expect(CONTRACT_SCHEMA_VERSION).toBe(2)
     expect(uiCommandSchema.safeParse({ schemaVersion: 1, type: 'snapshot.request', payload: {} }).success).toBe(false)

@@ -208,6 +208,18 @@ export const inputResultSchema = z
   })
   .strict()
 
+export const inputBrokerStatusSchema = z
+  .object({
+    provider: z.literal('inputBroker'),
+    status: z.enum(['disconnected', 'starting', 'ready', 'paused', 'faulted']),
+    integrity: z.enum(['unknown', 'medium', 'high']),
+    activeKeys: z.array(z.string().min(1).max(32)).max(16),
+    lastReleaseSucceeded: z.boolean(),
+    hotkeys: z.object({ pauseResume: z.literal('F9'), emergencyStop: z.literal('F12') }).strict(),
+    errorCode: z.string().min(1).max(64).nullable(),
+  })
+  .strict()
+
 const commandEnvelope = { schemaVersion, timestamp: timestamp.optional() }
 const emptyPayload = z.object({}).strict()
 
@@ -283,8 +295,9 @@ const hostEventVariants = [
   z.object({ ...commandEnvelope, type: z.literal('overlay.updated'), payload: overlaySnapshotSchema }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('observation.updated'), payload: observationSnapshotSchema }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('telemetry.updated'), payload: telemetrySnapshotSchema }).strict(),
-  z.object({ ...commandEnvelope, type: z.literal('session.stateChanged'), payload: z.object({ state: sessionStateSchema, pauseReason: pauseReasonSchema }).strict() }).strict(),
+  z.object({ ...commandEnvelope, type: z.literal('session.stateChanged'), payload: z.object({ state: sessionStateSchema, pauseReason: pauseReasonSchema, resumeCountdown: z.number().int().min(1).max(3).nullable().optional() }).strict() }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('input.result'), payload: inputResultSchema }).strict(),
+  z.object({ ...commandEnvelope, type: z.literal('input.status.updated'), payload: inputBrokerStatusSchema }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('log.appended'), payload: z.object({ level: z.enum(['debug', 'info', 'warn', 'error']), message: z.string().min(1).max(500), code: z.string().max(64).optional() }).strict() }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('preview.availabilityChanged'), payload: z.object({ available: z.boolean(), backend: z.enum(['native', 'browser-mock']).optional(), reason: z.string().max(200).optional() }).strict() }).strict(),
   z.object({
@@ -314,6 +327,7 @@ export type PauseReason = z.infer<typeof pauseReasonSchema>
 export type AbstractAction = z.infer<typeof abstractActionSchema>
 export type ActionPlan = z.infer<typeof actionPlanSchema>
 export type InputResult = z.infer<typeof inputResultSchema>
+export type InputBrokerStatus = z.infer<typeof inputBrokerStatusSchema>
 export type HostEvent = z.infer<typeof hostEventSchema>
 export type UiCommand = z.infer<typeof uiCommandSchema>
 

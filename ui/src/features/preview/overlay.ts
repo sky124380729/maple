@@ -17,6 +17,12 @@ export interface OverlayRenderItem {
   color: string
 }
 
+export function formatCanvasOverlayLabel(item: OverlayRenderItem, compact: boolean) {
+  if (!compact) return item.label
+  const kindLabel = item.kind === 'self' ? '自己' : item.kind === 'player' ? '玩家' : '怪物'
+  return `${kindLabel} ${formatConfidence(item.confidence)}`
+}
+
 function formatConfidence(value: number) {
   return `${Math.round(value * 100)}%`
 }

@@ -20,6 +20,15 @@ export function createMockHostBridge(options: MockHostBridgeOptions = {}): HostB
     requestInFlight: false,
     lastErrorCode: null,
   }
+  let inputStatus: Extract<HostEvent, { type: 'input.status.updated' }>['payload'] = {
+    provider: 'inputBroker',
+    status: 'disconnected',
+    integrity: 'unknown',
+    activeKeys: [],
+    lastReleaseSucceeded: true,
+    hotkeys: { pauseResume: 'F9', emergencyStop: 'F12' },
+    errorCode: null,
+  }
 
   const emit = (event: HostEvent) => {
     if (disposed) return
@@ -30,6 +39,7 @@ export function createMockHostBridge(options: MockHostBridgeOptions = {}): HostB
     emit({ schemaVersion: CONTRACT_SCHEMA_VERSION, type: 'session.stateChanged', payload: { state, pauseReason } })
   }
   const emitCloudStatus = () => emit({ schemaVersion: CONTRACT_SCHEMA_VERSION, type: 'cloud.status.updated', payload: cloudStatus })
+  const emitInputStatus = () => emit({ schemaVersion: CONTRACT_SCHEMA_VERSION, type: 'input.status.updated', payload: inputStatus })
 
   let interval: ReturnType<typeof setInterval> | undefined
 
@@ -52,10 +62,26 @@ export function createMockHostBridge(options: MockHostBridgeOptions = {}): HostB
 
       switch (result.data.type) {
         case 'snapshot.request': return requestSnapshot()
-        case 'session.arm': emitSessionState('Arming', 'None'); emitSessionState('Observing', 'None'); break
-        case 'session.pause': emitSessionState('Paused', 'OperatorRequested'); break
-        case 'session.resume': emitSessionState('Observing', 'None'); break
-        case 'session.emergencyStop': emitSessionState('EmergencyStop', 'OperatorRequested'); break
+        case 'session.arm':
+          inputStatus = { ...inputStatus, status: 'starting', integrity: 'unknown' }; emitInputStatus()
+          emitSessionState('Arming', 'None')
+          inputStatus = { ...inputStatus, status: 'ready', integrity: 'high' }; emitInputStatus()
+          emitSessionState('Observing', 'None')
+          break
+        case 'session.pause':
+          inputStatus = { ...inputStatus, status: 'paused', activeKeys: [], lastReleaseSucceeded: true }; emitInputStatus()
+          emitSessionState('Paused', 'OperatorRequested')
+          break
+        case 'session.resume':
+          inputStatus = { ...inputStatus, status: 'starting' }; emitInputStatus()
+          emitSessionState('Arming', 'None')
+          inputStatus = { ...inputStatus, status: 'ready', integrity: 'high' }; emitInputStatus()
+          emitSessionState('Observing', 'None')
+          break
+        case 'session.emergencyStop':
+          inputStatus = { ...inputStatus, status: 'paused', activeKeys: [], lastReleaseSucceeded: true }; emitInputStatus()
+          emitSessionState('EmergencyStop', 'OperatorRequested')
+          break
         case 'map.scan.start': emitSessionState('MapScanning', 'None'); break
         case 'map.calibration.start': emitSessionState('MapCalibrating', 'None'); break
         case 'config.update':

@@ -86,6 +86,8 @@ namespace Maple.Host
             foregroundWindow = windowController ?? throw new ArgumentNullException(nameof(windowController));
             globalHotKeys = hotKeys ?? throw new ArgumentNullException(nameof(hotKeys));
             inputLifetime = lifetime ?? throw new ArgumentNullException(nameof(lifetime));
+            foregroundSession.CountdownChanged += OnInputCountdownChanged;
+            foregroundSession.StatusChanged += OnInputStatusChanged;
         }
 
         public void ConfigureCapture(ITargetWindowLocator locator, ICaptureBackend backend, ICaptureFrameObserver? observer = null)
@@ -140,6 +142,7 @@ namespace Maple.Host
         private void OnShown(object? sender, EventArgs e)
         {
             webViewRuntime.Attach(browserPanel, assetFolder);
+            if (foregroundSession is not null) PublishInputSessionStatus(foregroundSession.CurrentStatus);
             if (captureCoordinator is not null) captureTimer.Start();
             if (foregroundSession is not null && globalHotKeys is not null)
             {
@@ -173,6 +176,7 @@ namespace Maple.Host
                 await foregroundSession.OnForegroundChangedAsync(
                     foregroundWindow.GetForegroundWindow(),
                     CancellationToken.None);
+                await Task.Run(foregroundSession.RefreshStatus);
             }
             catch (OperationCanceledException) { }
             finally { foregroundCheckInProgress = false; }
@@ -183,10 +187,13 @@ namespace Maple.Host
             BridgeRouteResult result = router.Route(e.Json);
             if (!result.Accepted)
             {
-                safety.PauseAndRelease();
+                if (foregroundSession is not null) foregroundSession.Pause(PauseReason.SafetyViolation);
+                else safety.PauseAndRelease();
                 return;
             }
-            if (result.CommandType == UiCommandType.SessionEmergencyStop) EmergencyStop("React 请求紧急停止");
+            if (result.CommandType == UiCommandType.SnapshotRequest && foregroundSession is not null)
+                PublishInputSessionStatus(foregroundSession.CurrentStatus);
+            else if (result.CommandType == UiCommandType.SessionEmergencyStop) EmergencyStop("React 请求紧急停止");
             else if (result.CommandType is UiCommandType.SessionArm or UiCommandType.SessionResume)
                 _ = ResumeInputAsync();
             else if (result.CommandType == UiCommandType.SessionPause)
@@ -204,18 +211,77 @@ namespace Maple.Host
             await foregroundSession.ResumeAsync(CancellationToken.None);
         }
 
-        private void OnRuntimeCrashed(object? sender, EventArgs e)
+        private void OnInputCountdownChanged(object? sender, int secondsRemaining)
         {
-            safety.PauseAndRelease();
+            SendOnUiThread(() => SendSessionState(SessionState.Arming, PauseReason.None, secondsRemaining));
         }
 
-        private void OnContentReset(object? sender, EventArgs e) => safety.PauseAndRelease();
+        private void OnInputStatusChanged(object? sender, InputSessionStatus status)
+        {
+            SendOnUiThread(() => PublishInputSessionStatus(status));
+        }
+
+        private void PublishInputSessionStatus(InputSessionStatus status)
+        {
+            var inputEvent = new
+            {
+                schemaVersion = ContractConstants.SchemaVersion,
+                type = "input.status.updated",
+                payload = new
+                {
+                    provider = "inputBroker",
+                    status = status.Status,
+                    integrity = status.Integrity,
+                    activeKeys = status.ActiveKeys,
+                    lastReleaseSucceeded = status.LastReleaseSucceeded,
+                    hotkeys = new { pauseResume = "F9", emergencyStop = "F12" },
+                    errorCode = status.ErrorCode,
+                },
+            };
+            webViewRuntime.Send(JsonSerializer.Serialize(inputEvent));
+            SendSessionState(status.SessionState, status.PauseReason, null);
+        }
+
+        private void SendSessionState(SessionState state, PauseReason pauseReason, int? resumeCountdown)
+        {
+            var sessionEvent = new
+            {
+                schemaVersion = ContractConstants.SchemaVersion,
+                type = "session.stateChanged",
+                payload = new
+                {
+                    state = state.ToString(),
+                    pauseReason = pauseReason.ToString(),
+                    resumeCountdown,
+                },
+            };
+            webViewRuntime.Send(JsonSerializer.Serialize(sessionEvent));
+        }
+
+        private void SendOnUiThread(Action send)
+        {
+            if (IsDisposed || Disposing) return;
+            if (InvokeRequired) BeginInvoke(send);
+            else send();
+        }
+
+        private void OnRuntimeCrashed(object? sender, EventArgs e)
+        {
+            if (foregroundSession is not null) foregroundSession.Pause(PauseReason.SafetyViolation);
+            else safety.PauseAndRelease();
+        }
+
+        private void OnContentReset(object? sender, EventArgs e)
+        {
+            if (foregroundSession is not null) foregroundSession.Pause(PauseReason.SafetyViolation);
+            else safety.PauseAndRelease();
+        }
 
         private void EmergencyStop(string reason)
         {
             if (foregroundSession is not null) foregroundSession.EmergencyStop();
             else safety.EmergencyStop();
-            webViewRuntime.Send("{\"schemaVersion\":" + ContractConstants.SchemaVersion + ",\"type\":\"session.stateChanged\",\"payload\":{\"state\":\"EmergencyStop\",\"pauseReason\":\"OperatorRequested\"}}");
+            SendSessionState(SessionState.EmergencyStop, PauseReason.OperatorRequested, null);
         }
 
         protected override void WndProc(ref Message message)
@@ -235,6 +301,11 @@ namespace Maple.Host
                 foregroundTimer.Tick -= OnForegroundTick;
                 foregroundTimer.Dispose();
                 globalHotKeys?.Dispose();
+                if (foregroundSession is not null)
+                {
+                    foregroundSession.CountdownChanged -= OnInputCountdownChanged;
+                    foregroundSession.StatusChanged -= OnInputStatusChanged;
+                }
                 foregroundSession?.Dispose();
                 captureCoordinator?.Dispose();
                 webViewRuntime.MessageReceived -= OnMessageReceived;

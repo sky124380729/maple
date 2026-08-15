@@ -8,6 +8,14 @@ namespace Maple.Host;
 public delegate void CountdownChangedEventHandler(object? sender, int secondsRemaining);
 
 public sealed record ForegroundResumeResult(bool Success, string Code);
+public sealed record InputSessionStatus(
+    string Status,
+    string Integrity,
+    IReadOnlyList<string> ActiveKeys,
+    bool LastReleaseSucceeded,
+    string? ErrorCode,
+    SessionState SessionState,
+    PauseReason PauseReason);
 
 public interface IInputBrokerSession
 {
@@ -15,6 +23,7 @@ public interface IInputBrokerSession
     void ArmTarget(ArmTargetPayload target);
     InputAdapterStatus GetStatus();
     InputResult ReleaseAll(long nowMonoMs);
+    bool Heartbeat(long nowMonoMs);
 }
 
 public interface IForegroundWindowController
@@ -37,9 +46,15 @@ public sealed class ForegroundSessionController : IDisposable
     private readonly IForegroundSessionDelay delay;
     private readonly SemaphoreSlim transitionLock = new(1, 1);
     private readonly Func<long> clock;
+    private readonly object stateSync = new();
     private nint armedHwnd;
+    private volatile bool isArmed;
+    private bool isArming;
+    private CancellationTokenSource? resumeCancellation;
+    private long lastHealthCheckMonoMs;
     private bool disposed;
     private string? disabledCode;
+    private bool lastReleaseSucceeded = true;
 
     public ForegroundSessionController(
         ITargetWindowLocator locator,
@@ -55,26 +70,49 @@ public sealed class ForegroundSessionController : IDisposable
         this.safety = safety ?? throw new ArgumentNullException(nameof(safety));
         this.delay = delay ?? throw new ArgumentNullException(nameof(delay));
         this.clock = clock ?? (() => Environment.TickCount64);
+        CurrentStatus = CreateStatus("disconnected", null);
     }
 
     public event CountdownChangedEventHandler? CountdownChanged;
+    public event EventHandler<InputSessionStatus>? StatusChanged;
 
-    public bool IsArmed { get; private set; }
+    public bool IsArmed => isArmed;
+    public bool IsArming { get { lock (stateSync) return isArming; } }
+    public InputSessionStatus CurrentStatus { get; private set; }
 
     public async Task<ForegroundResumeResult> ResumeAsync(CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+        lock (stateSync)
+        {
+            if (isArming) return new(false, "SESSION_ALREADY_ARMING");
+            if (isArmed) return new(true, "INPUT_SESSION_READY");
+        }
         await transitionLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        CancellationTokenSource? linkedCancellation = null;
         try
         {
+            lock (stateSync)
+            {
+                if (isArmed) return new(true, "INPUT_SESSION_READY");
+                linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                resumeCancellation = linkedCancellation;
+                isArming = true;
+            }
+            CancellationToken transitionToken = linkedCancellation.Token;
             if (disabledCode is not null) return new(false, disabledCode);
-            if (!safety.BeginArming()) return new(false, "SESSION_CANNOT_ARM");
+            if (!safety.BeginArming())
+            {
+                PublishStatus("faulted", "SESSION_CANNOT_ARM");
+                return new(false, "SESSION_CANNOT_ARM");
+            }
+            PublishStatus("starting", null);
             TargetWindowDiscoveryResult discovery = locator.Locate();
             WindowIdentity? target = discovery.Target;
             if (target is null) return Fail(discovery.DiagnosticCode, PauseReason.TargetLost);
             if (!TryParseHwnd(target.Hwnd, out nint hwnd) || string.IsNullOrWhiteSpace(target.ProcessPath))
                 return Fail("TARGET_IDENTITY_INCOMPLETE", PauseReason.TargetLost);
-            try { await broker.EnsureStartedAsync(cancellationToken).ConfigureAwait(false); }
+            try { await broker.EnsureStartedAsync(transitionToken).ConfigureAwait(false); }
             catch (InputUnavailableException exception)
             {
                 return Fail(exception.Code, PauseReason.InputUnavailable);
@@ -83,7 +121,7 @@ public sealed class ForegroundSessionController : IDisposable
             for (int remaining = 3; remaining >= 1; remaining--)
             {
                 CountdownChanged?.Invoke(this, remaining);
-                await delay.DelayAsync(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+                await delay.DelayAsync(TimeSpan.FromSeconds(1), transitionToken).ConfigureAwait(false);
             }
 
             if (!foreground.TryActivate(hwnd))
@@ -97,7 +135,7 @@ public sealed class ForegroundSessionController : IDisposable
                     confirmed = true;
                     break;
                 }
-                await delay.DelayAsync(TimeSpan.FromMilliseconds(50), cancellationToken).ConfigureAwait(false);
+                await delay.DelayAsync(TimeSpan.FromMilliseconds(50), transitionToken).ConfigureAwait(false);
             }
             if (!confirmed) return Fail("TARGET_FOREGROUND_TIMEOUT", PauseReason.WindowNotForeground);
 
@@ -126,20 +164,36 @@ public sealed class ForegroundSessionController : IDisposable
                 return Fail(status.Code ?? "INPUT_BROKER_NOT_READY", PauseReason.InputUnavailable);
 
             armedHwnd = hwnd;
-            IsArmed = true;
+            isArmed = true;
             if (!safety.MarkObserving()) return Fail("SESSION_OBSERVING_REJECTED", PauseReason.SafetyViolation);
+            PublishStatus("ready", null);
             return new(true, "INPUT_SESSION_READY");
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (linkedCancellation?.IsCancellationRequested == true)
         {
             return Fail("RESUME_CANCELLED", PauseReason.OperatorRequested);
         }
-        finally { transitionLock.Release(); }
+        finally
+        {
+            lock (stateSync)
+            {
+                if (ReferenceEquals(resumeCancellation, linkedCancellation)) resumeCancellation = null;
+                isArming = false;
+            }
+            linkedCancellation?.Dispose();
+            transitionLock.Release();
+        }
     }
 
     public Task ToggleAsync(CancellationToken cancellationToken)
     {
-        if (IsArmed)
+        bool cancelArming;
+        lock (stateSync)
+        {
+            cancelArming = isArming;
+            if (cancelArming) resumeCancellation?.Cancel();
+        }
+        if (cancelArming || IsArmed)
         {
             Pause(PauseReason.OperatorRequested);
             return Task.CompletedTask;
@@ -154,8 +208,9 @@ public sealed class ForegroundSessionController : IDisposable
         {
             if (safety.State == SessionState.Paused)
             {
-                IsArmed = false;
+                isArmed = false;
                 armedHwnd = nint.Zero;
+                PublishStatus("paused", null);
             }
             else Pause(PauseReason.WindowNotForeground);
         }
@@ -167,21 +222,26 @@ public sealed class ForegroundSessionController : IDisposable
     public void Disable(string code)
     {
         disabledCode = string.IsNullOrWhiteSpace(code) ? "INPUT_UNAVAILABLE" : code;
-        PauseCore(PauseReason.InputUnavailable);
+        PauseCore(PauseReason.InputUnavailable, publish: false);
+        PublishStatus("faulted", disabledCode);
     }
 
     public void EmergencyStop()
     {
-        IsArmed = false;
+        CancelResume();
+        isArmed = false;
         armedHwnd = nint.Zero;
         safety.EmergencyStop();
+        UpdateReleaseResult();
+        PublishStatus("paused", null);
     }
 
     public void Dispose()
     {
         if (disposed) return;
         disposed = true;
-        IsArmed = false;
+        CancelResume();
+        isArmed = false;
         armedHwnd = nint.Zero;
         safety.ReleaseForShutdown();
         transitionLock.Dispose();
@@ -189,18 +249,113 @@ public sealed class ForegroundSessionController : IDisposable
 
     private ForegroundResumeResult Fail(string code, PauseReason reason)
     {
-        PauseCore(reason);
-        return new(false, string.IsNullOrWhiteSpace(code) ? "INPUT_SESSION_FAILED" : code);
+        string resolvedCode = string.IsNullOrWhiteSpace(code) ? "INPUT_SESSION_FAILED" : code;
+        PauseCore(reason, publish: false);
+        PublishStatus(IsBrokerFault(resolvedCode) ? "faulted" : "paused", resolvedCode);
+        return new(false, resolvedCode);
     }
 
-    private void PauseCore(PauseReason reason)
+    private void PauseCore(PauseReason reason, bool publish = true)
     {
         bool wasArmed = IsArmed;
-        IsArmed = false;
+        isArmed = false;
         armedHwnd = nint.Zero;
         if (wasArmed || safety.State != SessionState.Paused)
             safety.PauseAndRelease(reason);
+        UpdateReleaseResult();
+        if (publish) PublishStatus("paused", null);
     }
+
+    private void UpdateReleaseResult()
+    {
+        InputAdapterStatus adapterStatus = broker.GetStatus();
+        lastReleaseSucceeded = !string.Equals(adapterStatus.Code, "BROKER_RELEASE_ALL_FAILED", StringComparison.Ordinal)
+            && (adapterStatus.ActiveKeys?.Count ?? 0) == 0;
+    }
+
+    private void PublishStatus(string status, string? errorCode)
+    {
+        InputSessionStatus next = CreateStatus(status, errorCode);
+        if (SameStatus(CurrentStatus, next)) return;
+        CurrentStatus = next;
+        StatusChanged?.Invoke(this, CurrentStatus);
+    }
+
+    private InputSessionStatus CreateStatus(string status, string? errorCode)
+    {
+        InputAdapterStatus adapterStatus = broker.GetStatus();
+        return new InputSessionStatus(
+            status,
+            "unknown",
+            adapterStatus.ActiveKeys?.ToArray() ?? [],
+            lastReleaseSucceeded,
+            errorCode,
+            safety.State,
+            safety.PauseReason);
+    }
+
+    public void RefreshStatus()
+    {
+        if (disposed || IsArming) return;
+        if (safety.State == SessionState.Paused && IsArmed)
+        {
+            isArmed = false;
+            armedHwnd = nint.Zero;
+            UpdateReleaseResult();
+            PublishStatus("paused", null);
+            return;
+        }
+        if (!IsArmed) return;
+
+        long nowMonoMs = clock();
+        if (nowMonoMs - lastHealthCheckMonoMs >= 500)
+        {
+            lastHealthCheckMonoMs = nowMonoMs;
+            bool heartbeatHealthy;
+            try { heartbeatHealthy = broker.Heartbeat(nowMonoMs); }
+            catch (Exception exception) when (exception is not OutOfMemoryException) { heartbeatHealthy = false; }
+            if (!heartbeatHealthy)
+            {
+                isArmed = false;
+                armedHwnd = nint.Zero;
+                safety.PauseAndRelease(PauseReason.InputUnavailable);
+                UpdateReleaseResult();
+                PublishStatus("faulted", "BROKER_HEARTBEAT_FAILED");
+                return;
+            }
+        }
+
+        InputAdapterStatus adapterStatus = broker.GetStatus();
+        if (!adapterStatus.IsHealthy || !adapterStatus.InjectionEnabled)
+        {
+            isArmed = false;
+            armedHwnd = nint.Zero;
+            safety.PauseAndRelease(PauseReason.InputUnavailable);
+            UpdateReleaseResult();
+            PublishStatus("faulted", adapterStatus.Code ?? "INPUT_BROKER_NOT_READY");
+            return;
+        }
+        PublishStatus("ready", null);
+    }
+
+    private void CancelResume()
+    {
+        lock (stateSync) resumeCancellation?.Cancel();
+    }
+
+    private static bool SameStatus(InputSessionStatus left, InputSessionStatus right) =>
+        left.Status == right.Status
+        && left.Integrity == right.Integrity
+        && left.LastReleaseSucceeded == right.LastReleaseSucceeded
+        && left.ErrorCode == right.ErrorCode
+        && left.SessionState == right.SessionState
+        && left.PauseReason == right.PauseReason
+        && left.ActiveKeys.SequenceEqual(right.ActiveKeys, StringComparer.Ordinal);
+
+    private static bool IsBrokerFault(string code) =>
+        code.StartsWith("INPUT_", StringComparison.Ordinal)
+        || code.StartsWith("BROKER_", StringComparison.Ordinal)
+        || code.StartsWith("HOTKEY_", StringComparison.Ordinal);
 
     private static bool SameIdentity(WindowIdentity expected, WindowIdentity actual) =>
         string.Equals(expected.Hwnd, actual.Hwnd, StringComparison.OrdinalIgnoreCase)

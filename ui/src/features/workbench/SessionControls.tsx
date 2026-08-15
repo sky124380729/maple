@@ -1,24 +1,45 @@
 import { ControlOutlined, EnvironmentOutlined, KeyOutlined, PauseCircleOutlined, PlayCircleFilled, RightOutlined, SettingOutlined } from '@ant-design/icons'
 import { Button, Divider, InputNumber, Segmented, Space, Switch, Tooltip, Typography } from 'antd'
 import { useState } from 'react'
-import type { SessionState, UiCommand } from '../../contracts/bridge'
+import type { InputBrokerStatus, SessionState, UiCommand } from '../../contracts/bridge'
 import { SectionHeading, StatusPill } from './presentation'
 
 const { Text } = Typography
 
 export interface SessionControlsProps {
   sessionState: SessionState
+  inputStatus: InputBrokerStatus
+  resumeCountdown?: number | null
   sendCommand(command: UiCommand): void
 }
 
-export function SessionControls({ sessionState, sendCommand }: SessionControlsProps) {
+export function SessionControls({ sessionState, inputStatus, resumeCountdown, sendCommand }: SessionControlsProps) {
   const [attackMode, setAttackMode] = useState<'single' | 'auto' | 'group'>('auto')
   const [hpThreshold, setHpThreshold] = useState<number | null>(35)
   const [pickupEnabled, setPickupEnabled] = useState(false)
+  const [settingsPaused, setSettingsPaused] = useState(false)
   const stopped = sessionState === 'Stopped'
+  const paused = sessionState === 'Paused'
+  const arming = sessionState === 'Arming'
   const emergency = sessionState === 'EmergencyStop'
+  const running = !stopped && !paused && !arming && !emergency
+  const brokerUnavailable = inputStatus.status === 'faulted' || inputStatus.status === 'starting'
+  const primaryLabel = stopped ? '开始运行' : paused ? '恢复并切回游戏' : arming ? (resumeCountdown ? `${resumeCountdown} 秒后切回游戏` : '正在切回游戏') : '运行中'
+  const brokerLabel = inputStatus.status === 'ready' ? '输入服务已就绪' : inputStatus.status === 'starting' ? '输入服务连接中' : inputStatus.status === 'paused' ? '输入服务已暂停' : inputStatus.status === 'faulted' ? '输入服务异常' : '输入服务待连接'
 
-  const updateConfig = (payload: Extract<UiCommand, { type: 'config.update' }>['payload']) => sendCommand({ schemaVersion: 2, type: 'config.update', payload })
+  const updateConfig = (payload: Extract<UiCommand, { type: 'config.update' }>['payload']) => {
+    if (!stopped && !paused) {
+      sendCommand({ schemaVersion: 2, type: 'session.pause', payload: {} })
+    }
+    if (!stopped) setSettingsPaused(true)
+    sendCommand({ schemaVersion: 2, type: 'config.update', payload })
+  }
+
+  const startOrResume = () => sendCommand({
+    schemaVersion: 2,
+    type: paused ? 'session.resume' : 'session.arm',
+    payload: {},
+  })
 
   return (
     <aside className="side-panel side-panel--controls">
@@ -26,13 +47,15 @@ export function SessionControls({ sessionState, sendCommand }: SessionControlsPr
         <SectionHeading icon={<ControlOutlined />} kicker="工作区" title="运行控制" action={<StatusPill state={sessionState} />} />
         <div className="control-hero">
           <div className="control-hero__topline"><span className="eyebrow">当前模式</span><span className="live-mark"><i />实时</span></div>
-          <div className="control-hero__mode">仅观察</div>
-          <Text className="control-hero__copy">先确认画面与识别状态，再开放动作通道。</Text>
+          <div className="control-hero__mode">自动运行</div>
+          <Text className="control-hero__copy">{brokerLabel}</Text>
         </div>
         <Space orientation="vertical" size={10} className="control-actions">
-          <Button className="action-button action-button--primary" type="primary" aria-label="开始观察" icon={<PlayCircleFilled />} onClick={() => sendCommand({ schemaVersion: 2, type: 'session.arm', payload: {} })} disabled={emergency} block>开始观察</Button>
-          <Button className="action-button action-button--secondary" aria-label="暂停观察" icon={<PauseCircleOutlined />} onClick={() => sendCommand({ schemaVersion: 2, type: 'session.pause', payload: {} })} disabled={emergency || stopped} block>暂停观察</Button>
+          <Button className="action-button action-button--primary" type="primary" aria-label={primaryLabel} icon={<PlayCircleFilled />} onClick={startOrResume} disabled={emergency || arming || running || brokerUnavailable} loading={arming} block>{primaryLabel}</Button>
+          <Button className="action-button action-button--secondary" aria-label="暂停并释放按键" icon={<PauseCircleOutlined />} onClick={() => sendCommand({ schemaVersion: 2, type: 'session.pause', payload: {} })} disabled={emergency || stopped || paused} block>暂停并释放按键</Button>
         </Space>
+        <div className="hotkey-strip" aria-label="全局快捷键"><span><kbd>{inputStatus.hotkeys.pauseResume}</kbd> 暂停/恢复</span><span><kbd>{inputStatus.hotkeys.emergencyStop}</kbd> 紧急停止</span></div>
+        {settingsPaused && <div className="settings-pause-notice" role="status">修改设置时已暂停</div>}
         <Divider className="section-divider" />
         <section className="settings-section" aria-labelledby="combat-settings-title">
           <div className="section-label-row"><Text id="combat-settings-title" className="section-label">战斗设置</Text><Tooltip title="动作时长由程序根据距离和画面自动计算"><SettingOutlined className="section-label__icon" /></Tooltip></div>
