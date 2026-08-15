@@ -72,12 +72,13 @@ Maple 不是网页自动化，也不是 WinForms 原型续写。最终产品是 
 ## 5. Windows 接手顺序
 
 1. 在真实 Windows 上 restore/build/publish `Maple.Host`，确认 WebView2 Evergreen Runtime 最低版本、本地 `ui/index.html` 映射、DPI awareness 和普通权限启动。
-2. 注入真实 `GraphicsCaptureItem`/D3D11 adapter，接入 `WindowsGraphicsCaptureSession` 的两槽 pool；把地图扫描关键帧编码后绑定到 `IMapImageSource`；用 WGC 不可用/失焦/窗口尺寸变化场景验证 BitBlt 只按明确诊断回退。
-3. 将 `IWgcFrameEncoder` 绑定到 GPU readback/Direct2D PreviewSurface，使用 1280x720、1440x900、100/125/150% DPI 矩阵记录 capture/render FPS、P50/P95/P99 延迟、队列年龄、丢帧和内存。
-4. 将真实模型 manifest/权重放入发布目录，跑 Self/Player/Monster、遮挡、特效和多分辨率离线数据集；达到主规格 precision/recall 和 stale 门槛前保持观察模式。
-5. 用户提供真实 HID 设备路径、VID/PID、报告描述符、签名和协议后，实现 `IVirtualHidTransport`/`IVirtualHidReportEncoder`，分别生成设备层、Windows 输入层、授权客户端画面响应层三份 PASS 证据。
-6. 在已验收 HID 上执行 MapScanning/MapCalibrating 的不超过 300ms 校准动作；随后做完整反馈闭环、失焦/崩溃/设备断连/EmergencyStop 和 ReleaseAll 验收。
-7. 完成安装、普通权限运行、DPAPI 实机读写、凭据/日志脱敏、资源哈希、30 分钟与 4/8 小时 soak，最后才开放生产动作。
+2. 在 Host 成功启动后、采集任何真实输入证据前，运行独立的 `keybd_event` 诊断探针（diagnostic-only）验证获得授权且处于前台的客户端；该里程碑不是生产自动化，不改变生产输入仅限已验收虚拟 HID 的边界，也不能作为 L4/L5 证据。
+3. 注入真实 `GraphicsCaptureItem`/D3D11 adapter，接入 `WindowsGraphicsCaptureSession` 的两槽 pool；把地图扫描关键帧编码后绑定到 `IMapImageSource`；用 WGC 不可用/失焦/窗口尺寸变化场景验证 BitBlt 只按明确诊断回退。
+4. 将 `IWgcFrameEncoder` 绑定到 GPU readback/Direct2D PreviewSurface，使用 1280x720、1440x900、100/125/150% DPI 矩阵记录 capture/render FPS、P50/P95/P99 延迟、队列年龄、丢帧和内存。
+5. 将真实模型 manifest/权重放入发布目录，跑 Self/Player/Monster、遮挡、特效和多分辨率离线数据集；达到主规格 precision/recall 和 stale 门槛前保持观察模式。
+6. 用户提供真实 HID 设备路径、VID/PID、报告描述符、签名和协议后，实现 `IVirtualHidTransport`/`IVirtualHidReportEncoder`，分别生成设备层、Windows 输入层、授权客户端画面响应层三份 PASS 证据。
+7. 在已验收 HID 上执行 MapScanning/MapCalibrating 的不超过 300ms 校准动作；随后做完整反馈闭环、失焦/崩溃/设备断连/EmergencyStop 和 ReleaseAll 验收。
+8. 完成安装、普通权限运行、DPAPI 实机读写、凭据/日志脱敏、资源哈希、30 分钟与 4/8 小时 soak，最后才开放生产动作。
 
 每一步必须在主规格状态表中逐项更新证据。不要一次把多个 `WINDOWS_PENDING` 改成 `DONE`。
 
