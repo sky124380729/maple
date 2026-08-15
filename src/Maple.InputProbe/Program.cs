@@ -15,26 +15,8 @@ internal static class Program
             return RunSelfTest(GetArgumentValue(args, "--output"));
         }
 
-        bool authorizedRun = HasArgument(args, "--authorized-run-once");
-        if (authorizedRun && !string.Equals(
-                GetArgumentValue(args, "--ack"),
-                "authorized-foreground-test",
-                StringComparison.Ordinal))
-        {
-            return 2;
-        }
-
         ApplicationConfiguration.Initialize();
-        var options = new ProbeRunOptions
-        {
-            OutputRoot = string.IsNullOrWhiteSpace(GetArgumentValue(args, "--output"))
-                ? new ProbeRunOptions().OutputRoot
-                : Path.GetFullPath(GetArgumentValue(args, "--output"))
-        };
-        Application.Run(new ProbeForm(
-            new ProbeRunner(new TargetWindowInspector(), new WindowsKeybdEventSender()),
-            options,
-            authorizedRun));
+        Application.Run(new ProbeForm(new ProbeRunner(new TargetWindowInspector(), new WindowsKeybdEventSender())));
         return 0;
     }
 
