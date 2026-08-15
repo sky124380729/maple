@@ -1,6 +1,6 @@
 import { DesktopOutlined, SettingOutlined, StopOutlined, ThunderboltFilled } from '@ant-design/icons'
 import { Button, Drawer, Tag, Tooltip } from 'antd'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useStore } from 'zustand'
 import { createHostBridge, type HostBridge, type HostBridgeEnvironment } from '../../bridge/HostBridge'
 import { createMockHostBridge } from '../../bridge/MockHostBridge'
@@ -13,7 +13,6 @@ import { HealthPanel } from './HealthPanel'
 import { SessionControls } from './SessionControls'
 import { StatusPill } from './presentation'
 import { TargetStatus } from './TargetStatus'
-import { TelemetryStrip } from './TelemetryStrip'
 
 function createDevelopmentBridge(): HostBridge {
   const nativeBridge = createHostBridge()
@@ -33,7 +32,6 @@ export function WorkbenchPage({ bridge: suppliedBridge }: { bridge?: HostBridge 
   const [telemetryStore] = useState(() => createTelemetryStore())
   const runtimeBridgeRef = useRef<HostBridge | undefined>(suppliedBridge)
   const session = useStore(sessionStore, (state) => state)
-  const telemetry = useStore(telemetryStore, (state) => state.latest)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [pausedForSettings, setPausedForSettings] = useState(false)
 
@@ -54,7 +52,9 @@ export function WorkbenchPage({ bridge: suppliedBridge }: { bridge?: HostBridge 
     }
   }, [sessionStore, suppliedBridge, telemetryStore])
 
-  const sendCommand = (command: UiCommand) => runtimeBridgeRef.current?.send(command)
+  const sendCommand = useCallback((command: UiCommand) => {
+    runtimeBridgeRef.current?.send(command)
+  }, [])
   const sendSettingsCommand = (command: UiCommand) => {
     const mutatesSettings = command.type === 'cloud.credential.set'
       || command.type === 'cloud.credential.clear'
@@ -84,10 +84,9 @@ export function WorkbenchPage({ bridge: suppliedBridge }: { bridge?: HostBridge 
       </header>
       <div className="workbench-grid">
         <SessionControls sessionState={session.sessionState} inputStatus={session.inputStatus} resumeCountdown={session.resumeCountdown} sendCommand={sendCommand} />
-        <PreviewRegion preview={session.preview} observation={session.observation} onRequestSnapshot={requestSnapshot} />
+        <PreviewRegion preview={session.preview} observation={session.observation} onRequestSnapshot={requestSnapshot} sendCommand={sendCommand} />
         <HealthPanel sessionState={session.sessionState} pauseReason={session.pauseReason} observation={session.observation} preview={session.preview} inputStatus={session.inputStatus} logs={session.logs} onRefresh={requestSnapshot} />
       </div>
-      <TelemetryStrip telemetry={telemetry} />
       <Drawer
         className="settings-drawer"
         title="系统设置"

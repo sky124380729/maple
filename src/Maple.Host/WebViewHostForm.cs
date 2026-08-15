@@ -42,6 +42,7 @@ namespace Maple.Host
         private IForegroundWindowController? foregroundWindow;
         private GlobalHotKeyManager? globalHotKeys;
         private IDisposable? inputLifetime;
+        private PreviewBoundsIntent? previewBoundsIntent;
         private bool captureInProgress;
         private bool foregroundCheckInProgress;
 
@@ -129,13 +130,11 @@ namespace Maple.Host
             emergencyButton.BackColor = Color.FromArgb(197, 58, 74);
             emergencyButton.ForeColor = Color.White;
             emergencyButton.Click += delegate { EmergencyStop("原生紧急停止按钮"); };
-            preview.Dock = DockStyle.Fill;
-            preview.Width = 760;
+            preview.Visible = false;
             browserPanel.Dock = DockStyle.Fill;
-            var split = new SplitContainer { Dock = DockStyle.Fill, Orientation = Orientation.Vertical, SplitterDistance = 760, FixedPanel = FixedPanel.None };
-            split.Panel1.Controls.Add(preview);
-            split.Panel2.Controls.Add(browserPanel);
-            Controls.Add(split);
+            browserPanel.ClientSizeChanged += OnBrowserClientSizeChanged;
+            Controls.Add(browserPanel);
+            Controls.Add(preview);
             Controls.Add(emergencyButton);
         }
 
@@ -187,6 +186,12 @@ namespace Maple.Host
             BridgeRouteResult result = router.Route(e.Json);
             if (!result.Accepted)
             {
+                if (PreviewLayout.IsPreviewBoundsCommand(e.Json))
+                {
+                    previewBoundsIntent = null;
+                    HidePreviewAndPause();
+                    return;
+                }
                 if (foregroundSession is not null) foregroundSession.Pause(PauseReason.SafetyViolation);
                 else safety.PauseAndRelease();
                 return;
@@ -198,7 +203,57 @@ namespace Maple.Host
                 _ = ResumeInputAsync();
             else if (result.CommandType == UiCommandType.SessionPause)
                 foregroundSession?.Pause(PauseReason.OperatorRequested);
+            else if (result.CommandType == UiCommandType.PreviewBoundsChanged)
+                ApplyPreviewBounds(result.PayloadJson);
             CommandReceived?.Invoke(this, result);
+        }
+
+        private void ApplyPreviewBounds(string? payloadJson)
+        {
+            try
+            {
+                PreviewBoundsPayload? payload = JsonSerializer.Deserialize<PreviewBoundsPayload>(
+                    payloadJson ?? string.Empty,
+                    new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                if (payload is null) throw new JsonException("preview bounds payload is missing");
+                previewBoundsIntent = new PreviewBoundsIntent(payload.Left, payload.Top, payload.Width, payload.Height, payload.DevicePixelRatio);
+                ApplyPreviewBounds();
+            }
+            catch (Exception exception) when (exception is JsonException or ArgumentOutOfRangeException)
+            {
+                previewBoundsIntent = null;
+                HidePreviewAndPause();
+            }
+        }
+
+        private void ApplyPreviewBounds()
+        {
+            if (previewBoundsIntent is not PreviewBoundsIntent intent) return;
+            try
+            {
+                Rectangle resolved = PreviewLayout.Resolve(intent, browserPanel.ClientSize);
+                preview.Bounds = new Rectangle(
+                    browserPanel.Left + resolved.Left,
+                    browserPanel.Top + resolved.Top,
+                    resolved.Width,
+                    resolved.Height);
+                preview.Visible = true;
+                preview.BringToFront();
+                emergencyButton.BringToFront();
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                HidePreviewAndPause();
+            }
+        }
+
+        private void OnBrowserClientSizeChanged(object? sender, EventArgs e) => ApplyPreviewBounds();
+
+        private void HidePreviewAndPause()
+        {
+            preview.Visible = false;
+            if (foregroundSession is not null) foregroundSession.Pause(PauseReason.SafetyViolation);
+            else safety.PauseAndRelease(PauseReason.SafetyViolation);
         }
 
         private async Task ResumeInputAsync()
@@ -267,12 +322,16 @@ namespace Maple.Host
 
         private void OnRuntimeCrashed(object? sender, EventArgs e)
         {
+            previewBoundsIntent = null;
+            preview.Visible = false;
             if (foregroundSession is not null) foregroundSession.Pause(PauseReason.SafetyViolation);
             else safety.PauseAndRelease();
         }
 
         private void OnContentReset(object? sender, EventArgs e)
         {
+            previewBoundsIntent = null;
+            preview.Visible = false;
             if (foregroundSession is not null) foregroundSession.Pause(PauseReason.SafetyViolation);
             else safety.PauseAndRelease();
         }
@@ -300,6 +359,7 @@ namespace Maple.Host
                 foregroundTimer.Stop();
                 foregroundTimer.Tick -= OnForegroundTick;
                 foregroundTimer.Dispose();
+                browserPanel.ClientSizeChanged -= OnBrowserClientSizeChanged;
                 globalHotKeys?.Dispose();
                 if (foregroundSession is not null)
                 {

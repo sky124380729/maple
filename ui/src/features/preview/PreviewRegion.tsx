@@ -1,12 +1,16 @@
 import { AimOutlined, DesktopOutlined, LinkOutlined, SettingOutlined } from '@ant-design/icons'
 import { Button, Space, Tag, Tooltip, Typography } from 'antd'
-import type { HostEvent, ObservationSnapshot } from '../../contracts/bridge'
+import { useRef } from 'react'
+import type { HostEvent, ObservationSnapshot, UiCommand } from '../../contracts/bridge'
 import { MockPreviewCanvas } from './MockPreviewCanvas'
+import { useNativePreviewBounds } from './useNativePreviewBounds'
 
 const { Text, Title } = Typography
 type PreviewAvailability = Extract<HostEvent, { type: 'preview.availabilityChanged' }>['payload']
 
-export function PreviewRegion({ preview, observation, onRequestSnapshot }: { preview: PreviewAvailability; observation?: ObservationSnapshot; onRequestSnapshot(): void }) {
+export function PreviewRegion({ preview, observation, onRequestSnapshot, sendCommand }: { preview: PreviewAvailability; observation?: ObservationSnapshot; onRequestSnapshot(): void; sendCommand(command: UiCommand): void }) {
+  const nativePreviewRef = useRef<HTMLDivElement>(null)
+  useNativePreviewBounds(nativePreviewRef, sendCommand)
   const connected = preview.available
   const overlay = observation ? {
     schemaVersion: observation.schemaVersion,
@@ -24,7 +28,7 @@ export function PreviewRegion({ preview, observation, onRequestSnapshot }: { pre
         <div><Text className="section-heading__kicker">画面中心</Text><Title level={3} className="preview-title">实时预览</Title></div>
         <Space size={8}><Tag className="preview-tag"><DesktopOutlined /> {preview.backend === 'browser-mock' ? '模拟预览' : '原生画面'}</Tag><Tooltip title="预览设置"><Button type="text" shape="circle" icon={<SettingOutlined />} aria-label="预览设置" /></Tooltip></Space>
       </div>
-      <div className={`preview-stage ${connected ? 'preview-stage--connected' : ''}`} aria-label="实时画面预览区域">
+      <div ref={nativePreviewRef} className={`preview-stage ${connected ? 'preview-stage--connected' : ''}`} aria-label="原生预览画面区域">
         <div className="preview-stage__grid" />
         <div className="preview-stage__corner preview-stage__corner--tl" /><div className="preview-stage__corner preview-stage__corner--tr" /><div className="preview-stage__corner preview-stage__corner--bl" /><div className="preview-stage__corner preview-stage__corner--br" />
         <div className="preview-hud preview-hud--top"><span><i className={`hud-dot ${connected ? 'hud-dot--good' : ''}`} />{sourceLabel}</span><span>{connected ? '预览通道正常' : '画面源未连接'}</span></div>

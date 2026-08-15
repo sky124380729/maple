@@ -1,11 +1,59 @@
 import '@testing-library/jest-dom/vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, test } from 'vitest'
 import { createHostBridge } from '../bridge/HostBridge'
+import type { HostBridge } from '../bridge/HostBridge'
 import { createMockHostBridge } from '../bridge/MockHostBridge'
+import type { UiCommand } from '../contracts/bridge'
 import { App } from './App'
 
 describe('Maple real-time workbench', () => {
+  test('keeps all three workbench regions visible and reports the native preview aperture', async () => {
+    const sent: UiCommand[] = []
+    let notifyResize: (() => void) | undefined
+    const OriginalResizeObserver = window.ResizeObserver
+    window.ResizeObserver = class {
+      constructor(callback: ResizeObserverCallback) {
+        notifyResize = () => callback([], this as unknown as ResizeObserver)
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver
+    const mock = createMockHostBridge({ telemetryIntervalMs: 10_000 })
+    const bridge: HostBridge = {
+      ...mock,
+      send(command) {
+        sent.push(command)
+        return mock.send(command)
+      },
+    }
+    const originalBounds = HTMLElement.prototype.getBoundingClientRect
+    HTMLElement.prototype.getBoundingClientRect = function () {
+      if (this.getAttribute('aria-label') === '原生预览画面区域') {
+        return { x: 278, y: 112, left: 278, top: 112, width: 812, height: 620, right: 1090, bottom: 732, toJSON: () => ({}) }
+      }
+      return originalBounds.call(this)
+    }
+
+    render(<App bridge={bridge} />)
+
+    expect(await screen.findByText('运行控制')).toBeInTheDocument()
+    expect(screen.getByText('实时预览')).toBeInTheDocument()
+    expect(screen.getByText('识别概览')).toBeInTheDocument()
+    expect(screen.getByLabelText('原生预览画面区域')).toBeInTheDocument()
+    sent.length = 0
+    notifyResize?.()
+    await waitFor(() => expect(sent).toContainEqual({
+        schemaVersion: 2,
+        type: 'preview.boundsChanged',
+        payload: { left: 278, top: 112, width: 812, height: 620, devicePixelRatio: window.devicePixelRatio },
+      }))
+
+    HTMLElement.prototype.getBoundingClientRect = originalBounds
+    window.ResizeObserver = OriginalResizeObserver
+  })
+
   test('hydrates the workbench from typed mock-host events', async () => {
     const bridge = createMockHostBridge({ telemetryIntervalMs: 10_000 })
     render(<App bridge={bridge} />)
@@ -14,8 +62,7 @@ describe('Maple real-time workbench', () => {
     expect(screen.getByText('森林东部')).toBeInTheDocument()
     expect(screen.getAllByText('输入服务待连接').length).toBeGreaterThan(0)
     expect(screen.getByText('94', { selector: '.identity-card__score' })).toHaveTextContent('94%')
-    expect(screen.getAllByText('60 帧/秒').length).toBeGreaterThan(0)
-    expect(screen.getByText('30 帧/秒')).toBeInTheDocument()
+    expect(screen.queryByLabelText('性能遥测')).not.toBeInTheDocument()
     expect(screen.getByText('模拟画面已连接')).toBeInTheDocument()
     expect(screen.getByLabelText('实时模拟预览画布')).toBeInTheDocument()
     expect(screen.getAllByText('自己 94%').length).toBeGreaterThan(0)

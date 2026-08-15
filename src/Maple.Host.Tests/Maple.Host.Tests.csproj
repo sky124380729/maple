@@ -40,6 +40,7 @@
     <Compile Include="../Maple.Host/BrokerActionExecutor.cs" Link="BrokerActionExecutor.cs" />
     <Compile Include="../Maple.Host/GlobalHotKeyManager.cs" Link="GlobalHotKeyManager.cs" />
     <Compile Include="../Maple.Host/ForegroundSessionController.cs" Link="ForegroundSessionController.cs" />
+    <Compile Include="../Maple.Host/PreviewLayout.cs" Link="PreviewLayout.cs" />
     <Compile Include="../Maple.Preview/FrameSlot.cs" Link="FrameSlot.cs" />
   </ItemGroup>
 </Project>
