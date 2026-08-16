@@ -3,6 +3,7 @@ using System.Drawing;
 using System.IO;
 using System.Windows.Forms;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Maple.Contracts;
 using Maple.Core;
 using Maple.Input;
@@ -56,6 +57,9 @@ namespace Maple.Host
             Provider = InferenceProvider.None,
             Diagnostic = "MODEL_NOT_CONFIGURED",
         };
+        private CombatConfiguration pendingCombatConfiguration = CombatConfiguration.Default;
+        private AutomaticCombatController? automaticCombat;
+        private SamePlatformCombatTrialController? combatTrial;
 
         public WebViewHostForm(IWebViewRuntime webViewRuntime, IInputAdapter inputAdapter, string assetFolder)
             : this(
@@ -91,13 +95,13 @@ namespace Maple.Host
         public void ConfigureInputSession(
             ForegroundSessionController session,
             IForegroundWindowController windowController,
-            GlobalHotKeyManager hotKeys,
+            GlobalHotKeyManager? hotKeys,
             IDisposable lifetime)
         {
             if (foregroundSession is not null) throw new InvalidOperationException("Input session is already configured");
             foregroundSession = session ?? throw new ArgumentNullException(nameof(session));
             foregroundWindow = windowController ?? throw new ArgumentNullException(nameof(windowController));
-            globalHotKeys = hotKeys ?? throw new ArgumentNullException(nameof(hotKeys));
+            globalHotKeys = hotKeys;
             inputLifetime = lifetime ?? throw new ArgumentNullException(nameof(lifetime));
             foregroundSession.CountdownChanged += OnInputCountdownChanged;
             foregroundSession.StatusChanged += OnInputStatusChanged;
@@ -114,7 +118,7 @@ namespace Maple.Host
                 frameObserver: observer);
         }
 
-        public ObservationEventPublisher CreateVisionPublisher(RuntimeTelemetryCollector telemetry, string modelId)
+        public ObservationEventPublisher CreateVisionPublisher(RuntimeTelemetryCollector telemetry, string modelId, LiveObservationSource? observations = null)
         {
             return new ObservationEventPublisher(
                 new NativePreviewVisionSink(preview, SendOnUiThread),
@@ -123,7 +127,8 @@ namespace Maple.Host
                 () => safety.State,
                 () => Environment.TickCount64,
                 modelId,
-                () => safety.PauseReason);
+                () => safety.PauseReason,
+                observations is null ? null : observations.Publish);
         }
 
         public void ConfigureVision(LatestVisionFrameQueue frames, VisionRuntimeService service, VisionStatusPayload status)
@@ -135,6 +140,23 @@ namespace Maple.Host
         }
 
         public void ConfigureVisionStatus(VisionStatusPayload status) => pendingVisionStatus = status ?? throw new ArgumentNullException(nameof(status));
+
+        public void ConfigureCombatConfiguration(CombatConfiguration configuration) =>
+            pendingCombatConfiguration = CombatConfigurationValidator.ValidateAndNormalize(configuration);
+
+        public void ConfigureAutomaticCombat(AutomaticCombatController controller)
+        {
+            if (automaticCombat is not null) throw new InvalidOperationException("Automatic combat is already configured");
+            automaticCombat = controller ?? throw new ArgumentNullException(nameof(controller));
+            automaticCombat.StatusChanged += OnAutomaticCombatStatusChanged;
+        }
+
+        public void ConfigureCombatTrial(SamePlatformCombatTrialController controller)
+        {
+            if (combatTrial is not null) throw new InvalidOperationException("Combat trial is already configured");
+            combatTrial = controller ?? throw new ArgumentNullException(nameof(controller));
+            combatTrial.StatusChanged += OnAutomaticCombatStatusChanged;
+        }
 
         public void SendCloudStatus(CloudRuntimeStatus status)
         {
@@ -160,15 +182,15 @@ namespace Maple.Host
         {
             emergencyButton.Text = "紧急停止";
             emergencyButton.Dock = DockStyle.Top;
-            emergencyButton.Height = 42;
+            emergencyButton.Height = 30;
             emergencyButton.BackColor = Color.FromArgb(197, 58, 74);
             emergencyButton.ForeColor = Color.White;
             emergencyButton.Click += delegate { EmergencyStop("原生紧急停止按钮"); };
             preview.Visible = false;
             browserPanel.Dock = DockStyle.Fill;
             browserPanel.ClientSizeChanged += OnBrowserClientSizeChanged;
+            browserPanel.Controls.Add(preview);
             Controls.Add(browserPanel);
-            Controls.Add(preview);
             Controls.Add(emergencyButton);
         }
 
@@ -177,6 +199,7 @@ namespace Maple.Host
             webViewRuntime.Attach(browserPanel, assetFolder);
             if (foregroundSession is not null) PublishInputSessionStatus(foregroundSession.CurrentStatus);
             SendVisionStatus(pendingVisionStatus);
+            SendCombatConfiguration(pendingCombatConfiguration);
             if (captureCoordinator is not null) captureTimer.Start();
             if (visionService is not null)
             {
@@ -187,8 +210,62 @@ namespace Maple.Host
             {
                 HotKeyRegistrationResult registration = globalHotKeys.Register(Handle);
                 if (!registration.Success) foregroundSession.Disable(registration.Code);
+                else PublishInputSessionStatus(foregroundSession.CurrentStatus);
                 foregroundTimer.Start();
             }
+        }
+
+        public void SendMapStatus(ActiveMapStatus status)
+        {
+            string json = JsonSerializer.Serialize(new
+            {
+                schemaVersion = ContractConstants.SchemaVersion,
+                type = "map.status.updated",
+                payload = new
+                {
+                    mapId = status.MapId,
+                    state = status.State.ToString().ToLowerInvariant(),
+                    coverage = status.Coverage,
+                    calibrationErrorPx = status.CalibrationErrorPx,
+                    platformCount = status.PlatformCount,
+                    ladderCount = status.LadderCount,
+                    errors = status.Errors,
+                    canProduceActions = status.CanProduceActions,
+                },
+            }, new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull });
+            SendOnUiThread(() => webViewRuntime.Send(json));
+        }
+
+        public void SendMapScanStatus(MapScanStatus status)
+        {
+            string json = JsonSerializer.Serialize(new
+            {
+                schemaVersion = ContractConstants.SchemaVersion,
+                type = "map.scan.updated",
+                payload = new { scanning = status.Scanning, frameIds = status.FrameIds },
+            });
+            SendOnUiThread(() => webViewRuntime.Send(json));
+        }
+
+        public void SendInputResult(InputResult result)
+        {
+            if (result is null) throw new ArgumentNullException(nameof(result));
+            string json = JsonSerializer.Serialize(new
+            {
+                schemaVersion = ContractConstants.SchemaVersion,
+                type = "input.result",
+                payload = new
+                {
+                    schemaVersion = result.SchemaVersion,
+                    actionId = result.ActionId,
+                    status = result.Status.ToString().ToLowerInvariant(),
+                    startedAtMonoMs = result.StartedAtMonoMs,
+                    endedAtMonoMs = result.EndedAtMonoMs,
+                    releasedKeys = result.ReleasedKeys,
+                    message = result.Message,
+                },
+            });
+            SendOnUiThread(() => webViewRuntime.Send(json));
         }
 
         private async void OnCaptureTick(object? sender, EventArgs e)
@@ -215,6 +292,10 @@ namespace Maple.Host
                 await foregroundSession.OnForegroundChangedAsync(
                     foregroundWindow.GetForegroundWindow(),
                     CancellationToken.None);
+                if (automaticCombat?.IsRunning == true && !foregroundSession.IsArmed)
+                    await automaticCombat.PauseAsync(PauseReason.WindowNotForeground);
+                if (combatTrial?.IsRunning == true && !foregroundSession.IsArmed)
+                    await combatTrial.PauseAsync(PauseReason.WindowNotForeground);
                 await Task.Run(foregroundSession.RefreshStatus);
             }
             catch (OperationCanceledException) { }
@@ -241,8 +322,10 @@ namespace Maple.Host
             else if (result.CommandType == UiCommandType.SessionEmergencyStop) EmergencyStop("React 请求紧急停止");
             else if (result.CommandType is UiCommandType.SessionArm or UiCommandType.SessionResume)
                 _ = ResumeInputAsync();
+            else if (result.CommandType == UiCommandType.CombatTrialStart)
+                _ = StartCombatTrialAsync();
             else if (result.CommandType == UiCommandType.SessionPause)
-                foregroundSession?.Pause(PauseReason.OperatorRequested);
+                _ = PauseAutomaticCombatAsync(PauseReason.OperatorRequested);
             else if (result.CommandType == UiCommandType.PreviewBoundsChanged)
                 ApplyPreviewBounds(result.PayloadJson);
             CommandReceived?.Invoke(this, result);
@@ -279,7 +362,6 @@ namespace Maple.Host
                     resolved.Height);
                 preview.Visible = true;
                 preview.BringToFront();
-                emergencyButton.BringToFront();
             }
             catch (ArgumentOutOfRangeException)
             {
@@ -298,13 +380,37 @@ namespace Maple.Host
 
         private async Task ResumeInputAsync()
         {
-            if (foregroundSession is null)
+            if (automaticCombat is null)
             {
-                safety.PauseAndRelease(PauseReason.InputUnavailable);
+                foregroundSession?.Pause(PauseReason.CalibrationRequired);
+                if (foregroundSession is null) safety.PauseAndRelease(PauseReason.CalibrationRequired);
+                SendSessionState(SessionState.Paused, PauseReason.CalibrationRequired, null);
                 return;
             }
-            await foregroundSession.ResumeAsync(CancellationToken.None);
+            await automaticCombat.ArmAsync(CancellationToken.None);
         }
+
+        private async Task StartCombatTrialAsync()
+        {
+            if (combatTrial is null)
+            {
+                foregroundSession?.Pause(PauseReason.CalibrationRequired);
+                SendSessionState(SessionState.Paused, PauseReason.CalibrationRequired, null);
+                return;
+            }
+            if (automaticCombat?.IsRunning == true) await automaticCombat.PauseAsync(PauseReason.OperatorRequested);
+            await combatTrial.StartAsync(CancellationToken.None);
+        }
+
+        private async Task PauseAutomaticCombatAsync(PauseReason reason)
+        {
+            if (automaticCombat is not null) await automaticCombat.PauseAsync(reason);
+            if (combatTrial is not null) await combatTrial.PauseAsync(reason);
+            if (automaticCombat is null && combatTrial is null) foregroundSession?.Pause(reason);
+        }
+
+        private void OnAutomaticCombatStatusChanged(object? sender, AutomaticCombatStatus status) =>
+            SendOnUiThread(() => SendSessionState(status.State, status.PauseReason, null));
 
         private void OnInputCountdownChanged(object? sender, int secondsRemaining)
         {
@@ -329,7 +435,11 @@ namespace Maple.Host
                     integrity = status.Integrity,
                     activeKeys = status.ActiveKeys,
                     lastReleaseSucceeded = status.LastReleaseSucceeded,
-                    hotkeys = new { pauseResume = "F9", emergencyStop = "F12" },
+                    hotkeys = new
+                    {
+                        pauseResume = globalHotKeys?.PauseResumeLabel ?? "F9",
+                        emergencyStop = globalHotKeys?.EmergencyStopLabel ?? "F12",
+                    },
                     errorCode = status.ErrorCode,
                 },
             };
@@ -370,6 +480,36 @@ namespace Maple.Host
             webViewRuntime.Send(json);
         }
 
+        public void SendCombatConfiguration(CombatConfiguration configuration)
+        {
+            pendingCombatConfiguration = CombatConfigurationValidator.ValidateAndNormalize(configuration);
+            string json = JsonSerializer.Serialize(new
+            {
+                schemaVersion = ContractConstants.SchemaVersion,
+                type = "config.updated",
+                payload = new
+                {
+                    schemaVersion = configuration.SchemaVersion,
+                    attackMode = configuration.AttackMode.ToString().ToLowerInvariant(),
+                    hpThresholdMode = configuration.HpThresholdMode.ToString().ToLowerInvariant(),
+                    hpThreshold = configuration.HpThreshold,
+                    mpThresholdMode = configuration.MpThresholdMode.ToString().ToLowerInvariant(),
+                    mpThreshold = configuration.MpThreshold,
+                    singleAttackKey = configuration.SingleAttackKey,
+                    areaAttackKey = configuration.AreaAttackKey,
+                    hpPotionKey = configuration.HpPotionKey,
+                    mpPotionKey = configuration.MpPotionKey,
+                    jumpKey = configuration.JumpKey,
+                    pickupEnabled = configuration.PickupEnabled,
+                    pickupKey = configuration.PickupKey,
+                    preferredDistancePx = configuration.PreferredDistancePx,
+                    areaTargetCount = configuration.AreaTargetCount,
+                    switchCooldownMs = configuration.SwitchCooldownMs,
+                },
+            });
+            SendOnUiThread(() => webViewRuntime.Send(json));
+        }
+
         private void SendOnUiThread(Action send)
         {
             if (IsDisposed || Disposing) return;
@@ -395,7 +535,9 @@ namespace Maple.Host
 
         private void EmergencyStop(string reason)
         {
-            if (foregroundSession is not null) foregroundSession.EmergencyStop();
+            if (automaticCombat is not null) _ = automaticCombat.EmergencyStopAsync();
+            if (combatTrial is not null) _ = combatTrial.EmergencyStopAsync();
+            if (automaticCombat is null && combatTrial is null && foregroundSession is not null) foregroundSession.EmergencyStop();
             else safety.EmergencyStop();
             SendSessionState(SessionState.EmergencyStop, PauseReason.OperatorRequested, null);
         }
@@ -422,6 +564,16 @@ namespace Maple.Host
                 {
                     foregroundSession.CountdownChanged -= OnInputCountdownChanged;
                     foregroundSession.StatusChanged -= OnInputStatusChanged;
+                }
+                if (automaticCombat is not null)
+                {
+                    automaticCombat.StatusChanged -= OnAutomaticCombatStatusChanged;
+                    automaticCombat.Dispose();
+                }
+                if (combatTrial is not null)
+                {
+                    combatTrial.StatusChanged -= OnAutomaticCombatStatusChanged;
+                    combatTrial.Dispose();
                 }
                 foregroundSession?.Dispose();
                 visionCancellation?.Cancel();

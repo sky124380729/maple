@@ -13,10 +13,10 @@ public sealed class BrokerActionExecutorTests
     [Theory]
     [InlineData(ActionType.MoveLeft, null, BrokerActionKind.MoveLeft, null)]
     [InlineData(ActionType.Jump, null, BrokerActionKind.Jump, "Alt")]
-    [InlineData(ActionType.Attack, ActionProfileId.SingleAttack, BrokerActionKind.SingleAttack, "J")]
-    [InlineData(ActionType.Attack, ActionProfileId.AreaAttack, BrokerActionKind.AreaAttack, "A")]
-    [InlineData(ActionType.UsePotion, ActionProfileId.HpPotion, BrokerActionKind.HpPotion, "1")]
-    [InlineData(ActionType.UsePotion, ActionProfileId.MpPotion, BrokerActionKind.MpPotion, "2")]
+    [InlineData(ActionType.Attack, ActionProfileId.SingleAttack, BrokerActionKind.SingleAttack, "Ctrl")]
+    [InlineData(ActionType.Attack, ActionProfileId.AreaAttack, BrokerActionKind.AreaAttack, "Ctrl")]
+    [InlineData(ActionType.UsePotion, ActionProfileId.HpPotion, BrokerActionKind.HpPotion, "Delete")]
+    [InlineData(ActionType.UsePotion, ActionProfileId.MpPotion, BrokerActionKind.MpPotion, "End")]
     public async Task ExecutorMapsOnlySupportedAbstractActions(
         ActionType type,
         ActionProfileId? profile,
@@ -39,6 +39,27 @@ public sealed class BrokerActionExecutorTests
 
         Assert.Equal(expected, BrokerActionMapping.ToBrokerAction(action));
         Assert.Equal(expectedLogicalKey, Assert.Single(adapter.Keys));
+    }
+
+    [Fact]
+    public async Task ExecutorUsesTheActiveNativeKeyProfile()
+    {
+        var adapter = new RecordingAdapter();
+        CombatConfiguration configuration = CombatConfiguration.Default with { SingleAttackKey = "X" };
+        var executor = new BrokerActionExecutor(adapter, () => configuration);
+        var action = new AbstractAction
+        {
+            ActionId = "configured-attack",
+            Type = ActionType.Attack,
+            ProfileId = ActionProfileId.SingleAttack,
+            IssuedAtMonoMs = 100,
+            HoldMs = 120,
+            MaxDurationMs = 300,
+        };
+
+        await executor.KeyDownAsync(action, CancellationToken.None);
+
+        Assert.Equal("X", Assert.Single(adapter.Keys));
     }
 
     private sealed class RecordingAdapter : IInputAdapter

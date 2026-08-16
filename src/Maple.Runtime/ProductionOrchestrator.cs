@@ -16,6 +16,7 @@ public sealed class ProductionOrchestrator
     private readonly OrchestratorOptions options;
     private readonly IRuntimeJournal journal;
     private readonly ActionTimingRandomizer timingRandomizer;
+    private readonly Action<AbstractAction>? actionAccepted;
     private RuntimeObservationContext? pendingObservation;
 
     public ProductionOrchestrator(
@@ -26,7 +27,8 @@ public sealed class ProductionOrchestrator
         ActionPolicySettings policySettings,
         OrchestratorOptions options,
         IRuntimeJournal? journal = null,
-        ActionTimingRandomizer? timingRandomizer = null)
+        ActionTimingRandomizer? timingRandomizer = null,
+        Action<AbstractAction>? actionAccepted = null)
     {
         this.observationSource = observationSource ?? throw new ArgumentNullException(nameof(observationSource));
         this.actionExecutor = actionExecutor ?? throw new ArgumentNullException(nameof(actionExecutor));
@@ -38,18 +40,26 @@ public sealed class ProductionOrchestrator
         this.timingRandomizer = timingRandomizer ?? new ActionTimingRandomizer(
             RandomNumberGenerator.GetInt32(int.MaxValue),
             maximumFraction: 0.08);
+        this.actionAccepted = actionAccepted;
         options.Validate();
     }
 
     public async Task<OrchestratorRunResult> RunUntilPausedAsync(int maximumActions, CancellationToken cancellationToken)
     {
         if (maximumActions < 1) throw new ArgumentOutOfRangeException(nameof(maximumActions));
+        return await RunUntilPausedCoreAsync(maximumActions, cancellationToken).ConfigureAwait(false);
+    }
 
+    public Task<OrchestratorRunResult> RunUntilPausedAsync(CancellationToken cancellationToken) =>
+        RunUntilPausedCoreAsync(null, cancellationToken);
+
+    private async Task<OrchestratorRunResult> RunUntilPausedCoreAsync(int? maximumActions, CancellationToken cancellationToken)
+    {
         int executedActions = 0;
         long lastFrameId = -1;
         try
         {
-            while (executedActions < maximumActions)
+            while (!maximumActions.HasValue || executedActions < maximumActions.Value)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 RuntimeObservationContext observation = await TakeObservationAsync(cancellationToken).ConfigureAwait(false);
@@ -106,6 +116,7 @@ public sealed class ProductionOrchestrator
         {
             await actionExecutor.KeyDownAsync(action, cancellationToken).ConfigureAwait(false);
             keyIsDown = true;
+            actionAccepted?.Invoke(action);
             await journal.WriteAsync(new RuntimeJournalEntry(
                 ContractConstants.SchemaVersion,
                 "input.keyDown",

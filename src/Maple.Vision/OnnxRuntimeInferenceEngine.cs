@@ -28,7 +28,10 @@ public sealed class OnnxRuntimeInferenceEngine : IOnnxInferenceEngine
         Tensor<float> output = outputs.Single().AsTensor<float>();
         IReadOnlyList<DetectionCandidate> detections = YoloTensorDecoder.Decode(
             output.ToArray(), output.Dimensions.ToArray(), new ModelClassMap(manifest.Classes, manifest.ClassRoles),
-            manifest.ConfidenceThreshold, manifest.NmsThreshold, manifest.InputWidth, manifest.InputHeight);
+            manifest.DisplayConfidenceThreshold ?? manifest.ConfidenceThreshold,
+            manifest.NmsThreshold,
+            manifest.InputWidth,
+            manifest.InputHeight);
         return ValueTask.FromResult(detections);
     }
 

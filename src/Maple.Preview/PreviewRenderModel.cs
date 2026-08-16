@@ -59,8 +59,8 @@ public sealed class PreviewRenderModel
         }
 
         PreviewHudSeverity severity = ResolveSeverity(telemetry);
-        IReadOnlyList<PreviewHudBand> bands = BuildHudBands(telemetry, snapshot?.ModelVersion, severity);
-        return new PreviewRenderModel(markers, bands, SelectHudCorner(markers), severity, snapshot?.ModelVersion ?? "未加载");
+        IReadOnlyList<PreviewHudBand> bands = BuildHudBands(telemetry, severity);
+        return new PreviewRenderModel(markers, bands, PreviewHudCorner.TopLeft, severity, snapshot?.ModelVersion ?? "未加载");
     }
 
     private static void AddSelf(List<PreviewRenderMarker> markers, SelfObservation? self, long nowMonoMs)
@@ -75,7 +75,7 @@ public sealed class PreviewRenderModel
         foreach (PlayerObservation player in players)
         {
             if (player is null || player.FreshUntilMonoMs <= nowMonoMs || !ValidBox(player.Box)) continue;
-            markers.Add(new PreviewRenderMarker("player", player.Box, player.Confidence, $"其他玩家 {FormatConfidence(player.Confidence)} #{player.TrackId}", null, false));
+            markers.Add(new PreviewRenderMarker("player", player.Box, player.Confidence, $"玩家 {FormatConfidence(player.Confidence)}", null, false));
         }
     }
 
@@ -87,23 +87,20 @@ public sealed class PreviewRenderModel
             if (monster is null || monster.FreshUntilMonoMs <= nowMonoMs || !ValidBox(monster.Box)) continue;
             bool selected = !string.IsNullOrWhiteSpace(selectedTargetId)
                 && string.Equals(monster.TargetId, selectedTargetId, StringComparison.Ordinal);
-            markers.Add(new PreviewRenderMarker("monster", monster.Box, monster.Confidence, $"{monster.Class} {FormatConfidence(monster.Confidence)} #{monster.TargetId}", monster.TargetId, selected));
+            markers.Add(new PreviewRenderMarker("monster", monster.Box, monster.Confidence, $"怪 {FormatConfidence(monster.Confidence)}", monster.TargetId, selected));
         }
     }
 
-    private static IReadOnlyList<PreviewHudBand> BuildHudBands(PreviewTelemetrySnapshot? telemetry, string? modelVersion, PreviewHudSeverity severity)
+    private static IReadOnlyList<PreviewHudBand> BuildHudBands(PreviewTelemetrySnapshot? telemetry, PreviewHudSeverity severity)
     {
         if (telemetry is null) return [];
-        string fps = $"采集 {telemetry.CaptureFps:0.#}  绘制 {telemetry.RenderFps:0.#}  识别 {telemetry.RecognitionFps:0.#}";
-        string latency = $"端到端 {telemetry.FrameLatencyMs:0.#}ms  检测 {telemetry.DetectorLatencyMs:0.#}ms  队列 {telemetry.QueueAgeMs:0.#}ms";
-        string runtime = $"{telemetry.CaptureBackend} / {telemetry.InferenceProvider}  模型 {modelVersion ?? "未加载"}";
-        string session = $"{telemetry.SessionState}  内存 {telemetry.ProcessMemoryMb:0}MB  丢帧 {telemetry.DroppedFrames}  动作 {telemetry.LastAction}";
         return
         [
-            new PreviewHudBand("fps", "帧率", fps, severity),
-            new PreviewHudBand("latency", "延迟", latency, severity),
-            new PreviewHudBand("runtime", "运行时", runtime, severity),
-            new PreviewHudBand("session", telemetry.WarningCode is null ? "状态" : telemetry.WarningCode, session, severity),
+            new PreviewHudBand(
+                "telemetry",
+                "FPS",
+                $"{telemetry.CaptureFps:0}  |  识别 {telemetry.RecognitionFps:0}  |  延迟 {telemetry.FrameLatencyMs:0} ms",
+                severity),
         ];
     }
 
@@ -126,29 +123,6 @@ public sealed class PreviewRenderModel
     {
         string[] critical = ["STALE", "SAFETY", "FOREGROUND", "BLACK_FRAME", "WATCHDOG", "HEALTH_UNKNOWN", "INPUT_UNAVAILABLE"];
         return critical.Any(code => warning.Contains(code, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static PreviewHudCorner SelectHudCorner(IReadOnlyList<PreviewRenderMarker> markers)
-    {
-        (PreviewHudCorner Corner, double[] Box)[] candidates =
-        [
-            (PreviewHudCorner.TopLeft, [0, 0, 0.34, 0.3]),
-            (PreviewHudCorner.TopRight, [0.66, 0, 0.34, 0.3]),
-            (PreviewHudCorner.BottomLeft, [0, 0.7, 0.34, 0.3]),
-            (PreviewHudCorner.BottomRight, [0.66, 0.7, 0.34, 0.3]),
-        ];
-        return candidates
-            .Select(candidate => (candidate.Corner, Score: markers.Sum(marker => IntersectionArea(marker.Box, candidate.Box))))
-            .OrderBy(candidate => candidate.Score)
-            .ThenBy(candidate => candidate.Corner)
-            .First().Corner;
-    }
-
-    private static double IntersectionArea(double[] first, double[] second)
-    {
-        double width = Math.Max(0, Math.Min(first[0] + first[2], second[0] + second[2]) - Math.Max(first[0], second[0]));
-        double height = Math.Max(0, Math.Min(first[1] + first[3], second[1] + second[3]) - Math.Max(first[1], second[1]));
-        return width * height;
     }
 
     private static bool ValidBox(double[]? box) => box is { Length: 4 }

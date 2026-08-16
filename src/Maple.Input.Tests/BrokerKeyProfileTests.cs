@@ -23,14 +23,27 @@ public sealed class BrokerKeyProfileTests
 
     [Theory]
     [InlineData(BrokerActionKind.Jump, "Alt")]
-    [InlineData(BrokerActionKind.SingleAttack, "J")]
-    [InlineData(BrokerActionKind.AreaAttack, "A")]
+    [InlineData(BrokerActionKind.SingleAttack, "Ctrl")]
+    [InlineData(BrokerActionKind.AreaAttack, "Ctrl")]
     [InlineData(BrokerActionKind.Pickup, "Z")]
-    [InlineData(BrokerActionKind.HpPotion, "1")]
-    [InlineData(BrokerActionKind.MpPotion, "2")]
+    [InlineData(BrokerActionKind.HpPotion, "Delete")]
+    [InlineData(BrokerActionKind.MpPotion, "End")]
     public void ConfigurableActionsHaveSpecificationDefaults(BrokerActionKind action, string logicalKey)
     {
         Assert.Equal(BrokerKeyProfile.ForLogicalKey(logicalKey), BrokerKeyProfile.For(action));
+    }
+
+    [Theory]
+    [InlineData("Delete", 0x2E, 0x53)]
+    [InlineData("End", 0x23, 0x4F)]
+    public void NavigationLogicalKeysUseExtendedScanCodes(
+        string logicalKey,
+        ushort virtualKey,
+        uint scanCode)
+    {
+        Assert.Equal(
+            new BrokerKeyEncoding(virtualKey, scanCode, true),
+            BrokerKeyProfile.ForLogicalKey(logicalKey));
     }
 
     [Fact]

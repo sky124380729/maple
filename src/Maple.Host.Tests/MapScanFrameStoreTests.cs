@@ -31,6 +31,24 @@ public sealed class MapScanFrameStoreTests
     }
 
     [Fact]
+    public void PublishesTheFramesAvailableForMapAnalysis()
+    {
+        using var store = new MapScanFrameStore(new RecordingEncoder(), minimumFrameIntervalMs: 1, capacity: 3);
+        var statuses = new List<MapScanStatus>();
+        store.StatusChanged += (_, status) => statuses.Add(status);
+
+        store.StartScan();
+        using CapturedFrame frame = Frame(7, 100);
+        store.Observe(frame);
+        store.StopScan();
+
+        Assert.Collection(statuses,
+            status => { Assert.True(status.Scanning); Assert.Empty(status.FrameIds); },
+            status => { Assert.True(status.Scanning); Assert.Equal([7L], status.FrameIds); },
+            status => { Assert.False(status.Scanning); Assert.Equal([7L], status.FrameIds); });
+    }
+
+    [Fact]
     public async Task NewScanInvalidatesOldFramesAndMapBinding()
     {
         using var store = new MapScanFrameStore(new RecordingEncoder(), minimumFrameIntervalMs: 1, capacity: 3);

@@ -8,19 +8,44 @@ public interface IOcrEngine
     ValueTask<string> RecognizeAsync(ReadOnlyMemory<byte> encodedPng, CancellationToken cancellationToken);
 }
 
-public sealed class OcrTextRecognizer(IOcrEngine engine)
+public sealed class OcrTextRecognizer
 {
-    private readonly IOcrEngine engine = engine ?? throw new ArgumentNullException(nameof(engine));
+    private readonly IOcrEngine engine;
+    private readonly IOcrEngine resourceEngine;
+
+    public OcrTextRecognizer(IOcrEngine engine, IOcrEngine? resourceEngine = null)
+    {
+        this.engine = engine ?? throw new ArgumentNullException(nameof(engine));
+        this.resourceEngine = resourceEngine ?? engine;
+    }
 
     public async ValueTask<string> RecognizeAsync(CapturedFrame frame, PixelRegion region, CancellationToken cancellationToken)
     {
         using Mat source = Mat.FromPixelData(frame.Height, frame.Width, MatType.CV_8UC4, frame.Pixels.ToArray(), frame.Stride);
         using Mat roi = new(source, new Rect(region.X, region.Y, region.Width, region.Height));
         using Mat gray = new();
+        using Mat scaled = new();
         Cv2.CvtColor(roi, gray, ColorConversionCodes.BGRA2GRAY);
-        Cv2.Threshold(gray, gray, 0, 255, ThresholdTypes.Binary | ThresholdTypes.Otsu);
-        Cv2.ImEncode(".png", gray, out byte[] encoded);
+        Cv2.Resize(gray, scaled, new Size(), 3, 3, InterpolationFlags.Cubic);
+        Cv2.Threshold(scaled, scaled, 0, 255, ThresholdTypes.Binary | ThresholdTypes.Otsu);
+        Cv2.ImEncode(".png", scaled, out byte[] encoded);
         return (await engine.RecognizeAsync(encoded, cancellationToken).ConfigureAwait(false)).Trim();
+    }
+
+    public async ValueTask<string> RecognizeResourceAsync(CapturedFrame frame, PixelRegion region, CancellationToken cancellationToken)
+    {
+        using Mat source = Mat.FromPixelData(frame.Height, frame.Width, MatType.CV_8UC4, frame.Pixels.ToArray(), frame.Stride);
+        using Mat roi = new(source, new Rect(region.X, region.Y, region.Width, region.Height));
+        using Mat gray = new();
+        using Mat scaled = new();
+        using Mat binary = new();
+        using Mat padded = new();
+        Cv2.CvtColor(roi, gray, ColorConversionCodes.BGRA2GRAY);
+        Cv2.Resize(gray, scaled, new Size(), 5, 5, InterpolationFlags.Cubic);
+        Cv2.Threshold(scaled, binary, 0, 255, ThresholdTypes.BinaryInv | ThresholdTypes.Otsu);
+        Cv2.CopyMakeBorder(binary, padded, 16, 16, 16, 16, BorderTypes.Constant, Scalar.White);
+        Cv2.ImEncode(".png", padded, out byte[] encoded);
+        return (await resourceEngine.RecognizeAsync(encoded, cancellationToken).ConfigureAwait(false)).Trim();
     }
 }
 

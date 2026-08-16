@@ -15,6 +15,7 @@ public sealed class ModelManifest
     public int InputWidth { get; init; }
     public int InputHeight { get; init; }
     public double ConfidenceThreshold { get; init; }
+    public double? DisplayConfidenceThreshold { get; init; }
     public double NmsThreshold { get; init; }
     public string[] Classes { get; init; } = [];
     public Dictionary<string, DetectionRole> ClassRoles { get; init; } = new(StringComparer.OrdinalIgnoreCase);
@@ -40,7 +41,9 @@ public static class ModelManifestLoader
             options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
             ModelManifest? manifest = JsonSerializer.Deserialize<ModelManifest>(File.ReadAllText(manifestPath), options);
             if (manifest is null || manifest.SchemaVersion != 2 || string.IsNullOrWhiteSpace(manifest.ModelId) || manifest.Runtime != "onnx") return Invalid("MODEL_MANIFEST_INVALID");
-            if (manifest.InputWidth <= 0 || manifest.InputHeight <= 0 || manifest.ConfidenceThreshold is < 0 or > 1 || manifest.NmsThreshold is < 0 or > 1) return Invalid("MODEL_MANIFEST_INVALID");
+            if (manifest.InputWidth <= 0 || manifest.InputHeight <= 0 || manifest.ConfidenceThreshold is < 0 or > 1
+                || manifest.DisplayConfidenceThreshold is < 0 or > 1
+                || manifest.NmsThreshold is < 0 or > 1) return Invalid("MODEL_MANIFEST_INVALID");
             if (manifest.OutputLayout == OnnxOutputLayout.Unsupported || manifest.Classes is null || manifest.Classes.Length == 0 || manifest.Classes.Distinct(StringComparer.OrdinalIgnoreCase).Count() != manifest.Classes.Length) return Invalid("MODEL_CLASSES_INVALID");
             if (manifest.ClassRoles is null || manifest.ClassRoles.Keys.Any(key => !manifest.Classes.Contains(key, StringComparer.OrdinalIgnoreCase))
                 || !manifest.ClassRoles.Values.Contains(DetectionRole.CharacterCandidate)

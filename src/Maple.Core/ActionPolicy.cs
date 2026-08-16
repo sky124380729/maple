@@ -5,6 +5,7 @@ using Maple.Contracts;
 namespace Maple.Core
 {
     public enum FacingDirection { Unknown, Left, Right }
+    public enum AttackSelectionMode { Single, Auto, Group }
 
     public sealed class PlatformContext
     {
@@ -29,8 +30,13 @@ namespace Maple.Core
         public int MinMoveHoldMs { get; set; }
         public int MaxMoveHoldMs { get; set; }
         public int AttackHoldMs { get; set; }
+        public AttackSelectionMode AttackMode { get; set; }
+        public int AreaTargetCount { get; set; } = 3;
+        public int AttackProfileSwitchCooldownMs { get; set; }
         public double HpPotionThreshold { get; set; }
         public double MpPotionThreshold { get; set; }
+        public ResourceMode HpPotionThresholdMode { get; set; } = ResourceMode.Percent;
+        public ResourceMode MpPotionThresholdMode { get; set; } = ResourceMode.Percent;
         public bool PickupEnabled { get; set; }
         public int MaxAttackNoFeedbackAttempts { get; set; }
     }
@@ -58,6 +64,8 @@ namespace Maple.Core
         private readonly MovementDurationEstimator durationEstimator;
         private long actionSequence;
         private long currentIssuedAtMonoMs;
+        private ActionProfileId? lastAttackProfile;
+        private long lastAttackProfileChangedAtMonoMs;
 
         public ActionPolicy(MovementDurationEstimator durationEstimator)
         {
@@ -78,8 +86,8 @@ namespace Maple.Core
             var validation = ContractValidation.ValidateObservation(context.Observation);
             if (!validation.IsValid) return Pause(PauseReason.SafetyViolation, "观察快照无效：" + validation.Error);
 
-            if (context.Observation.Hp.Value <= context.Settings.HpPotionThreshold) return Action(ActionType.UsePotion, ActionProfileId.HpPotion, 100, "HP 补给优先", true);
-            if (context.Observation.Mp.Value <= context.Settings.MpPotionThreshold) return Action(ActionType.UsePotion, ActionProfileId.MpPotion, 100, "MP 补给优先", true);
+            if (BelowThreshold(context.Observation.Hp, context.Settings.HpPotionThresholdMode, context.Settings.HpPotionThreshold)) return Action(ActionType.UsePotion, ActionProfileId.HpPotion, 100, "HP 补给优先", true);
+            if (BelowThreshold(context.Observation.Mp, context.Settings.MpPotionThresholdMode, context.Settings.MpPotionThreshold)) return Action(ActionType.UsePotion, ActionProfileId.MpPotion, 100, "MP 补给优先", true);
             if (!context.Platform.CameraStable) return Action(ActionType.Replan, 0, "镜头正在移动，等待稳定帧", true);
             if (context.ConsecutiveAttackNoFeedback >= Math.Max(1, context.Settings.MaxAttackNoFeedbackAttempts))
             {
@@ -119,7 +127,8 @@ namespace Maple.Core
                     ActionType turnDirection = horizontalDistancePx < 0 ? ActionType.MoveLeft : ActionType.MoveRight;
                     return Action(turnDirection, Math.Max(context.Settings.MinMoveHoldMs, 40), "先调整角色朝向", true);
                 }
-                return Action(ActionType.Attack, ActionProfileId.SingleAttack, Math.Max(1, context.Settings.AttackHoldMs), "目标已进入攻击范围", true);
+                ActionProfileId attackProfile = SelectAttackProfile(context, selfCenter);
+                return Action(ActionType.Attack, attackProfile, Math.Max(1, context.Settings.AttackHoldMs), attackProfile == ActionProfileId.AreaAttack ? "多个目标进入范围，使用群体攻击" : "目标已进入攻击范围", true);
             }
 
             if (context.Platform.DistanceToBoundaryPx <= 24 && !context.Platform.CanJump)
@@ -183,7 +192,60 @@ namespace Maple.Core
             return selected;
         }
 
+        private ActionProfileId SelectAttackProfile(ActionPolicyContext context, double selfCenter)
+        {
+            ActionProfileId requested = context.Settings.AttackMode switch
+            {
+                AttackSelectionMode.Group => ActionProfileId.AreaAttack,
+                AttackSelectionMode.Auto when CountAttackableTargets(context, selfCenter) >= Math.Max(2, context.Settings.AreaTargetCount) => ActionProfileId.AreaAttack,
+                _ => ActionProfileId.SingleAttack,
+            };
+            if (context.Settings.AttackMode == AttackSelectionMode.Auto
+                && lastAttackProfile.HasValue
+                && requested != lastAttackProfile.Value
+                && context.NowMonoMs - lastAttackProfileChangedAtMonoMs < Math.Max(0, context.Settings.AttackProfileSwitchCooldownMs))
+            {
+                return lastAttackProfile.Value;
+            }
+            if (!lastAttackProfile.HasValue || requested != lastAttackProfile.Value)
+            {
+                lastAttackProfile = requested;
+                lastAttackProfileChangedAtMonoMs = context.NowMonoMs;
+            }
+            return requested;
+        }
+
+        private static int CountAttackableTargets(ActionPolicyContext context, double selfCenter)
+        {
+            if (context.Observation.Monsters == null) return 0;
+            int count = 0;
+            foreach (MonsterObservation monster in context.Observation.Monsters)
+            {
+                if (monster == null || monster.Confidence < context.Settings.TargetConfidenceThreshold || monster.FreshUntilMonoMs < context.NowMonoMs) continue;
+                double horizontalDistancePx = Math.Abs(CenterX(monster.Box) - selfCenter) * context.Settings.ClientWidthPx;
+                double verticalDistancePx = Math.Abs(CenterY(monster.Box) - CenterY(context.Observation.Self.Box)) * context.Observation.Target.ClientHeight;
+                if (horizontalDistancePx <= context.Settings.AttackRangePx && verticalDistancePx <= 90) count++;
+            }
+            return count;
+        }
+
         private static double CenterX(double[] box) { return box[0] + box[2] / 2.0; }
         private static double CenterY(double[] box) { return box[1] + box[3] / 2.0; }
+
+        private static bool BelowThreshold(ResourceObservation resource, ResourceMode thresholdMode, double threshold)
+        {
+            if (threshold < 0) return false;
+            if (thresholdMode == ResourceMode.Absolute)
+            {
+                double? current = resource.CurrentValue ?? (resource.Mode == ResourceMode.Absolute ? resource.Value : null);
+                return current.HasValue && current.Value <= threshold;
+            }
+            double? percent = resource.Mode == ResourceMode.Percent
+                ? resource.Value
+                : resource.CurrentValue.HasValue && resource.MaximumValue > 0
+                    ? resource.CurrentValue.Value / resource.MaximumValue.Value
+                    : null;
+            return percent.HasValue && percent.Value <= threshold;
+        }
     }
 }

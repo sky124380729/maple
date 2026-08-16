@@ -59,7 +59,7 @@ describe('Maple real-time workbench', () => {
     render(<App bridge={bridge} />)
 
     expect(await screen.findByText('冒险岛怀旧服')).toBeInTheDocument()
-    expect(screen.getByText('森林东部')).toBeInTheDocument()
+    expect(screen.getAllByText('forest-east').length).toBeGreaterThan(0)
     expect(screen.getAllByText('输入服务待连接').length).toBeGreaterThan(0)
     expect(screen.getByText('94', { selector: '.identity-card__score' })).toHaveTextContent('94%')
     expect(screen.queryByLabelText('性能遥测')).not.toBeInTheDocument()
@@ -67,11 +67,12 @@ describe('Maple real-time workbench', () => {
     expect(screen.getByLabelText('实时模拟预览画布')).toBeInTheDocument()
     expect(screen.getAllByText('自己 94%').length).toBeGreaterThan(0)
     expect(screen.getByText(/采集 60 FPS · 识别 30 FPS/)).toBeInTheDocument()
-    expect(screen.getByText('HP 99%')).toBeInTheDocument()
-    expect(screen.getByText('MP 35%')).toBeInTheDocument()
+    expect(screen.getByText('HP 97/98 · 99%')).toBeInTheDocument()
+    expect(screen.getByText('MP 7/20 · 35%')).toBeInTheDocument()
+    expect(screen.getByLabelText('全局快捷键')).toHaveClass('hotkey-strip--stacked')
     expect(screen.getByText('maple-yolo-demo')).toBeInTheDocument()
-    expect(screen.getByText('其他玩家 81% #player-7')).toBeInTheDocument()
-    expect(screen.getByText('snail 88% #monster-1')).toBeInTheDocument()
+    expect(screen.getByText('玩家 81%')).toBeInTheDocument()
+    expect(screen.getByText('怪 88%')).toBeInTheDocument()
   })
 
   test('sends safe session controls through the bridge', async () => {
@@ -101,9 +102,10 @@ describe('Maple real-time workbench', () => {
     const bridge = createMockHostBridge({ telemetryIntervalMs: 10_000 })
     render(<App bridge={bridge} />)
 
-    expect(screen.getByRole('radio', { name: '自动' })).toBeChecked()
-    expect(screen.getByRole('spinbutton', { name: '生命值下限百分比' })).toHaveValue('35')
-    expect(screen.getByRole('switch', { name: '自动拾取' })).not.toBeChecked()
+    expect(screen.getByText('单体').closest('.ant-segmented-item')).toHaveClass('ant-segmented-item-selected')
+    expect(screen.getByRole('radio', { name: 'HP 百分比' }).closest('.ant-segmented-item')).toHaveClass('ant-segmented-item-selected')
+    expect(screen.getByRole('spinbutton', { name: '生命值下限' })).toHaveValue('50')
+    expect(screen.getByRole('switch', { name: '自动拾取' })).toBeChecked()
     expect(screen.queryByLabelText(/编号|跟踪/i)).not.toBeInTheDocument()
   })
 
@@ -126,6 +128,11 @@ describe('Maple real-time workbench', () => {
     expect(screen.getByRole('heading', { name: '百炼' })).toBeInTheDocument()
     expect(screen.getByText('未保存密钥')).toBeInTheDocument()
     expect(screen.getByText('实时预览')).toBeInTheDocument()
+    const drawer = screen.getByRole('dialog')
+    expect(drawer).toHaveClass('settings-drawer')
+    const drawerBody = drawer.querySelector('.ant-drawer-body') as HTMLElement
+    expect(drawerBody.style.background).toBe('rgb(16, 22, 29)')
+    expect(drawerBody.style.padding).toBe('18px')
   })
 
   test('pauses the running session before saving system settings', async () => {

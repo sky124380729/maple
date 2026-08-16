@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "generatedAtUtc": "2026-08-15T18:10:54.5265472+00:00",
+  "osDescription": "Microsoft Windows 10.0.26200",
+  "osArchitecture": "X64",
+  "webView2": {
+    "state": "Ready",
+    "code": "WEBVIEW2_READY",
+    "installedVersion": "151.0.4129.78",
+    "minimumVersion": "109.0.1518.78",
+    "isReady": true
+  },
+  "target": {
+    "status": "NotFound",
+    "diagnosticCode": "TARGET_NOT_FOUND",
+    "candidates": [],
+    "target": null
+  },
+  "captureFallback": "BitBlt",
+  "inputAdapter": "BrokerInputAdapter",
+  "inputStatus": "BROKER_NOT_ARMED",
+  "wgcStatus": "WINDOWS_PENDING",
+  "modelStatus": "MODEL_PENDING"
+}

@@ -71,6 +71,7 @@ public sealed class ContractV2Tests
     {
         Assert.Contains("PreviewBoundsChanged", Enum.GetNames<UiCommandType>());
         Assert.Contains("VisionStatusUpdated", Enum.GetNames<HostEventType>());
+        Assert.Contains("ConfigUpdated", Enum.GetNames<HostEventType>());
     }
 
     [Fact]

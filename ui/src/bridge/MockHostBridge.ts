@@ -1,5 +1,5 @@
 import { CONTRACT_SCHEMA_VERSION, uiCommandSchema, type HostEvent, type UiCommand } from '../contracts/bridge'
-import { createMockSessionEvents, createMockTelemetryEvent } from '../mock/mockSession'
+import { createMockSessionEvents, createMockTelemetryEvent, mockCombatConfiguration } from '../mock/mockSession'
 import type { BridgeResult, HostBridge, HostEventListener } from './HostBridge'
 
 export interface MockHostBridgeOptions {
@@ -29,6 +29,9 @@ export function createMockHostBridge(options: MockHostBridgeOptions = {}): HostB
     hotkeys: { pauseResume: 'F9', emergencyStop: 'F12' },
     errorCode: null,
   }
+  let combatConfiguration: Extract<HostEvent, { type: 'config.updated' }>['payload'] = { ...mockCombatConfiguration }
+  let mapScan: Extract<HostEvent, { type: 'map.scan.updated' }>['payload'] = { scanning: false, frameIds: [] }
+  let mapStatus: Extract<HostEvent, { type: 'map.status.updated' }>['payload'] | undefined
 
   const emit = (event: HostEvent) => {
     if (disposed) return
@@ -40,6 +43,8 @@ export function createMockHostBridge(options: MockHostBridgeOptions = {}): HostB
   }
   const emitCloudStatus = () => emit({ schemaVersion: CONTRACT_SCHEMA_VERSION, type: 'cloud.status.updated', payload: cloudStatus })
   const emitInputStatus = () => emit({ schemaVersion: CONTRACT_SCHEMA_VERSION, type: 'input.status.updated', payload: inputStatus })
+  const emitMapScan = () => emit({ schemaVersion: CONTRACT_SCHEMA_VERSION, type: 'map.scan.updated', payload: mapScan })
+  const emitMapStatus = () => { if (mapStatus) emit({ schemaVersion: CONTRACT_SCHEMA_VERSION, type: 'map.status.updated', payload: mapStatus }) }
 
   let interval: ReturnType<typeof setInterval> | undefined
 
@@ -50,6 +55,8 @@ export function createMockHostBridge(options: MockHostBridgeOptions = {}): HostB
   const requestSnapshot = (): BridgeResult => {
     if (disposed) return { ok: false, reason: 'disposed' }
     createMockSessionEvents(tick).forEach(emit)
+    emitMapScan()
+    emitMapStatus()
     return { ok: true }
   }
 
@@ -82,9 +89,26 @@ export function createMockHostBridge(options: MockHostBridgeOptions = {}): HostB
           inputStatus = { ...inputStatus, status: 'paused', activeKeys: [], lastReleaseSucceeded: true }; emitInputStatus()
           emitSessionState('EmergencyStop', 'OperatorRequested')
           break
-        case 'map.scan.start': emitSessionState('MapScanning', 'None'); break
-        case 'map.calibration.start': emitSessionState('MapCalibrating', 'None'); break
+        case 'map.scan.start':
+          mapScan = { scanning: true, frameIds: [] }
+          emitMapScan()
+          emitSessionState('MapScanning', 'None')
+          break
+        case 'map.calibration.start':
+          mapScan = { scanning: false, frameIds: [100, 101, 102, 103] }
+          emitMapScan()
+          emitSessionState('MapCalibrating', 'None')
+          break
+        case 'map.calibration.confirm':
+          {
+            const mapId = (result.data as Extract<UiCommand, { type: 'map.calibration.confirm' }>).payload.mapId
+            mapStatus = { mapId, state: 'validated', coverage: 0.92, calibrationErrorPx: 2, platformCount: 8, ladderCount: 3, errors: [], canProduceActions: true }
+            emitMapStatus()
+            break
+          }
         case 'config.update':
+          combatConfiguration = { ...combatConfiguration, ...result.data.payload }
+          emit({ schemaVersion: CONTRACT_SCHEMA_VERSION, type: 'config.updated', payload: combatConfiguration })
           emit({ schemaVersion: CONTRACT_SCHEMA_VERSION, type: 'log.appended', payload: { level: 'info', code: 'CONFIG_UPDATED', message: '模拟宿主已接收配置更新' } })
           break
         case 'cloud.credential.set':
@@ -106,7 +130,18 @@ export function createMockHostBridge(options: MockHostBridgeOptions = {}): HostB
           emitCloudStatus()
           break
         case 'cloud.map.annotate':
-          emit({ schemaVersion: CONTRACT_SCHEMA_VERSION, type: 'log.appended', payload: { level: 'info', code: 'CLOUD_MAP_CANDIDATE', message: '模拟百炼已生成地图候选' } })
+          mapStatus = {
+            mapId: result.data.payload.mapId,
+            state: 'candidate',
+            coverage: 0.92,
+            calibrationErrorPx: 2,
+            platformCount: 8,
+            ladderCount: 3,
+            errors: [],
+            canProduceActions: false,
+          }
+          emitMapStatus()
+          emit({ schemaVersion: CONTRACT_SCHEMA_VERSION, type: 'log.appended', payload: { level: 'info', code: 'CLOUD_MAP_ANNOTATED', message: '模拟百炼已完成初始地图结构标注' } })
           break
       }
       return { ok: true }

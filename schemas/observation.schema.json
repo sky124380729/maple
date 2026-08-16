@@ -71,12 +71,12 @@
         {
           "type": "object", "additionalProperties": false,
           "required": ["mode", "value", "confidence", "freshUntilMonoMs"],
-          "properties": { "mode": { "const": "percent" }, "value": { "type": "number", "minimum": 0, "maximum": 1 }, "confidence": { "$ref": "#/$defs/confidence" }, "freshUntilMonoMs": { "$ref": "#/$defs/monoMs" } }
+          "properties": { "mode": { "const": "percent" }, "value": { "type": "number", "minimum": 0, "maximum": 1 }, "currentValue": { "type": "number", "minimum": 0 }, "maximumValue": { "type": "number", "exclusiveMinimum": 0 }, "confidence": { "$ref": "#/$defs/confidence" }, "freshUntilMonoMs": { "$ref": "#/$defs/monoMs" } }
         },
         {
           "type": "object", "additionalProperties": false,
           "required": ["mode", "value", "confidence", "freshUntilMonoMs"],
-          "properties": { "mode": { "const": "absolute" }, "value": { "type": "number", "minimum": 0 }, "confidence": { "$ref": "#/$defs/confidence" }, "freshUntilMonoMs": { "$ref": "#/$defs/monoMs" } }
+          "properties": { "mode": { "const": "absolute" }, "value": { "type": "number", "minimum": 0 }, "currentValue": { "type": "number", "minimum": 0 }, "maximumValue": { "type": "number", "exclusiveMinimum": 0 }, "confidence": { "$ref": "#/$defs/confidence" }, "freshUntilMonoMs": { "$ref": "#/$defs/monoMs" } }
         }
       ]
     },

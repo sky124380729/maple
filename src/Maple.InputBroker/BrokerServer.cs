@@ -1,5 +1,6 @@
 using System;
 using System.IO.Pipes;
+using System.Security.AccessControl;
 using System.Threading;
 using System.Threading.Tasks;
 using Maple.Input;
@@ -36,14 +37,15 @@ public sealed class BrokerServer
 
     public async Task RunAsync(CancellationToken token)
     {
-        using var pipe = new NamedPipeServerStream(
+        using var pipe = NamedPipeServerStreamAcl.Create(
             pipeName,
             PipeDirection.InOut,
             1,
             PipeTransmissionMode.Byte,
-            PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly,
+            PipeOptions.Asynchronous,
             BrokerMessageCodec.MaximumMessageBytes,
-            BrokerMessageCodec.MaximumMessageBytes);
+            BrokerMessageCodec.MaximumMessageBytes,
+            BrokerPipeSecurity.CreateForCurrentUser());
         await pipe.WaitForConnectionAsync(token);
         int clientPid = BrokerClientIdentity.GetClientProcessId(pipe.SafePipeHandle);
         if (clientPid != expectedParentPid)

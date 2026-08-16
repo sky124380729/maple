@@ -13,6 +13,8 @@ public sealed record CloudRuntimeStatus(
     string? LastErrorCode,
     bool UploadConsent);
 
+public sealed record MapAnnotationCompletedEvent(string MapId, BailianMapResult Result);
+
 /// <summary>Consumes routed UI intent while keeping credentials and cloud responses native-only.</summary>
 public sealed class HostCommandDispatcher : IDisposable
 {
@@ -20,6 +22,10 @@ public sealed class HostCommandDispatcher : IDisposable
     private readonly BailianHttpClient bailian;
     private readonly BailianMapAnnotationService? mapAnnotation;
     private readonly IMapScanController? mapScan;
+    private readonly ICombatConfigurationStore? combatConfiguration;
+    private readonly Action? pauseBeforeConfiguration;
+    private readonly ActiveMapRuntime? activeMapRuntime;
+    private readonly IInputAcceptanceController? inputAcceptance;
     private bool enabled;
     private bool uploadConsent;
     private string modelId = BailianModelCatalog.DefaultModelId;
@@ -29,17 +35,28 @@ public sealed class HostCommandDispatcher : IDisposable
         IBailianCredentialStore credentialStore,
         BailianHttpClient bailian,
         BailianMapAnnotationService? mapAnnotation = null,
-        IMapScanController? mapScan = null)
+        IMapScanController? mapScan = null,
+        ICombatConfigurationStore? combatConfiguration = null,
+        Action? pauseBeforeConfiguration = null,
+        ActiveMapRuntime? activeMapRuntime = null,
+        IInputAcceptanceController? inputAcceptance = null)
     {
         this.credentialStore = credentialStore ?? throw new ArgumentNullException(nameof(credentialStore));
         this.bailian = bailian ?? throw new ArgumentNullException(nameof(bailian));
         this.mapAnnotation = mapAnnotation;
         this.mapScan = mapScan;
+        this.combatConfiguration = combatConfiguration;
+        this.pauseBeforeConfiguration = pauseBeforeConfiguration;
+        this.activeMapRuntime = activeMapRuntime;
+        this.inputAcceptance = inputAcceptance;
     }
 
     public CloudRuntimeStatus Status { get; private set; } = new(false, false, BailianModelCatalog.DefaultModelId, "notConfigured", false, null, false);
     public event EventHandler<CloudRuntimeStatus>? StatusChanged;
-    public event EventHandler<BailianMapResult>? MapAnnotationCompleted;
+    public event EventHandler<MapAnnotationCompletedEvent>? MapAnnotationCompleted;
+    public event EventHandler<CombatConfiguration>? CombatConfigurationChanged;
+    public event EventHandler<ActiveMapStatus>? MapStatusChanged;
+    public event EventHandler<InputResult>? InputResultPublished;
 
     public void Handle(BridgeRouteResult route)
     {
@@ -61,8 +78,17 @@ public sealed class HostCommandDispatcher : IDisposable
                 case UiCommandType.MapCalibrationStart:
                     mapScan?.StopScan();
                     break;
+                case UiCommandType.MapCalibrationConfirm:
+                    ConfirmMap(payload.RootElement);
+                    break;
                 case UiCommandType.CloudCredentialSet:
                     await SetCredentialAsync(payload.RootElement, cancellationToken).ConfigureAwait(false);
+                    break;
+                case UiCommandType.ConfigUpdate:
+                    await UpdateCombatConfigurationAsync(payload.RootElement, cancellationToken).ConfigureAwait(false);
+                    break;
+                case UiCommandType.InputTest:
+                    await RunInputTestAsync(payload.RootElement, cancellationToken).ConfigureAwait(false);
                     break;
                 case UiCommandType.CloudCredentialClear:
                     await credentialStore.ClearAsync(cancellationToken).ConfigureAwait(false);
@@ -95,6 +121,88 @@ public sealed class HostCommandDispatcher : IDisposable
         await credentialStore.SetAsync(value.AsMemory(), cancellationToken).ConfigureAwait(false);
         Publish("notConfigured", null, false);
     }
+
+    private async Task RunInputTestAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        if (inputAcceptance is null) throw new ArgumentException("input acceptance unavailable");
+        if (!payload.TryGetProperty("kind", out JsonElement kindElement)
+            || !payload.TryGetProperty("holdMs", out JsonElement holdElement))
+            throw new ArgumentException("input test payload");
+
+        InputAcceptanceKind kind = kindElement.GetString() switch
+        {
+            "moveLeft" => InputAcceptanceKind.MoveLeft,
+            "moveRight" => InputAcceptanceKind.MoveRight,
+            "climbUp" => InputAcceptanceKind.ClimbUp,
+            "climbDown" => InputAcceptanceKind.ClimbDown,
+            "jump" => InputAcceptanceKind.Jump,
+            "attack" => InputAcceptanceKind.Attack,
+            "pickup" => InputAcceptanceKind.Pickup,
+            "hpPotion" => InputAcceptanceKind.HpPotion,
+            "mpPotion" => InputAcceptanceKind.MpPotion,
+            _ => throw new ArgumentException("input test kind"),
+        };
+        InputResult result = await inputAcceptance.RunAsync(kind, holdElement.GetInt32(), cancellationToken).ConfigureAwait(false);
+        InputResultPublished?.Invoke(this, result);
+    }
+
+    private void ConfirmMap(JsonElement payload)
+    {
+        if (activeMapRuntime is null || !payload.TryGetProperty("mapId", out JsonElement mapIdElement))
+            throw new ArgumentException("map calibration unavailable");
+        string mapId = mapIdElement.GetString() ?? throw new ArgumentException("mapId");
+        ActiveMapStatus status = activeMapRuntime.ConfirmCandidate(mapId);
+        MapStatusChanged?.Invoke(this, status);
+    }
+
+    private async Task UpdateCombatConfigurationAsync(JsonElement payload, CancellationToken cancellationToken)
+    {
+        if (combatConfiguration is null) throw new ArgumentException("combat configuration unavailable");
+        pauseBeforeConfiguration?.Invoke();
+        CombatConfiguration current = combatConfiguration.Current;
+        CombatConfiguration updated = current with
+        {
+            AttackMode = ReadAttackMode(payload, "attackMode", current.AttackMode),
+            HpThresholdMode = ReadResourceMode(payload, "hpThresholdMode", current.HpThresholdMode),
+            HpThreshold = ReadDouble(payload, "hpThreshold", current.HpThreshold),
+            MpThresholdMode = ReadResourceMode(payload, "mpThresholdMode", current.MpThresholdMode),
+            MpThreshold = ReadDouble(payload, "mpThreshold", current.MpThreshold),
+            SingleAttackKey = ReadString(payload, "singleAttackKey", ReadString(payload, "attackKey", current.SingleAttackKey)),
+            AreaAttackKey = ReadString(payload, "areaAttackKey", current.AreaAttackKey),
+            HpPotionKey = ReadString(payload, "hpPotionKey", current.HpPotionKey),
+            MpPotionKey = ReadString(payload, "mpPotionKey", current.MpPotionKey),
+            JumpKey = ReadString(payload, "jumpKey", current.JumpKey),
+            PickupEnabled = ReadBool(payload, "pickupEnabled", current.PickupEnabled),
+            PickupKey = ReadString(payload, "pickupKey", current.PickupKey),
+            PreferredDistancePx = ReadInt(payload, "preferredDistancePx", current.PreferredDistancePx),
+            AreaTargetCount = ReadInt(payload, "areaTargetCount", current.AreaTargetCount),
+            SwitchCooldownMs = ReadInt(payload, "switchCooldownMs", current.SwitchCooldownMs),
+        };
+        await combatConfiguration.SaveAsync(updated, cancellationToken).ConfigureAwait(false);
+        CombatConfigurationChanged?.Invoke(this, combatConfiguration.Current);
+    }
+
+    private static CombatAttackMode ReadAttackMode(JsonElement payload, string name, CombatAttackMode fallback) =>
+        payload.TryGetProperty(name, out JsonElement value) ? value.GetString() switch
+        {
+            "single" => CombatAttackMode.Single,
+            "auto" => CombatAttackMode.Auto,
+            "group" => CombatAttackMode.Group,
+            _ => throw new ArgumentException(name),
+        } : fallback;
+
+    private static ResourceMode ReadResourceMode(JsonElement payload, string name, ResourceMode fallback) =>
+        payload.TryGetProperty(name, out JsonElement value) ? value.GetString() switch
+        {
+            "percent" => ResourceMode.Percent,
+            "absolute" => ResourceMode.Absolute,
+            _ => throw new ArgumentException(name),
+        } : fallback;
+
+    private static string ReadString(JsonElement payload, string name, string fallback) => payload.TryGetProperty(name, out JsonElement value) ? value.GetString() ?? throw new ArgumentException(name) : fallback;
+    private static double ReadDouble(JsonElement payload, string name, double fallback) => payload.TryGetProperty(name, out JsonElement value) ? value.GetDouble() : fallback;
+    private static int ReadInt(JsonElement payload, string name, int fallback) => payload.TryGetProperty(name, out JsonElement value) ? value.GetInt32() : fallback;
+    private static bool ReadBool(JsonElement payload, string name, bool fallback) => payload.TryGetProperty(name, out JsonElement value) ? value.GetBoolean() : fallback;
 
     private void UpdateConfiguration(JsonElement payload)
     {
@@ -139,7 +247,7 @@ public sealed class HostCommandDispatcher : IDisposable
         if (result.Status == BailianMapStatus.Success)
         {
             Publish("ready", null, false);
-            MapAnnotationCompleted?.Invoke(this, result);
+            MapAnnotationCompleted?.Invoke(this, new MapAnnotationCompletedEvent(request.MapId, result));
             return;
         }
         Publish("unavailable", "MAP_ANNOTATION_" + result.Status.ToString().ToUpperInvariant(), false);

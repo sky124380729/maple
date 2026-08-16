@@ -5,6 +5,9 @@ import { run } from './portable-process.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const ui = path.join(root, 'ui')
+const npmCache = path.join(root, '.cache', 'npm')
+fs.mkdirSync(npmCache, { recursive: true })
+process.env.npm_config_cache = npmCache
 const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 const dotnetCommand = process.env.DOTNET_ROOT
   ? path.join(process.env.DOTNET_ROOT, process.platform === 'win32' ? 'dotnet.exe' : 'dotnet')
@@ -21,7 +24,12 @@ function walk(directory, predicate, output = []) {
 }
 
 run(process.execPath, ['--test', 'tests/tools/portable-process.test.mjs'], root)
-run(npmCommand, ['ci'], ui)
+if (process.platform === 'win32') {
+  run(npmCommand, ['install', '--ignore-scripts', '--no-audit', '--no-fund'], ui)
+  run('git', ['diff', '--exit-code', '--', 'ui/package-lock.json'], root)
+} else {
+  run(npmCommand, ['ci'], ui)
+}
 run(npmCommand, ['audit', '--audit-level=high'], ui)
 run(npmCommand, ['run', 'lint'], ui)
 run(npmCommand, ['run', 'typecheck'], ui)

@@ -1,6 +1,9 @@
 using System;
 using System.Buffers.Binary;
 using System.IO;
+using System.IO.Pipes;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -13,6 +16,20 @@ namespace Maple.InputBroker.Tests;
 
 public sealed class BrokerServerTests
 {
+    [Fact]
+    public void PipeAclAllowsOnlyCurrentWindowsUser()
+    {
+        SecurityIdentifier currentUser = WindowsIdentity.GetCurrent().User!;
+        PipeSecurity security = BrokerPipeSecurity.CreateForCurrentUser();
+        AuthorizationRuleCollection rules = security.GetAccessRules(true, false, typeof(SecurityIdentifier));
+
+        PipeAccessRule rule = Assert.Single(rules.Cast<PipeAccessRule>());
+        Assert.Equal(currentUser, rule.IdentityReference);
+        Assert.Equal(AccessControlType.Allow, rule.AccessControlType);
+        Assert.Equal(PipeAccessRights.FullControl, rule.PipeAccessRights);
+        Assert.True(security.AreAccessRulesProtected);
+    }
+
     [Fact]
     public void ValidatorRejectsWrongProtocolVersion()
     {

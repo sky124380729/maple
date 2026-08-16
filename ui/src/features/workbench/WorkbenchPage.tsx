@@ -13,6 +13,7 @@ import { HealthPanel } from './HealthPanel'
 import { SessionControls } from './SessionControls'
 import { StatusPill } from './presentation'
 import { TargetStatus } from './TargetStatus'
+import { MapCalibrationDrawer } from '../map/MapCalibrationDrawer'
 
 function createDevelopmentBridge(): HostBridge {
   const nativeBridge = createHostBridge()
@@ -35,6 +36,7 @@ export function WorkbenchPage({ bridge: suppliedBridge }: { bridge?: HostBridge 
   const telemetry = useStore(telemetryStore, (state) => state.latest)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [pausedForSettings, setPausedForSettings] = useState(false)
+  const [mapOpen, setMapOpen] = useState(false)
 
   useEffect(() => {
     const bridge = suppliedBridge ?? createDevelopmentBridge()
@@ -84,7 +86,7 @@ export function WorkbenchPage({ bridge: suppliedBridge }: { bridge?: HostBridge 
         </div>
       </header>
       <div className="workbench-grid">
-        <SessionControls sessionState={session.sessionState} inputStatus={session.inputStatus} resumeCountdown={session.resumeCountdown} sendCommand={sendCommand} />
+        <SessionControls sessionState={session.sessionState} inputStatus={session.inputStatus} lastInputResult={session.lastInputResult} resumeCountdown={session.resumeCountdown} configuration={session.combatConfiguration} observation={session.observation} mapStatus={session.mapStatus} onOpenMap={() => setMapOpen(true)} sendCommand={sendCommand} />
         <PreviewRegion preview={session.preview} observation={session.observation} telemetry={telemetry} onRequestSnapshot={requestSnapshot} sendCommand={sendCommand} />
         <HealthPanel sessionState={session.sessionState} pauseReason={session.pauseReason} observation={session.observation} telemetry={telemetry} visionStatus={session.visionStatus} preview={session.preview} inputStatus={session.inputStatus} logs={session.logs} onRefresh={requestSnapshot} />
       </div>
@@ -92,11 +94,15 @@ export function WorkbenchPage({ bridge: suppliedBridge }: { bridge?: HostBridge 
         className="settings-drawer"
         title="系统设置"
         placement="right"
-        size={420}
+        size={380}
+        styles={{ body: { background: '#10161d', padding: 18 } }}
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
       >
         <SettingsPage cloudStatus={session.cloudStatus} pausedForSettings={pausedForSettings} sendCommand={sendSettingsCommand} />
+      </Drawer>
+      <Drawer className="map-drawer" title="地图视觉标定" placement="right" size={420} open={mapOpen} onClose={() => setMapOpen(false)}>
+        <MapCalibrationDrawer observation={session.observation} mapStatus={session.mapStatus} mapScan={session.mapScan} cloudStatus={session.cloudStatus} sendCommand={sendCommand} />
       </Drawer>
     </div>
   )

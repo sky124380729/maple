@@ -18,7 +18,7 @@ export default defineConfig({
     { name: 'mobile-chromium', use: { ...devices['Pixel 5'], viewport: { width: 390, height: 844 } } },
   ],
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1',
+    command: 'node node_modules/vite/bin/vite.js preview --configLoader runner --host 127.0.0.1 --port 5173',
     url: 'http://127.0.0.1:5173',
     reuseExistingServer: true,
     timeout: 120_000,

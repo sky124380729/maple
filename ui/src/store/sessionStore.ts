@@ -1,5 +1,6 @@
 import { createStore } from 'zustand/vanilla'
-import type { HostEvent, InputBrokerStatus, ObservationSnapshot, PauseReason, SessionState, TargetBinding, VisionStatus } from '../contracts/bridge'
+import type { CombatConfiguration, HostEvent, InputBrokerStatus, InputResult, MapRuntimeStatus, MapScanStatus, ObservationSnapshot, PauseReason, SessionState, TargetBinding, VisionStatus } from '../contracts/bridge'
+import { defaultCombatConfiguration } from '../features/workbench/combatConfiguration'
 
 type PreviewAvailability = Extract<HostEvent, { type: 'preview.availabilityChanged' }>['payload']
 type LogEntry = Extract<HostEvent, { type: 'log.appended' }>['payload']
@@ -16,6 +17,10 @@ export interface SessionStoreState {
   cloudStatus: CloudStatus
   inputStatus: InputBrokerStatus
   visionStatus: VisionStatus
+  combatConfiguration: CombatConfiguration
+  mapStatus?: MapRuntimeStatus
+  mapScan?: MapScanStatus
+  lastInputResult?: InputResult
   applyHostEvent(event: HostEvent): void
   reset(): void
 }
@@ -36,6 +41,7 @@ const initialState = {
     errorCode: null,
   },
   visionStatus: { status: 'notConfigured' as const, modelId: null, provider: 'none' as const, diagnostic: 'MODEL_NOT_CONFIGURED' },
+  combatConfiguration: { ...defaultCombatConfiguration },
   cloudStatus: {
     provider: 'bailian' as const,
     enabled: false,
@@ -59,10 +65,14 @@ export function createSessionStore() {
         case 'log.appended': set((state) => ({ logs: [...state.logs, event.payload].slice(-200) })); break
         case 'cloud.status.updated': set({ cloudStatus: event.payload }); break
         case 'input.status.updated': set({ inputStatus: event.payload }); break
+        case 'input.result': set({ lastInputResult: event.payload }); break
         case 'vision.status.updated': set((state) => ({
           visionStatus: event.payload,
-          observation: event.payload.status === 'ready' ? state.observation : undefined,
+          observation: event.payload.status === 'faulted' || event.payload.status === 'notConfigured' ? undefined : state.observation,
         })); break
+        case 'config.updated': set({ combatConfiguration: event.payload }); break
+        case 'map.status.updated': set({ mapStatus: event.payload }); break
+        case 'map.scan.updated': set({ mapScan: event.payload }); break
       }
     },
     reset() { set(initialState) },

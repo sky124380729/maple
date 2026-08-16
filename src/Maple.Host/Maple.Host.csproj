@@ -38,6 +38,12 @@
              CopyToOutputDirectory="PreserveNewest"
              CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+  <ItemGroup Condition="Exists('..\..\assets\tessdata\eng.traineddata')">
+    <Content Include="..\..\assets\tessdata\eng.traineddata"
+             Link="tessdata\eng.traineddata"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
   <Target Name="ValidateReactAssets" BeforeTargets="Publish">
     <Error Condition="!Exists('..\..\ui\dist\index.html')"
            Text="React assets are missing. Run tools/build-react-ui.ps1 before publishing." />

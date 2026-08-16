@@ -14,6 +14,8 @@ public interface IMapScanController
     void StopScan();
 }
 
+public sealed record MapScanStatus(bool Scanning, IReadOnlyList<long> FrameIds);
+
 public sealed class MapFrameSourceException(string code, string message) : InvalidOperationException(message)
 {
     public string Code { get; } = code;
@@ -32,6 +34,12 @@ public sealed class MapScanFrameStore : IMapImageSource, ICaptureFrameObserver, 
     private int generation;
     private bool scanning;
     private bool disposed;
+    public event EventHandler<MapScanStatus>? StatusChanged;
+
+    public MapScanStatus Status
+    {
+        get { lock (sync) return new MapScanStatus(scanning, images.Keys.ToArray()); }
+    }
 
     public MapScanFrameStore(IMapFrameEncoder encoder, int minimumFrameIntervalMs = 1000, int capacity = 32)
     {
@@ -53,6 +61,7 @@ public sealed class MapScanFrameStore : IMapImageSource, ICaptureFrameObserver, 
             lastRecordedAtMonoMs = long.MinValue;
             images.Clear();
         }
+        PublishStatus();
     }
 
     public void StopScan()
@@ -62,6 +71,7 @@ public sealed class MapScanFrameStore : IMapImageSource, ICaptureFrameObserver, 
             ObjectDisposedException.ThrowIf(disposed, this);
             scanning = false;
         }
+        PublishStatus();
     }
 
     public void Observe(CapturedFrame frame)
@@ -92,6 +102,7 @@ public sealed class MapScanFrameStore : IMapImageSource, ICaptureFrameObserver, 
             images[frame.Metadata.FrameId] = new BailianMapImage(frame.Metadata.FrameId, "image/png", png);
             while (images.Count > capacity) images.Remove(images.First().Key);
         }
+        PublishStatus();
     }
 
     public ValueTask<IReadOnlyList<BailianMapImage>> ReadAsync(
@@ -132,4 +143,6 @@ public sealed class MapScanFrameStore : IMapImageSource, ICaptureFrameObserver, 
             images.Clear();
         }
     }
+
+    private void PublishStatus() => StatusChanged?.Invoke(this, Status);
 }

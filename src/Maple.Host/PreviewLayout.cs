@@ -37,14 +37,18 @@ public static class PreviewLayout
         if (!IsFinite(intent.Left) || !IsFinite(intent.Top) || !IsFinite(intent.Width) || !IsFinite(intent.Height)
             || !IsFinite(intent.DevicePixelRatio)
             || intent.Left < 0 || intent.Top < 0 || intent.Width <= 0 || intent.Height <= 0
-            || intent.DevicePixelRatio <= 0
-            || intent.Left >= browserClientSize.Width || intent.Top >= browserClientSize.Height)
+            || intent.DevicePixelRatio <= 0)
             throw new ArgumentOutOfRangeException(nameof(intent));
 
-        int left = Math.Clamp((int)Math.Floor(intent.Left), 0, browserClientSize.Width - 1);
-        int top = Math.Clamp((int)Math.Floor(intent.Top), 0, browserClientSize.Height - 1);
-        int width = Math.Min((int)Math.Round(intent.Width), browserClientSize.Width - left);
-        int height = Math.Min((int)Math.Round(intent.Height), browserClientSize.Height - top);
+        double scale = intent.DevicePixelRatio;
+        double scaledLeft = intent.Left * scale;
+        double scaledTop = intent.Top * scale;
+        if (scaledLeft >= browserClientSize.Width || scaledTop >= browserClientSize.Height)
+            throw new ArgumentOutOfRangeException(nameof(intent));
+        int left = Math.Clamp((int)Math.Floor(scaledLeft), 0, browserClientSize.Width - 1);
+        int top = Math.Clamp((int)Math.Floor(scaledTop), 0, browserClientSize.Height - 1);
+        int width = Math.Min((int)Math.Round(intent.Width * scale), browserClientSize.Width - left);
+        int height = Math.Min((int)Math.Round(intent.Height * scale), browserClientSize.Height - top);
         if (width <= 0 || height <= 0) throw new ArgumentOutOfRangeException(nameof(intent));
         return new Rectangle(left, top, width, height);
     }

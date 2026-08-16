@@ -37,7 +37,7 @@ public interface IForegroundSessionDelay
     Task DelayAsync(TimeSpan delay, CancellationToken cancellationToken);
 }
 
-public sealed class ForegroundSessionController : IDisposable
+public sealed class ForegroundSessionController : IAutomaticCombatInputSession, IDisposable
 {
     private readonly ITargetWindowLocator locator;
     private readonly IForegroundWindowController foreground;
@@ -124,8 +124,7 @@ public sealed class ForegroundSessionController : IDisposable
                 await delay.DelayAsync(TimeSpan.FromSeconds(1), transitionToken).ConfigureAwait(false);
             }
 
-            if (!foreground.TryActivate(hwnd))
-                return Fail("TARGET_ACTIVATION_FAILED", PauseReason.WindowNotForeground);
+            bool activationRequested = foreground.TryActivate(hwnd);
 
             bool confirmed = false;
             for (int attempt = 0; attempt < 20; attempt++)
@@ -137,14 +136,21 @@ public sealed class ForegroundSessionController : IDisposable
                 }
                 await delay.DelayAsync(TimeSpan.FromMilliseconds(50), transitionToken).ConfigureAwait(false);
             }
-            if (!confirmed) return Fail("TARGET_FOREGROUND_TIMEOUT", PauseReason.WindowNotForeground);
+            if (!confirmed)
+                return Fail(
+                    activationRequested ? "TARGET_FOREGROUND_TIMEOUT" : "TARGET_ACTIVATION_FAILED",
+                    PauseReason.WindowNotForeground);
 
             WindowIdentity? confirmedTarget = locator.Locate().Target;
-            if (confirmedTarget is null
-                || !SameIdentity(target, confirmedTarget)
-                || !confirmedTarget.IsForeground
-                || confirmedTarget.IsMinimized)
-                return Fail("TARGET_IDENTITY_CHANGED", PauseReason.TargetLost);
+            if (confirmedTarget is null)
+                return Fail("TARGET_LOST_AFTER_ACTIVATION", PauseReason.TargetLost);
+            string? identityMismatch = GetIdentityMismatchCode(target, confirmedTarget);
+            if (identityMismatch is not null)
+                return Fail(identityMismatch, PauseReason.TargetLost);
+            if (confirmedTarget.IsMinimized)
+                return Fail("TARGET_MINIMIZED_AFTER_ACTIVATION", PauseReason.TargetLost);
+            if (!confirmedTarget.IsForeground)
+                return Fail("TARGET_FOREGROUND_RACE", PauseReason.WindowNotForeground);
 
             try
             {
@@ -357,13 +363,16 @@ public sealed class ForegroundSessionController : IDisposable
         || code.StartsWith("BROKER_", StringComparison.Ordinal)
         || code.StartsWith("HOTKEY_", StringComparison.Ordinal);
 
-    private static bool SameIdentity(WindowIdentity expected, WindowIdentity actual) =>
-        string.Equals(expected.Hwnd, actual.Hwnd, StringComparison.OrdinalIgnoreCase)
-        && expected.Pid == actual.Pid
-        && expected.ProcessStartedAtUtc == actual.ProcessStartedAtUtc
-        && string.Equals(expected.ProcessPathSha256, actual.ProcessPathSha256, StringComparison.OrdinalIgnoreCase)
-        && string.Equals(expected.ProcessPath, actual.ProcessPath, StringComparison.OrdinalIgnoreCase)
-        && string.Equals(expected.ClassName, actual.ClassName, StringComparison.Ordinal);
+    private static string? GetIdentityMismatchCode(WindowIdentity expected, WindowIdentity actual)
+    {
+        if (!string.Equals(expected.Hwnd, actual.Hwnd, StringComparison.OrdinalIgnoreCase)) return "TARGET_HWND_CHANGED";
+        if (expected.Pid != actual.Pid) return "TARGET_PID_CHANGED";
+        if (expected.ProcessStartedAtUtc != actual.ProcessStartedAtUtc) return "TARGET_START_TIME_CHANGED";
+        if (!string.Equals(expected.ProcessPathSha256, actual.ProcessPathSha256, StringComparison.OrdinalIgnoreCase)) return "TARGET_PATH_HASH_CHANGED";
+        if (!string.Equals(expected.ProcessPath, actual.ProcessPath, StringComparison.OrdinalIgnoreCase)) return "TARGET_PATH_CHANGED";
+        if (!string.Equals(expected.ClassName, actual.ClassName, StringComparison.Ordinal)) return "TARGET_CLASS_CHANGED";
+        return null;
+    }
 
     private static bool TryParseHwnd(string value, out nint hwnd)
     {

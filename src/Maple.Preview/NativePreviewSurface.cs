@@ -14,6 +14,7 @@ namespace Maple.Preview
         private readonly Queue<long> paintTimestamps = new Queue<long>();
         private OverlaySnapshot overlay;
         private PreviewTelemetrySnapshot telemetry;
+        private long telemetryPublishedAtMonoMs;
         private long nowMonoMs;
 
         public NativePreviewSurface()
@@ -41,7 +42,15 @@ namespace Maple.Preview
 
         public void PublishTelemetry(PreviewTelemetrySnapshot snapshot)
         {
-            lock (overlaySync) telemetry = snapshot;
+            long now = Environment.TickCount64;
+            lock (overlaySync)
+            {
+                if (telemetry == null || now - telemetryPublishedAtMonoMs >= 1000 || SeverityChanged(telemetry, snapshot))
+                {
+                    telemetry = snapshot;
+                    telemetryPublishedAtMonoMs = now;
+                }
+            }
             Invalidate();
         }
 
@@ -126,30 +135,30 @@ namespace Maple.Preview
         {
             if (model.HudBands.Count == 0 || destination.Width < 180 || destination.Height < 140) return;
             const int gap = 4;
-            const int bandHeight = 21;
-            int width = Math.Min(330, destination.Width - 16);
+            const int bandHeight = 25;
+            int width = Math.Min(390, destination.Width - 16);
             int totalHeight = model.HudBands.Count * bandHeight + (model.HudBands.Count - 1) * gap;
             bool right = model.HudCorner is PreviewHudCorner.TopRight or PreviewHudCorner.BottomRight;
             bool bottom = model.HudCorner is PreviewHudCorner.BottomLeft or PreviewHudCorner.BottomRight;
             int x = right ? destination.Right - width - 8 : destination.Left + 8;
             int y = bottom ? destination.Bottom - totalHeight - 8 : destination.Top + 8;
 
-            using var font = new Font("Microsoft YaHei UI", 7.5F, FontStyle.Regular);
-            using var labelFont = new Font("Microsoft YaHei UI", 7.5F, FontStyle.Bold);
+            using var font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            using var labelFont = new Font("Segoe UI", 9F, FontStyle.Bold);
             for (int index = 0; index < model.HudBands.Count; index++)
             {
                 PreviewHudBand band = model.HudBands[index];
                 Rectangle row = new Rectangle(x, y + index * (bandHeight + gap), width, bandHeight);
                 Color accent = SeverityColor(band.Severity);
-                using var background = new SolidBrush(Color.FromArgb(218, 8, 16, 23));
-                using var border = new Pen(Color.FromArgb(145, accent), 1F);
+                using var background = new SolidBrush(Color.FromArgb(156, 3, 8, 8));
+                using var border = new Pen(Color.FromArgb(110, accent), 1F);
                 using var labelBrush = new SolidBrush(accent);
-                using var valueBrush = new SolidBrush(Color.FromArgb(224, 226, 235, 242));
+                using var valueBrush = new SolidBrush(accent);
                 graphics.FillRectangle(background, row);
                 graphics.DrawRectangle(border, row);
-                graphics.DrawString(band.Label, labelFont, labelBrush, row.X + 6, row.Y + 4);
+                graphics.DrawString(band.Label, labelFont, labelBrush, row.X + 8, row.Y + 4);
                 using var format = new StringFormat { Trimming = StringTrimming.EllipsisCharacter, FormatFlags = StringFormatFlags.NoWrap };
-                graphics.DrawString(band.Value, font, valueBrush, new RectangleF(row.X + 60, row.Y + 3, row.Width - 66, row.Height - 4), format);
+                graphics.DrawString(band.Value, font, valueBrush, new RectangleF(row.X + 46, row.Y + 4, row.Width - 54, row.Height - 5), format);
             }
         }
 
@@ -157,8 +166,11 @@ namespace Maple.Preview
         {
             PreviewHudSeverity.Warning => Color.FromArgb(232, 189, 101),
             PreviewHudSeverity.Critical => Color.FromArgb(255, 100, 116),
-            _ => Color.FromArgb(85, 199, 247),
+            _ => Color.FromArgb(118, 204, 0),
         };
+
+        private static bool SeverityChanged(PreviewTelemetrySnapshot previous, PreviewTelemetrySnapshot current) =>
+            !string.Equals(previous.WarningCode, current.WarningCode, StringComparison.Ordinal);
 
         private void DrawEmpty(Graphics graphics)
         {

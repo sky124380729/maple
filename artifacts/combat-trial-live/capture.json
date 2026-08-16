@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 2,
+  "generatedAtUtc": "2026-08-16T04:22:51.2562987+00:00",
+  "success": false,
+  "code": "TARGET_NOT_FOREGROUND",
+  "requestedFrames": 30,
+  "capturedFrames": 0,
+  "hwnd": "0x00000000000206B0",
+  "pid": 27212,
+  "clientWidth": 2049,
+  "clientHeight": 1152,
+  "dpi": 96,
+  "processPathSha256": "e6eb36ee660ee1e018c012a397b86581d5b863476da7a7c7e0b707a00be87b61",
+  "captureBackends": {},
+  "effectiveFps": 0,
+  "p50CaptureDurationMs": 0,
+  "p95CaptureDurationMs": 0,
+  "inputStatus": "INPUT_INJECTION=DISABLED"
+}

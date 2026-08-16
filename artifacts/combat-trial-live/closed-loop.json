@@ -1,0 +1,15 @@
+{
+  "SchemaVersion": 1,
+  "Success": false,
+  "Code": "EVIDENCE_RUNNER_TaskCanceledException",
+  "StartFrameId": -1,
+  "LastFrameId": -1,
+  "ExecutedActions": 0,
+  "MovementActions": 0,
+  "AttackActions": 0,
+  "FeedbackFrameAdvanced": false,
+  "AllKeysReleased": true,
+  "PauseReason": "SafetyViolation",
+  "Actions": [],
+  "CompletedAtUtc": "2026-08-16T04:22:12.8791371+00:00"
+}

@@ -62,9 +62,9 @@ export const lootObservationSchema = z
   .strict()
 
 const resourceObservationSchema = z
-  .object({ mode: z.literal('percent'), value: z.number().min(0).max(1), confidence, freshUntilMonoMs: monoMs })
+    .object({ mode: z.literal('percent'), value: z.number().min(0).max(1), currentValue: z.number().nonnegative().optional(), maximumValue: z.number().positive().optional(), confidence, freshUntilMonoMs: monoMs })
   .strict()
-  .or(z.object({ mode: z.literal('absolute'), value: z.number().nonnegative(), confidence, freshUntilMonoMs: monoMs }).strict())
+  .or(z.object({ mode: z.literal('absolute'), value: z.number().nonnegative(), currentValue: z.number().nonnegative().optional(), maximumValue: z.number().positive().optional(), confidence, freshUntilMonoMs: monoMs }).strict())
 
 export const mapObservationSchema = z
   .object({
@@ -225,7 +225,10 @@ export const inputBrokerStatusSchema = z
     integrity: z.enum(['unknown', 'medium', 'high']),
     activeKeys: z.array(z.string().min(1).max(32)).max(16),
     lastReleaseSucceeded: z.boolean(),
-    hotkeys: z.object({ pauseResume: z.literal('F9'), emergencyStop: z.literal('F12') }).strict(),
+    hotkeys: z.object({
+      pauseResume: z.enum(['F9', 'Ctrl+Shift+F9']),
+      emergencyStop: z.enum(['F12', 'Ctrl+Shift+F12']),
+    }).strict(),
     errorCode: z.string().min(1).max(64).nullable(),
   })
   .strict()
@@ -248,6 +251,40 @@ export const visionStatusSchema = z.object({
   diagnostic: z.string().max(128).nullable(),
 }).strict()
 
+export const combatConfigurationSchema = z.object({
+  schemaVersion,
+  attackMode: z.enum(['single', 'auto', 'group']),
+  hpThresholdMode: z.enum(['percent', 'absolute']),
+  hpThreshold: z.number().finite().nonnegative(),
+  mpThresholdMode: z.enum(['percent', 'absolute']),
+  mpThreshold: z.number().finite().nonnegative(),
+  singleAttackKey: z.string().min(1).max(32),
+  areaAttackKey: z.string().min(1).max(32),
+  hpPotionKey: z.string().min(1).max(32),
+  mpPotionKey: z.string().min(1).max(32),
+  jumpKey: z.string().min(1).max(32),
+  pickupEnabled: z.boolean(),
+  pickupKey: z.string().min(1).max(32),
+  preferredDistancePx: z.number().int().min(20).max(500),
+  areaTargetCount: z.number().int().min(2).max(20),
+  switchCooldownMs: z.number().int().min(100).max(10_000),
+}).strict().superRefine((configuration, context) => {
+  if (configuration.hpThresholdMode === 'percent' && configuration.hpThreshold > 100) context.addIssue({ code: z.ZodIssueCode.custom, path: ['hpThreshold'], message: 'percentage must use 0..100' })
+  if (configuration.mpThresholdMode === 'percent' && configuration.mpThreshold > 100) context.addIssue({ code: z.ZodIssueCode.custom, path: ['mpThreshold'], message: 'percentage must use 0..100' })
+})
+
+export const mapRuntimeStatusSchema = z.object({
+  mapId: z.string().min(1).max(256),
+  state: z.enum(['candidate', 'validated', 'archived']),
+  coverage: z.number().min(0).max(1),
+  calibrationErrorPx: z.number().nonnegative(),
+  platformCount: z.number().int().nonnegative(),
+  ladderCount: z.number().int().nonnegative(),
+  errors: z.array(z.string().min(1).max(256)).max(128),
+  canProduceActions: z.boolean(),
+}).strict()
+export const mapScanStatusSchema = z.object({ scanning: z.boolean(), frameIds: z.array(z.number().int().nonnegative()).max(256) }).strict()
+
 export const emergencyStopCommandSchema = z
   .object({
     ...commandEnvelope,
@@ -261,10 +298,20 @@ const uiCommandVariants = [
   z.object({ ...commandEnvelope, type: z.literal('session.arm'), payload: emptyPayload }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('session.pause'), payload: emptyPayload }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('session.resume'), payload: emptyPayload }).strict(),
+  z.object({ ...commandEnvelope, type: z.literal('combat.trial.start'), payload: emptyPayload }).strict(),
   emergencyStopCommandSchema,
   z.object({ ...commandEnvelope, type: z.literal('map.scan.start'), payload: emptyPayload }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('map.calibration.start'), payload: emptyPayload }).strict(),
+  z.object({ ...commandEnvelope, type: z.literal('map.calibration.confirm'), payload: z.object({ mapId: z.string().trim().min(1).max(256) }).strict() }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('preview.boundsChanged'), payload: previewBoundsSchema }).strict(),
+  z.object({
+    ...commandEnvelope,
+    type: z.literal('input.test'),
+    payload: z.object({
+      kind: z.enum(['moveLeft', 'moveRight', 'climbUp', 'climbDown', 'jump', 'attack', 'pickup', 'hpPotion', 'mpPotion']),
+      holdMs: z.number().int().min(50).max(600),
+    }).strict(),
+  }).strict(),
   z.object({
     ...commandEnvelope,
     type: z.literal('config.update'),
@@ -275,9 +322,16 @@ const uiCommandVariants = [
       mpThresholdMode: z.enum(['percent', 'absolute']).optional(),
       mpThreshold: z.number().nonnegative().optional(),
       attackKey: z.string().min(1).max(32).optional(),
+      singleAttackKey: z.string().min(1).max(32).optional(),
+      areaAttackKey: z.string().min(1).max(32).optional(),
+      hpPotionKey: z.string().min(1).max(32).optional(),
+      mpPotionKey: z.string().min(1).max(32).optional(),
       jumpKey: z.string().min(1).max(32).optional(),
       pickupEnabled: z.boolean().optional(),
       pickupKey: z.string().min(1).max(32).optional(),
+      preferredDistancePx: z.number().int().min(20).max(500).optional(),
+      areaTargetCount: z.number().int().min(2).max(20).optional(),
+      switchCooldownMs: z.number().int().min(100).max(10_000).optional(),
     }).strict().superRefine((configuration, context) => {
       if (configuration.hpThresholdMode === 'percent' && configuration.hpThreshold !== undefined && configuration.hpThreshold > 100) {
         context.addIssue({ code: z.ZodIssueCode.custom, path: ['hpThreshold'], message: 'percentage must use the 0..100 bridge unit' })
@@ -327,6 +381,9 @@ const hostEventVariants = [
   z.object({ ...commandEnvelope, type: z.literal('log.appended'), payload: z.object({ level: z.enum(['debug', 'info', 'warn', 'error']), message: z.string().min(1).max(500), code: z.string().max(64).optional() }).strict() }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('preview.availabilityChanged'), payload: z.object({ available: z.boolean(), backend: z.enum(['native', 'browser-mock']).optional(), reason: z.string().max(200).optional() }).strict() }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('vision.status.updated'), payload: visionStatusSchema }).strict(),
+  z.object({ ...commandEnvelope, type: z.literal('config.updated'), payload: combatConfigurationSchema }).strict(),
+  z.object({ ...commandEnvelope, type: z.literal('map.status.updated'), payload: mapRuntimeStatusSchema }).strict(),
+  z.object({ ...commandEnvelope, type: z.literal('map.scan.updated'), payload: mapScanStatusSchema }).strict(),
   z.object({
     ...commandEnvelope,
     type: z.literal('cloud.status.updated'),
@@ -357,6 +414,9 @@ export type InputResult = z.infer<typeof inputResultSchema>
 export type InputBrokerStatus = z.infer<typeof inputBrokerStatusSchema>
 export type PreviewBounds = z.infer<typeof previewBoundsSchema>
 export type VisionStatus = z.infer<typeof visionStatusSchema>
+export type CombatConfiguration = z.infer<typeof combatConfigurationSchema>
+export type MapRuntimeStatus = z.infer<typeof mapRuntimeStatusSchema>
+export type MapScanStatus = z.infer<typeof mapScanStatusSchema>
 export type HostEvent = z.infer<typeof hostEventSchema>
 export type UiCommand = z.infer<typeof uiCommandSchema>
 

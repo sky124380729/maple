@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "generatedAtUtc": "2026-08-15T19:32:14.1476544+00:00",
+  "imagePath": "C:\\Users\\Levi\\Desktop\\maple\\artifacts\\client-acceptance\\live-current-client-dpi.bmp",
+  "width": 2049,
+  "height": 1152,
+  "elapsedMs": 103.3513,
+  "modelReady": true,
+  "modelId": "kaelo-maple-yolo",
+  "provider": "cpu",
+  "ocrReady": true,
+  "pipelineStatus": "ObservationUnavailable",
+  "diagnostic": "Self \u89C2\u5BDF\u4E22\u5931\u6216\u5DF2\u8FC7\u671F",
+  "canDriveActions": false,
+  "fixedUi": {
+    "frameId": 3,
+    "loot": {
+      "visible": false,
+      "confidence": 0.9,
+      "freshUntilMonoMs": 18621151
+    },
+    "map": {
+      "mapId": "unknown",
+      "state": "Candidate",
+      "confidence": 0,
+      "freshUntilMonoMs": 18621151
+    },
+    "hpCandidates": [
+      {
+        "mode": "Percent",
+        "value": 0.9457831325301205,
+        "confidence": 0.95,
+        "freshUntilMonoMs": 18621151
+      }
+    ],
+    "mpCandidates": [
+      {
+        "mode": "Percent",
+        "value": 0.927710843373494,
+        "confidence": 0.95,
+        "freshUntilMonoMs": 18621151
+      }
+    ]
+  },
+  "dynamic": {
+    "frameId": 3,
+    "self": null,
+    "players": [],
+    "monsters": [
+      {
+        "class": "mob",
+        "box": [
+          0.26285514831542967,
+          0.03243693113327026,
+          0.03473668098449706,
+          0.03298020958900452
+        ],
+        "confidence": 0.6231909990310669,
+        "freshUntilMonoMs": 18621211,
+        "targetId": "monster-3-0"
+      }
+    ],
+    "modelVersion": "onnx",
+    "canDriveActions": false,
+    "diagnostic": "SELF_NOT_FOUND"
+  },
+  "observation": null
+}

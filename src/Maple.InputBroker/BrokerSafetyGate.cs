@@ -1,5 +1,4 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using Maple.Input;
@@ -9,11 +8,13 @@ namespace Maple.InputBroker;
 public sealed class BrokerSafetyGate : IBrokerSafetyGate
 {
     private readonly IBrokerClock clock;
+    private readonly IBrokerProcessIdentityReader identityReader;
     private ArmTargetPayload target;
 
-    public BrokerSafetyGate(IBrokerClock clock)
+    public BrokerSafetyGate(IBrokerClock clock, IBrokerProcessIdentityReader identityReader = null)
     {
         this.clock = clock ?? throw new ArgumentNullException(nameof(clock));
+        this.identityReader = identityReader ?? new WindowsBrokerProcessIdentityReader();
     }
 
     public BrokerSafetyResult Arm(ArmTargetPayload requestedTarget)
@@ -42,7 +43,7 @@ public sealed class BrokerSafetyGate : IBrokerSafetyGate
         return BrokerSafetyResult.Allow();
     }
 
-    private static BrokerSafetyResult ValidateIdentity(ArmTargetPayload candidate)
+    private BrokerSafetyResult ValidateIdentity(ArmTargetPayload candidate)
     {
         if (candidate == null || candidate.Hwnd == 0 || candidate.Pid <= 0 ||
             candidate.StartedAtUtcTicks <= 0 || string.IsNullOrWhiteSpace(candidate.ExecutablePath))
@@ -55,20 +56,19 @@ public sealed class BrokerSafetyGate : IBrokerSafetyGate
 
         try
         {
-            using Process process = Process.GetProcessById(candidate.Pid);
-            if (process.StartTime.ToUniversalTime().Ticks != candidate.StartedAtUtcTicks)
-                return BrokerSafetyResult.Reject("TARGET_IDENTITY_CHANGED");
-            string actualPath = process.MainModule?.FileName;
-            if (string.IsNullOrWhiteSpace(actualPath) ||
+            BrokerProcessIdentity actual = identityReader.Read(candidate.Pid);
+            if (actual.StartedAtUtcTicks != candidate.StartedAtUtcTicks)
+                return BrokerSafetyResult.Reject("TARGET_START_TIME_CHANGED");
+            if (string.IsNullOrWhiteSpace(actual.ExecutablePath) ||
                 !string.Equals(
-                    Path.GetFullPath(actualPath),
+                    Path.GetFullPath(actual.ExecutablePath),
                     Path.GetFullPath(candidate.ExecutablePath),
                     StringComparison.OrdinalIgnoreCase))
-                return BrokerSafetyResult.Reject("TARGET_IDENTITY_CHANGED");
+                return BrokerSafetyResult.Reject("TARGET_PATH_CHANGED");
         }
         catch
         {
-            return BrokerSafetyResult.Reject("TARGET_IDENTITY_CHANGED");
+            return BrokerSafetyResult.Reject("TARGET_PROCESS_QUERY_FAILED");
         }
 
         return BrokerSafetyResult.Allow();

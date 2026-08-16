@@ -3,11 +3,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "dev": "vite --configLoader runner",
+    "preview": "vite preview --configLoader runner",
+    "build": "tsc --noEmit && vite build --configLoader runner",
     "lint": "eslint . --max-warnings=0",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "vitest run --configLoader runner",
+    "test:watch": "vitest --configLoader runner",
     "typecheck": "tsc --noEmit",
     "e2e": "playwright test"
   },

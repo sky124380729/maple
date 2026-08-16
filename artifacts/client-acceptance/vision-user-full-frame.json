@@ -1,0 +1,188 @@
+{
+  "schemaVersion": 1,
+  "generatedAtUtc": "2026-08-15T19:16:57.8583962+00:00",
+  "imagePath": "C:\\Users\\Levi\\AppData\\Local\\Temp\\codex-clipboard-587db8f1-76f3-488e-afd6-17f169b8b327.png",
+  "width": 2149,
+  "height": 1208,
+  "elapsedMs": 132.9696,
+  "modelReady": true,
+  "modelId": "kaelo-maple-yolo",
+  "provider": "cpu",
+  "ocrReady": true,
+  "pipelineStatus": "Ready",
+  "diagnostic": "\u89C6\u89C9\u89C2\u5BDF\u878D\u5408\u5B8C\u6210",
+  "canDriveActions": true,
+  "fixedUi": {
+    "frameId": 3,
+    "loot": {
+      "visible": false,
+      "confidence": 0.9,
+      "freshUntilMonoMs": 17704854
+    },
+    "map": {
+      "mapId": "unknown",
+      "state": "Candidate",
+      "confidence": 0,
+      "freshUntilMonoMs": 17704854
+    },
+    "hpCandidates": [
+      {
+        "mode": "Percent",
+        "value": 0.9482758620689655,
+        "confidence": 0.95,
+        "freshUntilMonoMs": 17704854
+      }
+    ],
+    "mpCandidates": [
+      {
+        "mode": "Percent",
+        "value": 0.9252873563218391,
+        "confidence": 0.95,
+        "freshUntilMonoMs": 17704854
+      }
+    ]
+  },
+  "dynamic": {
+    "frameId": 3,
+    "self": {
+      "box": [
+        0.7494385480880738,
+        0.43485360145568847,
+        0.044775438308715776,
+        0.10090284347534179
+      ],
+      "confidence": 0.8038526773452759,
+      "freshUntilMonoMs": 17704914
+    },
+    "players": [],
+    "monsters": [
+      {
+        "class": "mob",
+        "box": [
+          0.914285945892334,
+          0.2701513648033142,
+          0.03816509246826172,
+          0.0324021577835083
+        ],
+        "confidence": 0.8580489754676819,
+        "freshUntilMonoMs": 17704914,
+        "targetId": "monster-3-0"
+      },
+      {
+        "class": "mob",
+        "box": [
+          0.18038252592086793,
+          0.26975197792053224,
+          0.04788763523101805,
+          0.033680295944213845
+        ],
+        "confidence": 0.8429865837097168,
+        "freshUntilMonoMs": 17704914,
+        "targetId": "monster-3-1"
+      },
+      {
+        "class": "mob",
+        "box": [
+          0.2628903865814209,
+          0.33984946012496947,
+          0.034326457977294944,
+          0.03861992359161376
+        ],
+        "confidence": 0.7994941473007202,
+        "freshUntilMonoMs": 17704914,
+        "targetId": "monster-3-2"
+      }
+    ],
+    "modelVersion": "onnx",
+    "canDriveActions": true,
+    "diagnostic": "OK"
+  },
+  "observation": {
+    "schemaVersion": 2,
+    "frameId": 3,
+    "capturedAtMonoMs": 17704734,
+    "target": {
+      "schemaVersion": 2,
+      "hwnd": "offline",
+      "pid": 0,
+      "startedAtUtc": null,
+      "executablePath": null,
+      "clientWidth": 2149,
+      "clientHeight": 1208,
+      "dpi": 96
+    },
+    "self": {
+      "box": [
+        0.7494385480880738,
+        0.43485360145568847,
+        0.044775438308715776,
+        0.10090284347534179
+      ],
+      "confidence": 0.8038526773452759,
+      "freshUntilMonoMs": 17704914
+    },
+    "players": [],
+    "monsters": [
+      {
+        "class": "mob",
+        "box": [
+          0.914285945892334,
+          0.2701513648033142,
+          0.03816509246826172,
+          0.0324021577835083
+        ],
+        "confidence": 0.8580489754676819,
+        "freshUntilMonoMs": 17704914,
+        "targetId": "monster-3-0"
+      },
+      {
+        "class": "mob",
+        "box": [
+          0.18038252592086793,
+          0.26975197792053224,
+          0.04788763523101805,
+          0.033680295944213845
+        ],
+        "confidence": 0.8429865837097168,
+        "freshUntilMonoMs": 17704914,
+        "targetId": "monster-3-1"
+      },
+      {
+        "class": "mob",
+        "box": [
+          0.2628903865814209,
+          0.33984946012496947,
+          0.034326457977294944,
+          0.03861992359161376
+        ],
+        "confidence": 0.7994941473007202,
+        "freshUntilMonoMs": 17704914,
+        "targetId": "monster-3-2"
+      }
+    ],
+    "loot": {
+      "visible": false,
+      "confidence": 0.9,
+      "freshUntilMonoMs": 17704854
+    },
+    "hp": {
+      "mode": "Percent",
+      "value": 0.9482758620689655,
+      "confidence": 0.95,
+      "freshUntilMonoMs": 17704854
+    },
+    "mp": {
+      "mode": "Percent",
+      "value": 0.9252873563218391,
+      "confidence": 0.95,
+      "freshUntilMonoMs": 17704854
+    },
+    "map": {
+      "mapId": "unknown",
+      "state": "Candidate",
+      "confidence": 0,
+      "freshUntilMonoMs": 17704854
+    },
+    "state": "Observing"
+  }
+}

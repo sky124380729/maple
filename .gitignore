@@ -3,12 +3,16 @@
 **/bin/
 **/obj/
 **/node_modules/
+**/.npm-cache/
+.cache/
 ui/dist/
 ui/playwright-report/
 ui/test-results/
 dist/
 artifacts/windows-runtime/
 artifacts/input-probe-extended/
+artifacts/model-inspection*.json
+artifacts/vision-bootstrap*.json
 .env
 .env.*
 !.env.example

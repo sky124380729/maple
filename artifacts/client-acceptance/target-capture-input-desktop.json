@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 2,
+  "generatedAtUtc": "2026-08-15T19:23:28.6085769+00:00",
+  "success": true,
+  "code": "CLIENT_CAPTURE_PASS",
+  "requestedFrames": 30,
+  "capturedFrames": 30,
+  "hwnd": "0x000000000004118E",
+  "pid": 5924,
+  "clientWidth": 2049,
+  "clientHeight": 1152,
+  "dpi": 96,
+  "processPathSha256": "e6eb36ee660ee1e018c012a397b86581d5b863476da7a7c7e0b707a00be87b61",
+  "captureBackends": {
+    "BitBlt": 30
+  },
+  "effectiveFps": 28.77360838601062,
+  "p50CaptureDurationMs": 11.6379,
+  "p95CaptureDurationMs": 15.766,
+  "inputStatus": "INPUT_INJECTION=DISABLED"
+}

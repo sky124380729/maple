@@ -60,6 +60,15 @@ const validObservation = {
 }
 
 describe('shared bridge contracts', () => {
+  test('accepts map calibration confirmation and runtime status', () => {
+    expect(uiCommandSchema.safeParse({ schemaVersion: 2, type: 'map.calibration.confirm', payload: { mapId: 'forest-east' } }).success).toBe(true)
+    expect(hostEventSchema.safeParse({
+      schemaVersion: 2,
+      type: 'map.status.updated',
+      payload: { mapId: 'forest-east', state: 'candidate', coverage: 0.92, calibrationErrorPx: 2, platformCount: 8, ladderCount: 3, errors: [], canProduceActions: false },
+    }).success).toBe(true)
+  })
+
   test('accepts only finite bounded native preview layout intent', () => {
     const command = {
       schemaVersion: 2,
@@ -73,6 +82,14 @@ describe('shared bridge contracts', () => {
     expect(uiCommandSchema.safeParse({ ...command, payload: { ...command.payload, height: 10_001 } }).success).toBe(false)
     expect(uiCommandSchema.safeParse({ ...command, payload: { ...command.payload, devicePixelRatio: Number.POSITIVE_INFINITY } }).success).toBe(false)
     expect(uiCommandSchema.safeParse({ ...command, payload: { ...command.payload, scanCode: 75 } }).success).toBe(false)
+  })
+
+  test('accepts bounded abstract input tests without raw key fields', () => {
+    const command = { schemaVersion: 2, type: 'input.test', payload: { kind: 'jump', holdMs: 90 } }
+
+    expect(uiCommandSchema.safeParse(command).success).toBe(true)
+    expect(uiCommandSchema.safeParse({ ...command, payload: { ...command.payload, holdMs: 2000 } }).success).toBe(false)
+    expect(uiCommandSchema.safeParse({ ...command, payload: { ...command.payload, scanCode: 56 } }).success).toBe(false)
   })
 
   test('accepts only the explicit closed vision model status', () => {
@@ -217,6 +234,17 @@ describe('shared bridge contracts', () => {
     expect(hostEventSchema.safeParse(event).success).toBe(true)
     expect(hostEventSchema.safeParse({
       ...event,
+      payload: {
+        ...event.payload,
+        hotkeys: { pauseResume: 'Ctrl+Shift+F9', emergencyStop: 'Ctrl+Shift+F12' },
+      },
+    }).success).toBe(true)
+    expect(hostEventSchema.safeParse({
+      ...event,
+      payload: { ...event.payload, hotkeys: { pauseResume: 'Alt+F9', emergencyStop: 'Alt+F12' } },
+    }).success).toBe(false)
+    expect(hostEventSchema.safeParse({
+      ...event,
       payload: { ...event.payload, scanCode: 0x4b },
     }).success).toBe(false)
   })
@@ -250,6 +278,25 @@ describe('shared bridge contracts', () => {
 
     expect(uiCommandSchema.safeParse(command).success).toBe(true)
     expect(uiCommandSchema.safeParse({ ...command, payload: { ...command.payload, hpThreshold: 101 } }).success).toBe(false)
+  })
+
+  test('accepts a complete native combat configuration snapshot', () => {
+    const event = {
+      schemaVersion: 2,
+      type: 'config.updated',
+      payload: {
+        schemaVersion: 2,
+        attackMode: 'auto',
+        hpThresholdMode: 'percent', hpThreshold: 50,
+        mpThresholdMode: 'percent', mpThreshold: 30,
+        singleAttackKey: 'J', areaAttackKey: 'A', hpPotionKey: '1', mpPotionKey: '2',
+        jumpKey: 'Alt', pickupEnabled: true, pickupKey: 'Z',
+        preferredDistancePx: 70, areaTargetCount: 3, switchCooldownMs: 1200,
+      },
+    }
+
+    expect(hostEventSchema.safeParse(event).success).toBe(true)
+    expect(hostEventSchema.safeParse({ ...event, payload: { ...event.payload, scanCode: 75 } }).success).toBe(false)
   })
 
   test('accepts only fixed Bailian models and never exposes a credential in status', () => {

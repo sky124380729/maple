@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 2,
+  "generatedAtUtc": "2026-08-15T19:19:23.9112307+00:00",
+  "success": false,
+  "code": "TARGET_NOT_FOUND",
+  "requestedFrames": 30,
+  "capturedFrames": 0,
+  "hwnd": null,
+  "pid": null,
+  "clientWidth": null,
+  "clientHeight": null,
+  "dpi": null,
+  "processPathSha256": null,
+  "captureBackends": {},
+  "effectiveFps": 0,
+  "p50CaptureDurationMs": 0,
+  "p95CaptureDurationMs": 0,
+  "inputStatus": "INPUT_INJECTION=DISABLED"
+}

@@ -18,10 +18,20 @@ public sealed class PreviewLayoutTests
     public void ResolveClampsPreviewToBrowserClientArea()
     {
         Rectangle result = PreviewLayout.Resolve(
-            new PreviewBoundsIntent(260, 64, 900, 700, 1.25),
+            new PreviewBoundsIntent(260, 64, 900, 700, 1),
             new Size(1200, 760));
 
         Assert.Equal(new Rectangle(260, 64, 900, 696), result);
+    }
+
+    [Fact]
+    public void ResolveConvertsWebViewCssPixelsToWinFormsDevicePixels()
+    {
+        Rectangle result = PreviewLayout.Resolve(
+            new PreviewBoundsIntent(200, 100, 600, 400, 1.5),
+            new Size(1440, 900));
+
+        Assert.Equal(new Rectangle(300, 150, 900, 600), result);
     }
 
     [Theory]

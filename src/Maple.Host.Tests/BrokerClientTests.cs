@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO.Pipes;
 using System.Threading;
 using System.Threading.Tasks;
 using Maple.Host;
@@ -10,6 +11,13 @@ namespace Maple.Host.Tests;
 
 public sealed class BrokerClientTests
 {
+    [Fact]
+    public void ElevatedBrokerClientReliesOnServerAclAndPidValidation()
+    {
+        Assert.Equal(PipeOptions.Asynchronous, NamedPipeBrokerTransport.ClientPipeOptions);
+        Assert.Equal((PipeOptions)0, NamedPipeBrokerTransport.ClientPipeOptions & PipeOptions.CurrentUserOnly);
+    }
+
     [Fact]
     public async Task ClientRejectsMismatchedResponseSequence()
     {

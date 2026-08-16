@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "generatedAtUtc": "2026-08-15T18:57:42.762499+00:00",
+  "imagePath": "C:\\Users\\Levi\\Desktop\\maple\\artifacts\\client-acceptance\\10-game-client-visible.bmp",
+  "width": 1366,
+  "height": 768,
+  "elapsedMs": 77.1065,
+  "modelReady": true,
+  "modelId": "kaelo-maple-yolo",
+  "provider": "cpu",
+  "ocrReady": true,
+  "pipelineStatus": "ObservationUnavailable",
+  "diagnostic": "Self \u89C2\u5BDF\u4E22\u5931\u6216\u5DF2\u8FC7\u671F",
+  "canDriveActions": false,
+  "fixedUi": {
+    "frameId": 1,
+    "loot": {
+      "visible": false,
+      "confidence": 0.9,
+      "freshUntilMonoMs": 16549713
+    },
+    "map": {
+      "mapId": "unknown",
+      "state": "Candidate",
+      "confidence": 0,
+      "freshUntilMonoMs": 16549713
+    },
+    "hpCandidates": [
+      {
+        "mode": "Percent",
+        "value": 0.02364864864864865,
+        "confidence": 0.95,
+        "freshUntilMonoMs": 16549713
+      }
+    ],
+    "mpCandidates": [
+      {
+        "mode": "Percent",
+        "value": 0,
+        "confidence": 0.7,
+        "freshUntilMonoMs": 16549713
+      }
+    ]
+  },
+  "dynamic": {
+    "frameId": 1,
+    "self": null,
+    "players": [],
+    "monsters": [
+      {
+        "class": "mob",
+        "box": [
+          0.687742567062378,
+          0.28140308856964114,
+          0.04649820327758791,
+          0.04520101547241212
+        ],
+        "confidence": 0.661169707775116,
+        "freshUntilMonoMs": 16549773,
+        "targetId": "monster-1-0"
+      }
+    ],
+    "modelVersion": "onnx",
+    "canDriveActions": false,
+    "diagnostic": "SELF_NOT_FOUND"
+  },
+  "observation": null
+}

@@ -1,0 +1,15 @@
+{
+  "SchemaVersion": 1,
+  "Success": false,
+  "Code": "HOTKEY_REGISTRATION_FAILED",
+  "StartFrameId": -1,
+  "LastFrameId": -1,
+  "ExecutedActions": 0,
+  "MovementActions": 0,
+  "AttackActions": 0,
+  "FeedbackFrameAdvanced": false,
+  "AllKeysReleased": true,
+  "PauseReason": "InputUnavailable",
+  "Actions": [],
+  "CompletedAtUtc": "2026-08-16T04:26:21.8103572+00:00"
+}

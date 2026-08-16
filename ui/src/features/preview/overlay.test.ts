@@ -20,8 +20,8 @@ describe('preview overlay semantics', () => {
     expect(items).toHaveLength(3)
     expect(items.map((item) => item.kind)).toEqual(['self', 'player', 'monster'])
     expect(items[0]).toMatchObject({ color: '#42d392', label: '自己 94%' })
-    expect(items[1]).toMatchObject({ color: '#55c7f7', label: '其他玩家 81% #player-7' })
-    expect(items[2]).toMatchObject({ color: '#ff6474', label: '蜗牛 88% #monster-12' })
+    expect(items[1]).toMatchObject({ color: '#55c7f7', label: '玩家 81%' })
+    expect(items[2]).toMatchObject({ color: '#ff6474', label: '怪 88%' })
     expect(items.map((item) => item.selected)).toEqual([false, false, true])
   })
 
@@ -34,7 +34,7 @@ describe('preview overlay semantics', () => {
   test('uses short canvas labels on narrow previews while preserving the legend label', () => {
     const items = buildOverlayRenderItems(snapshot, 10_100)
 
-    expect(items.map((item) => formatCanvasOverlayLabel(item, true))).toEqual(['自己 94%', '玩家 81%', '怪物 88%'])
-    expect(items[1].label).toBe('其他玩家 81% #player-7')
+    expect(items.map((item) => formatCanvasOverlayLabel(item, true))).toEqual(['自己 94%', '玩家 81%', '怪 88%'])
+    expect(items[1].label).toBe('玩家 81%')
   })
 })

@@ -21,7 +21,7 @@ export interface OverlayRenderItem {
 
 export function formatCanvasOverlayLabel(item: OverlayRenderItem, compact: boolean) {
   if (!compact) return item.label
-  const kindLabel = item.kind === 'self' ? '自己' : item.kind === 'player' ? '玩家' : '怪物'
+  const kindLabel = item.kind === 'self' ? '自己' : item.kind === 'player' ? '玩家' : '怪'
   return `${kindLabel} ${formatConfidence(item.confidence)}`
 }
 
@@ -51,7 +51,7 @@ export function buildOverlayRenderItems(snapshot: OverlaySnapshot, nowMonoMs: nu
       box: player.box,
       confidence: player.confidence,
       freshUntilMonoMs: player.freshUntilMonoMs,
-      label: `其他玩家 ${formatConfidence(player.confidence)} #${player.trackId}`,
+      label: `玩家 ${formatConfidence(player.confidence)}`,
       color: OVERLAY_COLORS.player,
       selected: false,
     })
@@ -64,7 +64,7 @@ export function buildOverlayRenderItems(snapshot: OverlaySnapshot, nowMonoMs: nu
       box: monster.box,
       confidence: monster.confidence,
       freshUntilMonoMs: monster.freshUntilMonoMs,
-      label: `${monster.class} ${formatConfidence(monster.confidence)} #${monster.targetId}`,
+      label: `怪 ${formatConfidence(monster.confidence)}`,
       color: OVERLAY_COLORS.monster,
       targetId: monster.targetId,
       selected: snapshot.selectedTargetId === monster.targetId,

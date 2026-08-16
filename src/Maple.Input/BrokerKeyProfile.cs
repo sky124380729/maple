@@ -18,11 +18,11 @@ public static class BrokerKeyProfile
         new Dictionary<BrokerActionKind, string>
         {
             [BrokerActionKind.Jump] = "Alt",
-            [BrokerActionKind.SingleAttack] = "J",
-            [BrokerActionKind.AreaAttack] = "A",
+            [BrokerActionKind.SingleAttack] = "Ctrl",
+            [BrokerActionKind.AreaAttack] = "Ctrl",
             [BrokerActionKind.Pickup] = "Z",
-            [BrokerActionKind.HpPotion] = "1",
-            [BrokerActionKind.MpPotion] = "2"
+            [BrokerActionKind.HpPotion] = "Delete",
+            [BrokerActionKind.MpPotion] = "End"
         };
 
     private static readonly IReadOnlyDictionary<string, BrokerKeyEncoding> LogicalKeys =
@@ -60,6 +60,20 @@ public static class BrokerKeyProfile
         return encoding;
     }
 
+    public static string NormalizeLogicalKey(string logicalKey)
+    {
+        string normalized = logicalKey?.Trim();
+        if (string.IsNullOrWhiteSpace(normalized) || !LogicalKeys.ContainsKey(normalized))
+            throw new ArgumentException("UNSUPPORTED_LOGICAL_KEY", nameof(logicalKey));
+        if (string.Equals(normalized, "Alt", StringComparison.OrdinalIgnoreCase)) return "Alt";
+        if (string.Equals(normalized, "Ctrl", StringComparison.OrdinalIgnoreCase)) return "Ctrl";
+        if (string.Equals(normalized, "Shift", StringComparison.OrdinalIgnoreCase)) return "Shift";
+        if (string.Equals(normalized, "Space", StringComparison.OrdinalIgnoreCase)) return "Space";
+        if (string.Equals(normalized, "Delete", StringComparison.OrdinalIgnoreCase)) return "Delete";
+        if (string.Equals(normalized, "End", StringComparison.OrdinalIgnoreCase)) return "End";
+        return normalized.ToUpperInvariant();
+    }
+
     private static IReadOnlyDictionary<string, BrokerKeyEncoding> BuildLogicalKeys()
     {
         var keys = new Dictionary<string, BrokerKeyEncoding>(StringComparer.OrdinalIgnoreCase)
@@ -67,7 +81,9 @@ public static class BrokerKeyProfile
             ["Alt"] = new(0x12, 0x38, false),
             ["Ctrl"] = new(0x11, 0x1D, false),
             ["Shift"] = new(0x10, 0x2A, false),
-            ["Space"] = new(0x20, 0x39, false)
+            ["Space"] = new(0x20, 0x39, false),
+            ["Delete"] = new(0x2E, 0x53, true),
+            ["End"] = new(0x23, 0x4F, true)
         };
 
         Add(keys, "1", 0x31, 0x02); Add(keys, "2", 0x32, 0x03);

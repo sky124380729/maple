@@ -125,7 +125,12 @@ public sealed class WindowsWgcFrameSource : IWindowFrameSource, IDisposable
                 poolWidth = contentWidth;
                 poolHeight = contentHeight;
             }
-            lock (sync)
+            if (!Monitor.TryEnter(sync))
+            {
+                captured.Dispose();
+                return;
+            }
+            try
             {
                 if (disposed) { captured.Dispose(); return; }
                 CapturedFrame? replaced = latestFrame;
@@ -136,16 +141,19 @@ public sealed class WindowsWgcFrameSource : IWindowFrameSource, IDisposable
                 frameAvailable = null;
                 available?.TrySetResult(true);
             }
+            finally { Monitor.Exit(sync); }
         }
         catch (Exception exception)
         {
-            lock (sync)
+            if (!Monitor.TryEnter(sync)) return;
+            try
             {
                 Status = "WGC_FRAME_ERROR:" + exception.GetType().Name;
                 TaskCompletionSource<bool>? available = frameAvailable;
                 frameAvailable = null;
                 available?.TrySetResult(false);
             }
+            finally { Monitor.Exit(sync); }
         }
     }
 

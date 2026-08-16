@@ -63,6 +63,79 @@
         }
       }
     },
+    "combatConfiguration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "config.updated" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "attackMode", "hpThresholdMode", "hpThreshold", "mpThresholdMode", "mpThreshold", "singleAttackKey", "areaAttackKey", "hpPotionKey", "mpPotionKey", "jumpKey", "pickupEnabled", "pickupKey", "preferredDistancePx", "areaTargetCount", "switchCooldownMs"],
+          "properties": {
+            "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+            "attackMode": { "enum": ["single", "auto", "group"] },
+            "hpThresholdMode": { "enum": ["percent", "absolute"] },
+            "hpThreshold": { "type": "number", "minimum": 0 },
+            "mpThresholdMode": { "enum": ["percent", "absolute"] },
+            "mpThreshold": { "type": "number", "minimum": 0 },
+            "singleAttackKey": { "type": "string", "minLength": 1, "maxLength": 32 },
+            "areaAttackKey": { "type": "string", "minLength": 1, "maxLength": 32 },
+            "hpPotionKey": { "type": "string", "minLength": 1, "maxLength": 32 },
+            "mpPotionKey": { "type": "string", "minLength": 1, "maxLength": 32 },
+            "jumpKey": { "type": "string", "minLength": 1, "maxLength": 32 },
+            "pickupEnabled": { "type": "boolean" },
+            "pickupKey": { "type": "string", "minLength": 1, "maxLength": 32 },
+            "preferredDistancePx": { "type": "integer", "minimum": 20, "maximum": 500 },
+            "areaTargetCount": { "type": "integer", "minimum": 2, "maximum": 20 },
+            "switchCooldownMs": { "type": "integer", "minimum": 100, "maximum": 10000 }
+          },
+          "allOf": [
+            { "if": { "properties": { "hpThresholdMode": { "const": "percent" } } }, "then": { "properties": { "hpThreshold": { "maximum": 100 } } } },
+            { "if": { "properties": { "mpThresholdMode": { "const": "percent" } } }, "then": { "properties": { "mpThreshold": { "maximum": 100 } } } }
+          ]
+        }
+      }
+    },
+    "mapRuntimeStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "map.status.updated" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mapId", "state", "coverage", "calibrationErrorPx", "platformCount", "ladderCount", "errors", "canProduceActions"],
+          "properties": {
+            "mapId": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "state": { "enum": ["candidate", "validated", "archived"] },
+            "coverage": { "type": "number", "minimum": 0, "maximum": 1 },
+            "calibrationErrorPx": { "type": "number", "minimum": 0 },
+            "platformCount": { "type": "integer", "minimum": 0 },
+            "ladderCount": { "type": "integer", "minimum": 0 },
+            "errors": { "type": "array", "maxItems": 128, "items": { "type": "string", "minLength": 1, "maxLength": 256 } },
+            "canProduceActions": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "mapScanStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "map.scan.updated" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": { "type": "object", "additionalProperties": false, "required": ["scanning", "frameIds"], "properties": { "scanning": { "type": "boolean" }, "frameIds": { "type": "array", "maxItems": 256, "items": { "type": "integer", "minimum": 0 } } } }
+      }
+    },
     "inputBrokerStatus": {
       "type": "object",
       "additionalProperties": false,
@@ -86,8 +159,8 @@
               "additionalProperties": false,
               "required": ["pauseResume", "emergencyStop"],
               "properties": {
-                "pauseResume": { "const": "F9" },
-                "emergencyStop": { "const": "F12" }
+                "pauseResume": { "enum": ["F9", "Ctrl+Shift+F9"] },
+                "emergencyStop": { "enum": ["F12", "Ctrl+Shift+F12"] }
               }
             },
             "errorCode": { "type": ["string", "null"], "minLength": 1, "maxLength": 64 }
@@ -134,6 +207,9 @@
   "oneOf": [
     { "$ref": "#/$defs/telemetry" },
     { "$ref": "#/$defs/visionStatus" },
+    { "$ref": "#/$defs/combatConfiguration" },
+    { "$ref": "#/$defs/mapRuntimeStatus" },
+    { "$ref": "#/$defs/mapScanStatus" },
     { "$ref": "#/$defs/inputBrokerStatus" },
     { "$ref": "#/$defs/cloudStatus" },
     { "$ref": "#/$defs/existingEvent" }

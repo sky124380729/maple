@@ -69,3 +69,52 @@ Windows 补验环境：Windows x64 build 26200，.NET SDK 8.0.424，WebView2 Eve
 - Right: `VK=39`, `scanCode=77 (0x4D)`, `flagsDown=1`, `flagsUp=3`, foreground confirmed, all keys released; avatar moved right from about x=194 to x=318.
 - Classification: `CLIENT_MOVEMENT_CONFIRMED` for left/right only.
 - Not established: jump, climb, attack, pickup, potion, production Host integration, or soak stability.
+
+### 2026-08-16 Windows offline completion pass
+
+This pass deliberately did not start, activate, capture, or send input to the Maple client. The user requested that client testing wait until the implementation is ready for a supervised acceptance run.
+
+- React lint/typecheck/build: PASS. Vitest 9 files, 54/54 PASS. The workbench now renders live HP/MP, combat strategy and thresholds, editable logical key bindings, map scan/calibration status, native overlay/telemetry state, and model/input safety status without hard-coded map readiness.
+- .NET solution tests excluding the sandbox-only current-user DPAPI case: Runtime 64, Input 51, Map 4, Host 160, InputBroker 16; 295/295 PASS. The DPAPI implementation was not changed and still requires its separate real-user-profile evidence.
+- Portable contracts and closed-loop specification oracle: PASS. They continue to report Windows native and production-input evidence as PENDING.
+- Host rebuild: PASS, 0 errors. NU1900 warnings only reflect unavailable NuGet vulnerability metadata during the restricted run.
+- Production input source contract: PASS. It proves the normal-integrity Host / elevated Broker boundary and abstract-action protocol, not client response.
+- Windows self-contained publish and publish contract: PASS. `dist/windows-x64` contains `Maple.exe`, `Maple.InputBroker.exe`, WebView2/runtime assets, and the current React build; no driver or bundled ONNX file is present.
+- External ONNX inspection through the published `Maple.exe`: PASS. SHA-256 `06c933f9290c5683af26b110ff8c1ba40a4b023de2f3dea07b401def8879310a`, AGPL-3.0 metadata, input `1x3x320x320`, output `1x10x2100`, supported `yoloChannelsFirst`, classes `character/environment/item/mob/npc/ui`. `ModelReady=true`; `CanDriveActions=false` is expected before multi-frame Self resolution and does not count as client accuracy evidence.
+- Published-model bootstrap without opening the workbench: PASS. The release-local, hash-pinned `model-manifest.json` was resolved by `Maple.exe --vision-bootstrap-diagnostics`; result was `ready=true`, model `kaelo-maple-yolo`, provider `cpu`, diagnostic `OK`. The external AGPL weight remains outside Git and outside the distribution.
+- Windows fixed-UI OCR bootstrap without opening the workbench: PASS. Production composition now creates `Windows.Media.Ocr` with simplified-Chinese preference and feeds it into `AdaptiveFixedUiVisionProvider`; the published diagnostic reported `ocrReady=true`, `ocrProvider=windowsMediaOcr`. This proves runtime availability only. Client map-name accuracy, ROI fit and HP/MP error remain part of supervised acceptance.
+- Windows publish reproducibility: PASS. Both React build and portable verification use the repository-local `.cache/npm`; the publish path preserves `ui/package-lock.json` and uses the already-restored .NET assets with `--no-restore`, avoiding dependency on inaccessible user-global npm/NuGet configuration.
+- `node tools/verify-portable.mjs` now uses a repository-local npm cache and a Windows-safe lock-file-preserving install path. Its lint, typecheck, unit-test, audit and build stages passed. Playwright browser processes could not launch in the managed sandbox and then hung without executing a page, so E2E was terminated and remains an environment-limited item for the supervised run.
+- `git diff --check`: PASS. Generated model inspection reports and npm caches are ignored and are not release inputs.
+
+Remaining acceptance boundary: supervised client WGC/overlay accuracy, unique Self and Monster tracking, HP/MP accuracy, map calibration, production Broker actions and ReleaseAll matrix, F9/F12, and 30-minute/4-hour/8-hour stability. None is marked PASS by this offline run.
+
+### 2026-08-16 production Broker acceptance UI
+
+This pass did not activate or send input to the already-open Maple client. It completed the product-side path needed for the next supervised client run.
+
+- Confirmed editable defaults: arrows for movement, `Alt` jump, `Ctrl` single/area attack, `Z` pickup, `Delete` HP potion and `End` MP potion. Exclusive-key conflicts remain rejected while the confirmed shared `Ctrl` attack binding is allowed.
+- Added the native-only `input.test` command. React may submit only one of nine closed abstract intents plus a bounded 50-600 ms duration; raw key, VK, scan-code, HID and report fields remain rejected recursively.
+- Added a serialized `InputAcceptanceController`: it performs the existing three-second foreground arm, runs one typed action through `BrokerActionExecutor`, then always calls `ReleaseAll` and pauses. Concurrent tests are rejected and failures are returned as `input.result`.
+- Added a Chinese input diagnostics matrix to the workbench for left/right/up/down/jump/attack/pickup/HP potion/MP potion. The latest result is visible in the same control panel.
+- Added stable visual minimap fingerprints as a map-identity fallback. A fingerprint is only a candidate lookup key and never bypasses local map validation.
+- Added controlled-motion Self confirmation. A unique provisional character may become action-capable only after motion consistent with a bounded calibration action; ambiguous or opposite motion remains fail-closed.
+- Focused verification: Host routing/controller/dispatcher 45/45 PASS; React bridge/controls 29/29 PASS.
+- Full verification: `node tools/verify-portable.mjs` PASS; React 56/56, Playwright 6/6, Host 172/172, Runtime 78/78, Input 53/53, InputBroker 16/16 and Map 4/4; Host rebuild 0 warning / 0 error.
+- Production input source contract: PASS with `WINDOWS_EVIDENCE=PENDING` as required. Windows self-contained publish and publish contract: PASS at `dist/windows-x64`.
+
+Remaining input boundary: the user-supervised run must accept the Broker UAC prompt and visually confirm all nine client actions plus F9/F12 and key release. These are not marked PASS by source tests or publishing.
+
+### 2026-08-16 Windows client read-only acceptance
+
+This pass used the already-open, authorized Maple client on the input desktop. It captured pixels and ran the production OpenCV/OCR/ONNX pipeline. It did not arm the broker and did not send any game input because the final action-safety gates were not satisfied.
+
+- Target binding: PASS. The unique `UnityWndClass` client was bound as PID 5924 with a 2049x1152 client area at 96 DPI.
+- Client capture: PASS with fallback. 30/30 foreground frames were captured through the production `WindowsGraphicsCaptureBackend`; WGC did not produce a frame in this desktop context and the explicit BitBlt fallback achieved 28.77 effective FPS, P50 11.64 ms and P95 15.77 ms. The WGC shutdown deadlock was fixed by making a closing FrameArrived callback discard its frame instead of blocking on the lifecycle lock.
+- Live vision: PASS for observation, not for actions. Five live frames produced a `Ready` observation in 576 ms total with `Self` present, three monsters, HP 98.1% and MP 97.5%. The display-only character threshold is 0.25 while the action threshold remains 0.60 and Core retains its higher safety thresholds; final `CanDriveActions=false` is therefore expected.
+- HUD correction: resource percentage now measures horizontal colored extent instead of colored pixel area. Full 50/50 HP and 5/5 MP no longer read near 45%; the live result is within about 2.5 percentage points.
+- Map OCR: NOT PASS. Three-times upscaled Windows OCR returned non-CJK garbage for this stylized mini-map text. The runtime now rejects such output and keeps `mapId=unknown`, confidence 0, instead of publishing a false map name.
+- DPI diagnostic capture: PASS. The desktop acceptance helper now opts into Per-Monitor V2 and saved the complete 2049x1152 client frame; the earlier 1366x768 image was DPI-virtualized and incomplete.
+- Input: NOT EXECUTED. `INPUT_INJECTION=DISABLED` is recorded in both the 30-frame capture report and live-vision report. Because Self action confidence and map validation were not satisfied, testing production broker actions would have violated the fail-closed contract.
+- Evidence: `artifacts/client-acceptance/target-capture-input-desktop.json`, `artifacts/client-acceptance/live-vision-input-desktop.json`, and `artifacts/client-acceptance/live-current-client-dpi.bmp`.
+- Verification: Host 164/164 PASS; Runtime 70/70 PASS excluding the sandbox-only current-user DPAPI case; production input source contract PASS (`WINDOWS_EVIDENCE=PENDING`). React lint/typecheck, 54/54 Vitest tests, audit and production build passed. Playwright remained blocked by managed-sandbox browser `spawn EPERM` and was terminated after all six browser launches failed before page execution.

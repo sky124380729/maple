@@ -33,7 +33,7 @@ export function HealthPanel({ sessionState, pauseReason, observation, telemetry,
             <MetricRow label="其他玩家" value={String(observation?.players.length ?? 0)} detail="不参与目标选择" />
             <MetricRow label="怪物" value={String(observation?.monsters.length ?? 0)} detail={observation ? '目标检测正常' : '等待画面'} tone="warn" />
             <MetricRow label="所在平台" value="待拓扑识别" />
-            <MetricRow label="地图版本" value={observation?.map.mapId === 'forest-east' ? '森林东部 0.1' : '未识别'} />
+            <MetricRow label="地图档案" value={observation?.map.mapId && observation.map.mapId !== 'unknown' ? observation.map.mapId : '未识别'} detail={observation ? (observation.map.state === 'validated' ? '已验证' : observation.map.state === 'candidate' ? '待标定' : '已归档') : undefined} />
             <MetricRow label="采集后端" value={preview.backend === 'browser-mock' ? '浏览器模拟' : preview.backend === 'native' ? '原生采集' : '不可用'} />
             <MetricRow label="视觉模型" value={visionLabel} detail={visionStatus.diagnostic ?? undefined} />
             <MetricRow label="推理性能" value={telemetry ? `${Math.round(telemetry.recognitionFps)} FPS / ${Math.round(telemetry.detectorLatencyMs)} ms` : '等待首帧'} detail={telemetry?.inferenceProvider ?? 'none'} />

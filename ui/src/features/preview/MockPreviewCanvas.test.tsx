@@ -21,8 +21,8 @@ describe('MockPreviewCanvas', () => {
 
     expect(screen.getByLabelText('实时模拟预览画布')).toBeInTheDocument()
     expect(screen.getByText('自己 94%')).toBeInTheDocument()
-    expect(screen.getByText('其他玩家 81% #player-7')).toBeInTheDocument()
-    expect(screen.getByText('蜗牛 88% #monster-12')).toBeInTheDocument()
+    expect(screen.getByText('玩家 81%')).toBeInTheDocument()
+    expect(screen.getByText('怪 88%')).toBeInTheDocument()
     expect(screen.getByText('攻击目标')).toBeInTheDocument()
   })
 
@@ -31,7 +31,7 @@ describe('MockPreviewCanvas', () => {
 
     expect(screen.getByLabelText('实时模拟预览画布')).toBeInTheDocument()
     expect(screen.queryByText('自己 94%')).not.toBeInTheDocument()
-    expect(screen.queryByText('其他玩家 81% #player-7')).not.toBeInTheDocument()
-    expect(screen.queryByText('蜗牛 88% #monster-12')).not.toBeInTheDocument()
+    expect(screen.queryByText('玩家 81%')).not.toBeInTheDocument()
+    expect(screen.queryByText('怪 88%')).not.toBeInTheDocument()
   })
 })

@@ -5,6 +5,16 @@ namespace Maple.Host.Tests;
 
 public sealed class BridgeMessageRouterTests
 {
+    [Fact]
+    public void AcceptsEmptySamePlatformCombatTrialCommand()
+    {
+        BridgeRouteResult result = router.Route("""
+            {"schemaVersion":2,"type":"combat.trial.start","payload":{}}
+            """);
+
+        Assert.True(result.Accepted);
+        Assert.Equal(UiCommandType.CombatTrialStart, result.CommandType);
+    }
     private readonly BridgeMessageRouter router = new();
 
     [Fact]
@@ -27,6 +37,38 @@ public sealed class BridgeMessageRouterTests
 
         Assert.True(result.Accepted);
         Assert.Equal("PreviewBoundsChanged", result.CommandType?.ToString());
+    }
+
+    [Fact]
+    public void AcceptsOnlyBoundedAbstractInputTests()
+    {
+        BridgeRouteResult accepted = router.Route("""
+            {"schemaVersion":2,"type":"input.test","payload":{"kind":"jump","holdMs":90}}
+            """);
+        BridgeRouteResult rejected = router.Route("""
+            {"schemaVersion":2,"type":"input.test","payload":{"kind":"jump","holdMs":2000}}
+            """);
+
+        Assert.True(accepted.Accepted);
+        Assert.Equal(UiCommandType.InputTest, accepted.CommandType);
+        Assert.False(rejected.Accepted);
+        Assert.Equal("INVALID_PAYLOAD", rejected.Code);
+    }
+
+    [Fact]
+    public void AcceptsOnlyAContractShapedMapConfirmation()
+    {
+        BridgeRouteResult accepted = router.Route("""
+            {"schemaVersion":2,"type":"map.calibration.confirm","payload":{"mapId":"forest-east"}}
+            """);
+        BridgeRouteResult rejected = router.Route("""
+            {"schemaVersion":2,"type":"map.calibration.confirm","payload":{"mapId":"","force":true}}
+            """);
+
+        Assert.True(accepted.Accepted);
+        Assert.Equal(UiCommandType.MapCalibrationConfirm, accepted.CommandType);
+        Assert.False(rejected.Accepted);
+        Assert.Equal("INVALID_PAYLOAD", rejected.Code);
     }
 
     [Theory]

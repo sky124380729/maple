@@ -22,8 +22,18 @@ export function PreviewRegion({ preview, observation, telemetry, onRequestSnapsh
   } : undefined
   const showMockCanvas = connected && preview.backend === 'browser-mock' && overlay !== undefined
   const sourceLabel = preview.backend === 'native' ? '原生画面已连接' : preview.backend === 'browser-mock' ? '模拟画面已连接' : '等待目标画面'
-  const hp = observation && observation.hp.confidence > 0 ? Math.round(observation.hp.value * 100) : '--'
-  const mp = observation && observation.mp.confidence > 0 ? Math.round(observation.mp.value * 100) : '--'
+  const formatResource = (resource: ObservationSnapshot['hp'] | undefined) => {
+    if (!resource || resource.confidence <= 0) return '--'
+    const percent = resource.mode === 'percent'
+      ? Math.round(resource.value * 100)
+      : resource.maximumValue ? Math.round(resource.value / resource.maximumValue * 100) : undefined
+    const absolute = resource.currentValue !== undefined && resource.maximumValue !== undefined
+      ? `${Math.round(resource.currentValue)}/${Math.round(resource.maximumValue)}`
+      : undefined
+    return [absolute, percent === undefined ? undefined : `${percent}%`].filter(Boolean).join(' · ') || `${Math.round(resource.value)}`
+  }
+  const hp = formatResource(observation?.hp)
+  const mp = formatResource(observation?.mp)
   return (
     <main className="preview-panel">
       <div className="preview-panel__header">
@@ -40,7 +50,7 @@ export function PreviewRegion({ preview, observation, telemetry, onRequestSnapsh
           <Text className="preview-empty__copy">{connected ? '当前显示结构化模拟状态；Windows Host 接入后由原生预览面承载实时画面。' : '绑定后将以 30–60 FPS 显示画面，并叠加人物与怪物识别框。'}</Text>
           {!connected && <Button className="bind-button" type="primary" aria-label="绑定目标窗口" icon={<LinkOutlined />} onClick={onRequestSnapshot}>绑定目标窗口</Button>}
         </div>}
-        <div className="preview-hud preview-hud--bottom"><span>动态识别</span><span className="hud-chip hud-chip--green">HP {hp}{hp === '--' ? '' : '%'}</span><span className="hud-chip hud-chip--cyan">MP {mp}{mp === '--' ? '' : '%'}</span><span className="hud-chip hud-chip--green">自己 {observation ? Math.round(observation.self.confidence * 100) : '--'}%</span><span className="hud-chip hud-chip--red">怪物 {observation?.monsters.length ?? 0}</span><span className="hud-chip hud-chip--cyan">玩家 {observation?.players.length ?? 0}</span></div>
+        <div className="preview-hud preview-hud--bottom"><span>动态识别</span><span className="hud-chip hud-chip--green">HP {hp}</span><span className="hud-chip hud-chip--cyan">MP {mp}</span><span className="hud-chip hud-chip--green">自己 {observation ? Math.round(observation.self.confidence * 100) : '--'}%</span><span className="hud-chip hud-chip--red">怪物 {observation?.monsters.length ?? 0}</span><span className="hud-chip hud-chip--cyan">玩家 {observation?.players.length ?? 0}</span></div>
       </div>
       <div className="preview-panel__footer"><div className="frame-status"><span className="frame-status__line" /><span>{connected ? '通道可用 · 自动隐藏过期框' : '等待绑定 · 不显示过期框'}</span></div><Text className="preview-note">只显示动态目标</Text></div>
     </main>

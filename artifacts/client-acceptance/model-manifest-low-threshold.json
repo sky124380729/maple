@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 2,
+  "modelId": "kaelo-maple-yolo-diagnostic-low-threshold",
+  "version": "local-agpl-3.0-diagnostic",
+  "modelFile": "C:\\Users\\Levi\\Desktop\\辅助\\Kaelo_ok_sp\\Kaelo_ok_sp\\weights\\best.onnx",
+  "sha256": "06c933f9290c5683af26b110ff8c1ba40a4b023de2f3dea07b401def8879310a",
+  "runtime": "onnx",
+  "inputWidth": 320,
+  "inputHeight": 320,
+  "confidenceThreshold": 0.30,
+  "nmsThreshold": 0.45,
+  "classes": ["character", "environment", "item", "mob", "npc", "ui"],
+  "classRoles": {
+    "character": "characterCandidate",
+    "environment": "ignore",
+    "item": "ignore",
+    "mob": "monster",
+    "npc": "ignore",
+    "ui": "ignore"
+  },
+  "outputLayout": "yoloChannelsFirst"
+}

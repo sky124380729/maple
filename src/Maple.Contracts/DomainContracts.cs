@@ -79,6 +79,8 @@ namespace Maple.Contracts
     {
         [DataMember(Name = "mode", IsRequired = true)] public ResourceMode Mode { get; set; }
         [DataMember(Name = "value", IsRequired = true)] public double Value { get; set; }
+        [DataMember(Name = "currentValue", EmitDefaultValue = false)] public double? CurrentValue { get; set; }
+        [DataMember(Name = "maximumValue", EmitDefaultValue = false)] public double? MaximumValue { get; set; }
         [DataMember(Name = "confidence", IsRequired = true)] public double Confidence { get; set; }
         [DataMember(Name = "freshUntilMonoMs", IsRequired = true)] public long FreshUntilMonoMs { get; set; }
     }
@@ -173,6 +175,26 @@ namespace Maple.Contracts
         [DataMember(Name = "endedAtMonoMs", EmitDefaultValue = false)] public long? EndedAtMonoMs { get; set; }
         [DataMember(Name = "releasedKeys", IsRequired = true)] public List<string> ReleasedKeys { get; set; }
         [DataMember(Name = "message", EmitDefaultValue = false)] public string Message { get; set; }
+    }
+
+    [DataContract]
+    public sealed class MapRuntimeStatusPayload
+    {
+        [DataMember(Name = "mapId", IsRequired = true)] public string MapId { get; set; }
+        [DataMember(Name = "state", IsRequired = true)] public MapArchiveState State { get; set; }
+        [DataMember(Name = "coverage", IsRequired = true)] public double Coverage { get; set; }
+        [DataMember(Name = "calibrationErrorPx", IsRequired = true)] public double CalibrationErrorPx { get; set; }
+        [DataMember(Name = "platformCount", IsRequired = true)] public int PlatformCount { get; set; }
+        [DataMember(Name = "ladderCount", IsRequired = true)] public int LadderCount { get; set; }
+        [DataMember(Name = "errors", IsRequired = true)] public List<string> Errors { get; set; }
+        [DataMember(Name = "canProduceActions", IsRequired = true)] public bool CanProduceActions { get; set; }
+    }
+
+    [DataContract]
+    public sealed class MapScanStatusPayload
+    {
+        [DataMember(Name = "scanning", IsRequired = true)] public bool Scanning { get; set; }
+        [DataMember(Name = "frameIds", IsRequired = true)] public List<long> FrameIds { get; set; }
     }
 
     [DataContract]
@@ -376,7 +398,10 @@ namespace Maple.Contracts
         [EnumMember(Value = "log.appended")] LogAppended,
         [EnumMember(Value = "preview.availabilityChanged")] PreviewAvailabilityChanged,
         [EnumMember(Value = "cloud.status.updated")] CloudStatusUpdated,
-        [EnumMember(Value = "vision.status.updated")] VisionStatusUpdated
+        [EnumMember(Value = "vision.status.updated")] VisionStatusUpdated,
+        [EnumMember(Value = "config.updated")] ConfigUpdated,
+        [EnumMember(Value = "map.status.updated")] MapStatusUpdated,
+        [EnumMember(Value = "map.scan.updated")] MapScanUpdated
     }
     [DataContract]
     public enum UiCommandType
@@ -386,9 +411,12 @@ namespace Maple.Contracts
         [EnumMember(Value = "session.pause")] SessionPause,
         [EnumMember(Value = "session.resume")] SessionResume,
         [EnumMember(Value = "session.emergencyStop")] SessionEmergencyStop,
+        [EnumMember(Value = "combat.trial.start")] CombatTrialStart,
         [EnumMember(Value = "map.scan.start")] MapScanStart,
         [EnumMember(Value = "map.calibration.start")] MapCalibrationStart,
+        [EnumMember(Value = "map.calibration.confirm")] MapCalibrationConfirm,
         [EnumMember(Value = "preview.boundsChanged")] PreviewBoundsChanged,
+        [EnumMember(Value = "input.test")] InputTest,
         [EnumMember(Value = "config.update")] ConfigUpdate,
         [EnumMember(Value = "cloud.credential.set")] CloudCredentialSet,
         [EnumMember(Value = "cloud.credential.clear")] CloudCredentialClear,

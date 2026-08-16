@@ -223,6 +223,73 @@ public sealed class VisionPipelineTests
         Assert.True(ocrEngine.ReceivedPng);
     }
 
+    [Theory]
+    [InlineData("HP 66/98", 66, 98)]
+    [InlineData("MP17 / 20", 17, 20)]
+    public void ResourceTextParserReadsCurrentAndMaximum(string text, double current, double maximum)
+    {
+        Assert.True(ResourceTextParser.TryParse(text, out ResourceNumbers numbers));
+        Assert.Equal(current, numbers.Current);
+        Assert.Equal(maximum, numbers.Maximum);
+    }
+
+    [Theory]
+    [InlineData("HP I20/I30", 120, 130)]
+    [InlineData("MP 65/65", 65, 65)]
+    public void ResourceTextParserNormalizesCommonGameFontOcrErrors(string text, double current, double maximum)
+    {
+        Assert.True(ResourceTextParser.TryParse(text, out ResourceNumbers numbers));
+        Assert.Equal(current, numbers.Current);
+        Assert.Equal(maximum, numbers.Maximum);
+    }
+
+    [Theory]
+    [InlineData("TP ri20-1301 ]", 0.93, 120, 130)]
+    [InlineData("MP (65.765)", 0.97, 65, 65)]
+    [InlineData("| HP 11207130) |", 0.93, 120, 130)]
+    [InlineData("MP (6s_’6S) E", 0.97, 65, 65)]
+    public void ResourceTextParserUsesBarFillToRepairPixelFontOcr(string text, double fill, double current, double maximum)
+    {
+        Assert.True(ResourceTextParser.TryParseAgainstFill(text, fill, out ResourceNumbers numbers));
+        Assert.Equal(current, numbers.Current);
+        Assert.Equal(maximum, numbers.Maximum);
+    }
+
+    [Fact]
+    public void ResourceTextParserRejectsNumbersThatContradictTheBarFill()
+    {
+        Assert.False(ResourceTextParser.TryParseAgainstFill("0/1", 0.93, out _));
+    }
+
+    [Fact]
+    public async Task Display_threshold_exposes_overlay_without_lowering_action_threshold()
+    {
+        var engine = new StaticInferenceEngine([
+            new DetectionCandidate("character", 0.45, [0.1, 0.5, 0.1, 0.2], DetectionRole.CharacterCandidate),
+            new DetectionCandidate("mob", 0.55, [0.6, 0.5, 0.1, 0.1], DetectionRole.Monster),
+        ]);
+        var tracker = new SelfIdentityTracker(new SelfIdentityOptions
+        {
+            WarmupFrames = 1,
+            DetectionFloor = 0.3,
+            MinimumConfidence = 0.6,
+            OcclusionTtlMs = 120,
+        });
+        var detector = new OnnxDynamicDetector(
+            engine,
+            confidenceThreshold: 0.6,
+            observationTtlMs: 120,
+            identityTracker: tracker,
+            displayConfidenceThreshold: 0.3);
+        using var frame = Frame(62);
+
+        DynamicVisionResult result = await detector.ObserveDynamicAsync(frame, CancellationToken.None);
+
+        Assert.NotNull(result.Self);
+        Assert.Single(result.Monsters);
+        Assert.False(result.CanDriveActions);
+    }
+
     private static VisionPipeline Pipeline(IFixedUiVisionProvider fixedProvider, IDynamicVisionProvider dynamicProvider, TimeSpan timeout) =>
         new(fixedProvider, dynamicProvider, new ObservationFusion(new ObservationFusionOptions { ResourceConflictTolerance = 0.08 }),
             new VisionPipelineOptions { DynamicTimeout = timeout, CriticalHealthPercent = 0.2 });

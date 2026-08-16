@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.Security.Principal;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,7 +21,12 @@ internal static class Program
     [STAThread]
     private static async Task<int> Main(string[] args)
     {
-        if (!TryParse(args, out BrokerOptions options)) return 2;
+        if (!TryParse(args, out BrokerOptions options))
+        {
+            WriteStartupDiagnostic("arguments-rejected", null);
+            return 2;
+        }
+        WriteStartupDiagnostic("starting", null);
         using var cancellation = new CancellationTokenSource();
         try
         {
@@ -37,17 +45,46 @@ internal static class Program
                 session,
                 new BrokerMessageCodec(),
                 new BrokerRequestValidator());
+            WriteStartupDiagnostic("waiting-for-client", null);
             await server.RunAsync(cancellation.Token);
+            WriteStartupDiagnostic("completed", null);
             return 0;
         }
         catch (OperationCanceledException)
         {
+            WriteStartupDiagnostic("cancelled", null);
             return 0;
         }
-        catch
+        catch (Exception exception)
         {
+            WriteStartupDiagnostic("faulted", exception);
             return 1;
         }
+    }
+
+    private static void WriteStartupDiagnostic(string stage, Exception exception)
+    {
+        try
+        {
+            string directory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Maple",
+                "InputBroker");
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(
+                Path.Combine(directory, "last-run.json"),
+                JsonSerializer.Serialize(new
+                {
+                    schemaVersion = 1,
+                    stage,
+                    processId = Environment.ProcessId,
+                    isElevated = new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator),
+                    exceptionType = exception?.GetType().Name,
+                    exceptionMessage = exception?.Message,
+                    writtenAtUtc = DateTimeOffset.UtcNow,
+                }, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch { }
     }
 
     private static bool TryParse(string[] args, out BrokerOptions options)

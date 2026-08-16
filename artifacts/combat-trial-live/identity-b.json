@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "generatedAtUtc": "2026-08-16T04:49:15.1908724+00:00",
+  "osDescription": "Microsoft Windows 10.0.26200",
+  "osArchitecture": "X64",
+  "webView2": {
+    "state": "Ready",
+    "code": "WEBVIEW2_READY",
+    "installedVersion": "151.0.4129.86",
+    "minimumVersion": "109.0.1518.78",
+    "isReady": true
+  },
+  "target": {
+    "status": "Found",
+    "diagnosticCode": "TARGET_BOUND",
+    "candidates": [
+      {
+        "hwnd": "0x00000000000206B0",
+        "pid": 27212,
+        "title": "\u5192\u9669\u5C9B\u6000\u65E7\u670D",
+        "className": "UnityWndClass",
+        "isForeground": true,
+        "isMinimized": false,
+        "clientLeft": 896,
+        "clientTop": 521,
+        "clientWidth": 2049,
+        "clientHeight": 1152,
+        "dpi": 96,
+        "processStartedAtUtc": "2026-08-16T03:15:15.9225331+00:00",
+        "processPathSha256": "e6eb36ee660ee1e018c012a397b86581d5b863476da7a7c7e0b707a00be87b61",
+        "processVersion": "6000.3.16.10841891"
+      }
+    ],
+    "target": {
+      "hwnd": "0x00000000000206B0",
+      "pid": 27212,
+      "title": "\u5192\u9669\u5C9B\u6000\u65E7\u670D",
+      "className": "UnityWndClass",
+      "isForeground": true,
+      "isMinimized": false,
+      "clientLeft": 896,
+      "clientTop": 521,
+      "clientWidth": 2049,
+      "clientHeight": 1152,
+      "dpi": 96,
+      "processStartedAtUtc": "2026-08-16T03:15:15.9225331+00:00",
+      "processPathSha256": "e6eb36ee660ee1e018c012a397b86581d5b863476da7a7c7e0b707a00be87b61",
+      "processVersion": "6000.3.16.10841891"
+    }
+  },
+  "captureFallback": "BitBlt",
+  "inputAdapter": "BrokerInputAdapter",
+  "inputStatus": "BROKER_NOT_ARMED",
+  "wgcStatus": "WINDOWS_PENDING",
+  "modelStatus": "MODEL_PENDING"
+}

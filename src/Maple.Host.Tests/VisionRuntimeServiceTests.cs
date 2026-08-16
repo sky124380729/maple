@@ -31,6 +31,28 @@ public sealed class VisionRuntimeServiceTests
     }
 
     [Fact]
+    public async Task PublicationCarriesTheSameFrameCameraTrackingResult()
+    {
+        using var queue = new LatestVisionFrameQueue(1);
+        var publisher = new RecordingPublisher();
+        var tracker = new CameraTransformTracker();
+        var service = new VisionRuntimeService(queue, new RecordingProcessor(), Target, new HostSafetyCoordinator(new RecordingInputAdapter(), () => 500), publisher, () => 2_000, tracker);
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        Task worker = service.RunAsync(cancellation.Token);
+        using CapturedFrame frame = LatestVisionFrameQueueTests.Frame(12, 90);
+
+        queue.Observe(frame);
+        VisionRuntimePublication publication = await publisher.Published.Task.WaitAsync(cancellation.Token);
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => worker);
+
+        Assert.NotNull(publication.CameraTransform);
+        Assert.Equal(12, publication.CameraTransform.FrameId);
+        Assert.True(publication.CameraTransform.Ready);
+        Assert.Equal("CAMERA_ORIGIN", publication.CameraTransform.Diagnostic);
+    }
+
+    [Fact]
     public async Task RepeatedInferenceFaultPausesAndReleasesOnlyOncePerTransition()
     {
         using var queue = new LatestVisionFrameQueue(1);

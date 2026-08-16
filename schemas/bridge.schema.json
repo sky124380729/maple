@@ -118,6 +118,17 @@
         "payload": { "type": "object" }
       }
     },
+    "mapCalibrationConfirm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "map.calibration.confirm" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": { "type": "object", "additionalProperties": false, "required": ["mapId"], "properties": { "mapId": { "type": "string", "minLength": 1, "maxLength": 256 } } }
+      }
+    },
     "inputBrokerStatus": {
       "type": "object",
       "additionalProperties": false,
@@ -141,13 +152,49 @@
               "additionalProperties": false,
               "required": ["pauseResume", "emergencyStop"],
               "properties": {
-                "pauseResume": { "const": "F9" },
-                "emergencyStop": { "const": "F12" }
+                "pauseResume": { "enum": ["F9", "Ctrl+Shift+F9"] },
+                "emergencyStop": { "enum": ["F12", "Ctrl+Shift+F12"] }
               }
             },
             "errorCode": { "type": ["string", "null"], "minLength": 1, "maxLength": 64 }
           }
         }
+      }
+    },
+    "mapRuntimeStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "map.status.updated" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mapId", "state", "coverage", "calibrationErrorPx", "platformCount", "ladderCount", "errors", "canProduceActions"],
+          "properties": {
+            "mapId": { "type": "string", "minLength": 1, "maxLength": 256 },
+            "state": { "enum": ["candidate", "validated", "archived"] },
+            "coverage": { "type": "number", "minimum": 0, "maximum": 1 },
+            "calibrationErrorPx": { "type": "number", "minimum": 0 },
+            "platformCount": { "type": "integer", "minimum": 0 },
+            "ladderCount": { "type": "integer", "minimum": 0 },
+            "errors": { "type": "array", "maxItems": 128, "items": { "type": "string", "minLength": 1, "maxLength": 256 } },
+            "canProduceActions": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "mapScanStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "map.scan.updated" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": { "type": "object", "additionalProperties": false, "required": ["scanning", "frameIds"], "properties": { "scanning": { "type": "boolean" }, "frameIds": { "type": "array", "maxItems": 256, "items": { "type": "integer", "minimum": 0 } } } }
       }
     },
     "cloudStatus": {
@@ -178,12 +225,15 @@
   "oneOf": [
     { "$ref": "#/$defs/emergencyStop" },
     { "$ref": "#/$defs/safeCommand" },
+    { "$ref": "#/$defs/mapCalibrationConfirm" },
     { "$ref": "#/$defs/configCommand" },
     { "$ref": "#/$defs/cloudCredentialSet" },
     { "$ref": "#/$defs/cloudConfig" },
     { "$ref": "#/$defs/cloudMapAnnotate" },
     { "$ref": "#/$defs/hostEvent" },
     { "$ref": "#/$defs/inputBrokerStatus" },
+    { "$ref": "#/$defs/mapRuntimeStatus" },
+    { "$ref": "#/$defs/mapScanStatus" },
     { "$ref": "#/$defs/cloudStatus" }
   ]
 }

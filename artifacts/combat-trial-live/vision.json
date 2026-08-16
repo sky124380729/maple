@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "generatedAtUtc": "2026-08-16T04:22:51.7495044+00:00",
+  "success": false,
+  "captureCode": "TARGET_NOT_FOREGROUND",
+  "capturedFrames": 0,
+  "hwnd": null,
+  "pid": null,
+  "clientWidth": null,
+  "clientHeight": null,
+  "captureBackend": "none",
+  "elapsedMs": 13.9173,
+  "modelId": "kaelo-maple-yolo",
+  "provider": "cpu",
+  "pipelineStatus": "NOT_RUN",
+  "diagnostic": "OK",
+  "canDriveActions": false,
+  "fixedUi": null,
+  "dynamic": null,
+  "observation": null,
+  "inputStatus": "INPUT_INJECTION=DISABLED"
+}

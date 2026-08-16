@@ -34,6 +34,7 @@ if ($LASTEXITCODE -ne 0) { throw 'React UI build failed' }
 & $dotnet publish (Join-Path $root 'src\Maple.Host\Maple.Host.csproj') `
     -c $Configuration `
     -r win-x64 `
+    --no-restore `
     --self-contained true `
     --nologo `
     -o $publish

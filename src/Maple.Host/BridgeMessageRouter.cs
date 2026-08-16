@@ -27,9 +27,12 @@ public sealed class BridgeMessageRouter
         ["session.pause"] = UiCommandType.SessionPause,
         ["session.resume"] = UiCommandType.SessionResume,
         ["session.emergencyStop"] = UiCommandType.SessionEmergencyStop,
+        ["combat.trial.start"] = UiCommandType.CombatTrialStart,
         ["map.scan.start"] = UiCommandType.MapScanStart,
         ["map.calibration.start"] = UiCommandType.MapCalibrationStart,
+        ["map.calibration.confirm"] = UiCommandType.MapCalibrationConfirm,
         ["preview.boundsChanged"] = UiCommandType.PreviewBoundsChanged,
+        ["input.test"] = UiCommandType.InputTest,
         ["config.update"] = UiCommandType.ConfigUpdate,
         ["cloud.credential.set"] = UiCommandType.CloudCredentialSet,
         ["cloud.credential.clear"] = UiCommandType.CloudCredentialClear,
@@ -79,12 +82,15 @@ public sealed class BridgeMessageRouter
             UiCommandType.SessionArm or
             UiCommandType.SessionPause or
             UiCommandType.SessionResume or
+            UiCommandType.CombatTrialStart or
             UiCommandType.MapScanStart or
             UiCommandType.MapCalibrationStart or
             UiCommandType.CloudCredentialClear or
             UiCommandType.CloudConnectionTest => !payload.EnumerateObject().Any(),
+            UiCommandType.MapCalibrationConfirm => ValidateMapConfirmation(payload),
             UiCommandType.SessionEmergencyStop => ValidateEmergencyStop(payload),
             UiCommandType.PreviewBoundsChanged => ValidatePreviewBounds(payload),
+            UiCommandType.InputTest => ValidateInputTest(payload),
             UiCommandType.ConfigUpdate => ValidateConfiguration(payload),
             UiCommandType.CloudCredentialSet => ValidateCredential(payload),
             UiCommandType.CloudConfigUpdate => ValidateCloudConfiguration(payload),
@@ -99,6 +105,28 @@ public sealed class BridgeMessageRouter
         return IsString(message, 1, 200, trim: true);
     }
 
+    private static bool ValidateInputTest(JsonElement payload)
+    {
+        if (!HasOnlyFields(payload, ["kind", "holdMs"])
+            || !payload.TryGetProperty("kind", out JsonElement kind)
+            || !payload.TryGetProperty("holdMs", out JsonElement holdMs)
+            || kind.ValueKind != JsonValueKind.String
+            || holdMs.ValueKind != JsonValueKind.Number
+            || !holdMs.TryGetInt32(out int duration)
+            || duration < 50
+            || duration > 600)
+            return false;
+
+        return kind.GetString() is "moveLeft" or "moveRight" or "climbUp" or "climbDown"
+            or "jump" or "attack" or "pickup" or "hpPotion" or "mpPotion";
+    }
+
+    private static bool ValidateMapConfirmation(JsonElement payload)
+    {
+        if (!HasOnlyFields(payload, ["mapId"]) || !payload.TryGetProperty("mapId", out JsonElement mapId)) return false;
+        return IsString(mapId, 1, 256, trim: true);
+    }
+
     private static bool ValidatePreviewBounds(JsonElement payload)
     {
         if (!HasOnlyFields(payload, ["left", "top", "width", "height", "devicePixelRatio"])) return false;
@@ -111,7 +139,7 @@ public sealed class BridgeMessageRouter
 
     private static bool ValidateConfiguration(JsonElement payload)
     {
-        string[] fields = ["attackMode", "hpThresholdMode", "hpThreshold", "mpThresholdMode", "mpThreshold", "attackKey", "jumpKey", "pickupEnabled", "pickupKey"];
+        string[] fields = ["attackMode", "hpThresholdMode", "hpThreshold", "mpThresholdMode", "mpThreshold", "attackKey", "singleAttackKey", "areaAttackKey", "hpPotionKey", "mpPotionKey", "jumpKey", "pickupEnabled", "pickupKey", "preferredDistancePx", "areaTargetCount", "switchCooldownMs"];
         if (!HasOnlyFields(payload, fields)) return false;
         if (payload.TryGetProperty("attackMode", out JsonElement attackMode) && !IsOneOf(attackMode, "single", "auto", "group")) return false;
         if (payload.TryGetProperty("hpThresholdMode", out JsonElement hpMode) && !IsOneOf(hpMode, "percent", "absolute")) return false;
@@ -119,9 +147,16 @@ public sealed class BridgeMessageRouter
         if (payload.TryGetProperty("hpThreshold", out JsonElement hp) && !IsThreshold(hp, hpMode)) return false;
         if (payload.TryGetProperty("mpThreshold", out JsonElement mp) && !IsThreshold(mp, mpMode)) return false;
         if (payload.TryGetProperty("attackKey", out JsonElement attackKey) && !IsString(attackKey, 1, 32)) return false;
+        if (payload.TryGetProperty("singleAttackKey", out JsonElement singleAttackKey) && !IsString(singleAttackKey, 1, 32)) return false;
+        if (payload.TryGetProperty("areaAttackKey", out JsonElement areaAttackKey) && !IsString(areaAttackKey, 1, 32)) return false;
+        if (payload.TryGetProperty("hpPotionKey", out JsonElement hpPotionKey) && !IsString(hpPotionKey, 1, 32)) return false;
+        if (payload.TryGetProperty("mpPotionKey", out JsonElement mpPotionKey) && !IsString(mpPotionKey, 1, 32)) return false;
         if (payload.TryGetProperty("jumpKey", out JsonElement jumpKey) && !IsString(jumpKey, 1, 32)) return false;
         if (payload.TryGetProperty("pickupKey", out JsonElement pickupKey) && !IsString(pickupKey, 1, 32)) return false;
-        return !payload.TryGetProperty("pickupEnabled", out JsonElement pickupEnabled) || pickupEnabled.ValueKind is JsonValueKind.True or JsonValueKind.False;
+        if (payload.TryGetProperty("pickupEnabled", out JsonElement pickupEnabled) && pickupEnabled.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return false;
+        if (payload.TryGetProperty("preferredDistancePx", out JsonElement preferredDistance) && !IsInteger(preferredDistance, 20, 500)) return false;
+        if (payload.TryGetProperty("areaTargetCount", out JsonElement areaTargetCount) && !IsInteger(areaTargetCount, 2, 20)) return false;
+        return !payload.TryGetProperty("switchCooldownMs", out JsonElement switchCooldown) || IsInteger(switchCooldown, 100, 10000);
     }
 
     private static bool ValidateCredential(JsonElement payload)
@@ -163,6 +198,9 @@ public sealed class BridgeMessageRouter
             && number >= minimum
             && number <= maximum;
     }
+
+    private static bool IsInteger(JsonElement value, int minimum, int maximum) =>
+        value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out int number) && number >= minimum && number <= maximum;
 
     private static bool IsString(JsonElement value, int minimumLength, int maximumLength, bool trim = false)
     {

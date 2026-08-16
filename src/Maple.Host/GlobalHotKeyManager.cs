@@ -8,7 +8,11 @@ public enum GlobalHotKeyId
     EmergencyStop = 2
 }
 
-public sealed record HotKeyRegistrationResult(bool Success, string Code);
+public sealed record HotKeyRegistrationResult(
+    bool Success,
+    string Code,
+    string PauseResume = "F9",
+    string EmergencyStop = "F12");
 
 public interface IGlobalHotKeyRegistrar
 {
@@ -22,6 +26,8 @@ public sealed class GlobalHotKeyManager : IDisposable
     public const uint VirtualKeyF9 = 0x78;
     public const uint VirtualKeyF12 = 0x7B;
     private const uint ModNoRepeat = 0x4000;
+    private const uint ModControl = 0x0002;
+    private const uint ModShift = 0x0004;
 
     private readonly IGlobalHotKeyRegistrar registrar;
     private readonly Action pauseResume;
@@ -40,23 +46,44 @@ public sealed class GlobalHotKeyManager : IDisposable
     }
 
     public bool IsRegistered => registered;
+    public string PauseResumeLabel { get; private set; } = "F9";
+    public string EmergencyStopLabel { get; private set; } = "F12";
 
     public HotKeyRegistrationResult Register(nint hwnd)
     {
         if (hwnd == nint.Zero) return new(false, "HOTKEY_WINDOW_INVALID");
-        if (registered) return new(true, "HOTKEYS_READY");
+        if (registered) return new(true, "HOTKEYS_READY", PauseResumeLabel, EmergencyStopLabel);
 
-        if (!registrar.Register(hwnd, (int)GlobalHotKeyId.PauseResume, ModNoRepeat, VirtualKeyF9))
-            return new(false, "HOTKEY_REGISTRATION_FAILED");
-        if (!registrar.Register(hwnd, (int)GlobalHotKeyId.EmergencyStop, ModNoRepeat, VirtualKeyF12))
+        if (TryRegisterPair(hwnd, ModNoRepeat))
         {
-            registrar.Unregister(hwnd, (int)GlobalHotKeyId.PauseResume);
-            return new(false, "HOTKEY_REGISTRATION_FAILED");
+            CompleteRegistration(hwnd, "F9", "F12");
+            return new(true, "HOTKEYS_READY", PauseResumeLabel, EmergencyStopLabel);
         }
 
+        uint fallbackModifiers = ModNoRepeat | ModControl | ModShift;
+        if (TryRegisterPair(hwnd, fallbackModifiers))
+        {
+            CompleteRegistration(hwnd, "Ctrl+Shift+F9", "Ctrl+Shift+F12");
+            return new(true, "HOTKEYS_FALLBACK_READY", PauseResumeLabel, EmergencyStopLabel);
+        }
+
+        return new(false, "HOTKEY_REGISTRATION_FAILED");
+    }
+
+    private bool TryRegisterPair(nint hwnd, uint modifiers)
+    {
+        if (!registrar.Register(hwnd, (int)GlobalHotKeyId.PauseResume, modifiers, VirtualKeyF9)) return false;
+        if (registrar.Register(hwnd, (int)GlobalHotKeyId.EmergencyStop, modifiers, VirtualKeyF12)) return true;
+        registrar.Unregister(hwnd, (int)GlobalHotKeyId.PauseResume);
+        return false;
+    }
+
+    private void CompleteRegistration(nint hwnd, string pauseResumeLabel, string emergencyStopLabel)
+    {
         windowHandle = hwnd;
+        PauseResumeLabel = pauseResumeLabel;
+        EmergencyStopLabel = emergencyStopLabel;
         registered = true;
-        return new(true, "HOTKEYS_READY");
     }
 
     public bool Dispatch(int message, nint wParam)

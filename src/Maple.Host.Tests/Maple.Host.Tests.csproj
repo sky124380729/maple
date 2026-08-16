@@ -20,6 +20,7 @@
     <ProjectReference Include="../Maple.Input/Maple.Input.csproj" />
     <ProjectReference Include="../Maple.Capture/Maple.Capture.csproj" />
     <ProjectReference Include="../Maple.Runtime/Maple.Runtime.csproj" />
+    <ProjectReference Include="../Maple.Map/Maple.Map.csproj" />
     <ProjectReference Include="../Maple.Vision/Maple.Vision.csproj" />
     <Compile Include="../Maple.Host/BridgeMessageRouter.cs" Link="BridgeMessageRouter.cs" />
     <Compile Include="../Maple.Host/HostCommandDispatcher.cs" Link="HostCommandDispatcher.cs" />
@@ -30,6 +31,7 @@
     <Compile Include="../Maple.Host/CaptureCoordinator.cs" Link="CaptureCoordinator.cs" />
     <Compile Include="../Maple.Host/CapturePollingPolicy.cs" Link="CapturePollingPolicy.cs" />
     <Compile Include="../Maple.Host/MapScanFrameStore.cs" Link="MapScanFrameStore.cs" />
+    <Compile Include="../Maple.Host/MapScanRuntimeController.cs" Link="MapScanRuntimeController.cs" />
     <Compile Include="../Maple.Host/TargetCaptureEvidenceRunner.cs" Link="TargetCaptureEvidenceRunner.cs" />
     <Compile Include="../Maple.Host/WebView2EnvironmentProbe.cs" Link="WebView2EnvironmentProbe.cs" />
     <Compile Include="../Maple.Host/WindowsRuntimeDiagnostics.cs" Link="WindowsRuntimeDiagnostics.cs" />
@@ -40,6 +42,7 @@
     <Compile Include="../Maple.Host/BrokerClient.cs" Link="BrokerClient.cs" />
     <Compile Include="../Maple.Host/BrokerInputAdapter.cs" Link="BrokerInputAdapter.cs" />
     <Compile Include="../Maple.Host/BrokerActionExecutor.cs" Link="BrokerActionExecutor.cs" />
+    <Compile Include="../Maple.Host/InputAcceptanceController.cs" Link="InputAcceptanceController.cs" />
     <Compile Include="../Maple.Host/GlobalHotKeyManager.cs" Link="GlobalHotKeyManager.cs" />
     <Compile Include="../Maple.Host/ForegroundSessionController.cs" Link="ForegroundSessionController.cs" />
     <Compile Include="../Maple.Host/PreviewLayout.cs" Link="PreviewLayout.cs" />
@@ -49,6 +52,16 @@
     <Compile Include="../Maple.Host/RuntimeTelemetryCollector.cs" Link="RuntimeTelemetryCollector.cs" />
     <Compile Include="../Maple.Host/ObservationEventPublisher.cs" Link="ObservationEventPublisher.cs" />
     <Compile Include="../Maple.Host/VisionRuntimeBootstrap.cs" Link="VisionRuntimeBootstrap.cs" />
+    <Compile Include="../Maple.Host/OfflineVisionDiagnostics.cs" Link="OfflineVisionDiagnostics.cs" />
+    <Compile Include="../Maple.Host/WebView2UserDataFolder.cs" Link="WebView2UserDataFolder.cs" />
+    <Compile Include="../Maple.Host/CombatConfiguration.cs" Link="CombatConfiguration.cs" />
+    <Compile Include="../Maple.Host/CombatConfigurationStore.cs" Link="CombatConfigurationStore.cs" />
+    <Compile Include="../Maple.Host/LiveObservationSource.cs" Link="LiveObservationSource.cs" />
+    <Compile Include="../Maple.Host/ValidatedMapPlatformResolver.cs" Link="ValidatedMapPlatformResolver.cs" />
+    <Compile Include="../Maple.Host/AutomaticCombatController.cs" Link="AutomaticCombatController.cs" />
+    <Compile Include="../Maple.Host/SamePlatformCombatTrialController.cs" Link="SamePlatformCombatTrialController.cs" />
+    <Compile Include="../Maple.Host/CombatTrialEvidence.cs" Link="CombatTrialEvidence.cs" />
+    <Compile Include="../Maple.Host/ActiveMapRuntime.cs" Link="ActiveMapRuntime.cs" />
     <Compile Include="../Maple.Preview/OverlaySnapshot.cs" Link="OverlaySnapshot.cs" />
     <Compile Include="../Maple.Preview/PreviewTelemetrySnapshot.cs" Link="PreviewTelemetrySnapshot.cs" />
     <Compile Include="../Maple.Preview/PreviewRenderModel.cs" Link="PreviewRenderModel.cs" />

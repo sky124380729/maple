@@ -44,7 +44,7 @@ public sealed class LaunchingBrokerClientFactory : IBrokerClientFactory, IDispos
         this.brokerExecutable = string.IsNullOrWhiteSpace(brokerExecutable)
             ? throw new ArgumentException("BROKER_EXECUTABLE_REQUIRED", nameof(brokerExecutable))
             : Path.GetFullPath(brokerExecutable);
-        this.connectionTimeout = connectionTimeout ?? TimeSpan.FromSeconds(8);
+        this.connectionTimeout = connectionTimeout ?? TimeSpan.FromSeconds(20);
     }
 
     public async Task<IBrokerClient> CreateAsync(CancellationToken cancellationToken)
@@ -76,12 +76,38 @@ public sealed class LaunchingBrokerClientFactory : IBrokerClientFactory, IDispos
         }
         catch (Exception exception)
         {
+            WriteConnectionDiagnostic(pipeName, exception);
             launcher.Dispose();
             throw new InputUnavailableException("INPUT_BROKER_CONNECT_FAILED", exception);
         }
     }
 
     public void Dispose() => launcher.Dispose();
+
+    private static void WriteConnectionDiagnostic(string pipeName, Exception exception)
+    {
+        try
+        {
+            string directory = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Maple",
+                "InputBroker");
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(
+                Path.Combine(directory, "last-connect-error.json"),
+                JsonSerializer.Serialize(new
+                {
+                    schemaVersion = 1,
+                    pipeName,
+                    exceptionType = exception.GetType().Name,
+                    exceptionMessage = exception.Message,
+                    innerExceptionType = exception.InnerException?.GetType().Name,
+                    innerExceptionMessage = exception.InnerException?.Message,
+                    writtenAtUtc = DateTimeOffset.UtcNow,
+                }, new JsonSerializerOptions { WriteIndented = true }));
+        }
+        catch { }
+    }
 }
 
 public sealed class BrokerClient : IBrokerClient
@@ -190,6 +216,8 @@ public sealed class NamedPipeBrokerTransport : IBrokerTransport
     private readonly NamedPipeClientStream pipe;
     private readonly SemaphoreSlim exchangeLock = new(1, 1);
 
+    public static PipeOptions ClientPipeOptions => PipeOptions.Asynchronous;
+
     private NamedPipeBrokerTransport(NamedPipeClientStream pipe) => this.pipe = pipe;
 
     public static async Task<NamedPipeBrokerTransport> ConnectAsync(
@@ -201,7 +229,7 @@ public sealed class NamedPipeBrokerTransport : IBrokerTransport
             ".",
             pipeName,
             PipeDirection.InOut,
-            PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
+            ClientPipeOptions);
         using var timeoutCancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
         timeoutCancellation.CancelAfter(timeout);
         try

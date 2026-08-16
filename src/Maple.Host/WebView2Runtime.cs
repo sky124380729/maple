@@ -6,6 +6,7 @@ namespace Maple.Host;
 public sealed class WebView2Runtime : IWebViewRuntime
 {
     private readonly WebView2 webView = new() { Dock = System.Windows.Forms.DockStyle.Fill };
+    private readonly string userDataFolder = WebView2UserDataFolder.ResolveDefault();
     private bool disposed;
     private bool initialNavigationStarted;
 
@@ -48,7 +49,10 @@ public sealed class WebView2Runtime : IWebViewRuntime
     {
         try
         {
-            await webView.EnsureCoreWebView2Async().ConfigureAwait(true);
+            CoreWebView2Environment environment = await CoreWebView2Environment.CreateAsync(
+                browserExecutableFolder: null,
+                userDataFolder: userDataFolder).ConfigureAwait(true);
+            await webView.EnsureCoreWebView2Async(environment).ConfigureAwait(true);
             CoreWebView2 core = webView.CoreWebView2;
             core.SetVirtualHostNameToFolderMapping("maple.local", folder, CoreWebView2HostResourceAccessKind.DenyCors);
             core.Settings.AreDevToolsEnabled = false;
@@ -58,8 +62,9 @@ public sealed class WebView2Runtime : IWebViewRuntime
             core.ProcessFailed += OnProcessFailed;
             webView.Source = new Uri("https://maple.local/index.html", UriKind.Absolute);
         }
-        catch
+        catch (Exception exception) when (exception is not OutOfMemoryException)
         {
+            WriteFailureDiagnostic(exception);
             RuntimeCrashed?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -103,5 +108,16 @@ public sealed class WebView2Runtime : IWebViewRuntime
         string fullPath = Path.GetFullPath(folder);
         if (!Directory.Exists(fullPath) || !File.Exists(Path.Combine(fullPath, "index.html"))) throw new DirectoryNotFoundException(fullPath);
         return fullPath;
+    }
+
+    private static void WriteFailureDiagnostic(Exception exception)
+    {
+        try
+        {
+            string directory = Path.Combine(Path.GetTempPath(), "Maple", "diagnostics");
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(Path.Combine(directory, "webview2-initialize-error.txt"), exception.ToString());
+        }
+        catch (Exception writeException) when (writeException is not OutOfMemoryException) { }
     }
 }

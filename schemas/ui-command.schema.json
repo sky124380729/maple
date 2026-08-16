@@ -11,9 +11,20 @@
       "required": ["schemaVersion", "type", "payload"],
       "properties": {
         "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
-        "type": { "enum": ["snapshot.request", "session.arm", "session.pause", "session.resume", "map.scan.start", "map.calibration.start", "cloud.credential.clear", "cloud.connection.test"] },
+        "type": { "enum": ["snapshot.request", "session.arm", "session.pause", "session.resume", "combat.trial.start", "map.scan.start", "map.calibration.start", "cloud.credential.clear", "cloud.connection.test"] },
         "timestamp": { "$ref": "#/$defs/timestamp" },
         "payload": { "type": "object", "additionalProperties": false }
+      }
+    },
+    "mapCalibrationConfirm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "map.calibration.confirm" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": { "type": "object", "additionalProperties": false, "required": ["mapId"], "properties": { "mapId": { "type": "string", "minLength": 1, "maxLength": 256 } } }
       }
     },
     "previewBoundsChanged": {
@@ -34,6 +45,25 @@
             "width": { "type": "number", "minimum": 320, "maximum": 10000 },
             "height": { "type": "number", "minimum": 180, "maximum": 10000 },
             "devicePixelRatio": { "type": "number", "minimum": 0.5, "maximum": 4 }
+          }
+        }
+      }
+    },
+    "inputTest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "input.test" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "holdMs"],
+          "properties": {
+            "kind": { "enum": ["moveLeft", "moveRight", "climbUp", "climbDown", "jump", "attack", "pickup", "hpPotion", "mpPotion"] },
+            "holdMs": { "type": "integer", "minimum": 50, "maximum": 600 }
           }
         }
       }
@@ -67,9 +97,16 @@
             "mpThresholdMode": { "enum": ["percent", "absolute"] },
             "mpThreshold": { "type": "number", "minimum": 0 },
             "attackKey": { "type": "string", "minLength": 1, "maxLength": 32 },
+            "singleAttackKey": { "type": "string", "minLength": 1, "maxLength": 32 },
+            "areaAttackKey": { "type": "string", "minLength": 1, "maxLength": 32 },
+            "hpPotionKey": { "type": "string", "minLength": 1, "maxLength": 32 },
+            "mpPotionKey": { "type": "string", "minLength": 1, "maxLength": 32 },
             "jumpKey": { "type": "string", "minLength": 1, "maxLength": 32 },
             "pickupEnabled": { "type": "boolean" },
-            "pickupKey": { "type": "string", "minLength": 1, "maxLength": 32 }
+            "pickupKey": { "type": "string", "minLength": 1, "maxLength": 32 },
+            "preferredDistancePx": { "type": "integer", "minimum": 20, "maximum": 500 },
+            "areaTargetCount": { "type": "integer", "minimum": 2, "maximum": 20 },
+            "switchCooldownMs": { "type": "integer", "minimum": 100, "maximum": 10000 }
           },
           "allOf": [
             { "if": { "properties": { "hpThresholdMode": { "const": "percent" } }, "required": ["hpThresholdMode"] }, "then": { "properties": { "hpThreshold": { "maximum": 100 } } } },
@@ -132,7 +169,9 @@
   "oneOf": [
     { "$ref": "#/$defs/emptyCommand" },
     { "$ref": "#/$defs/previewBoundsChanged" },
+    { "$ref": "#/$defs/inputTest" },
     { "$ref": "#/$defs/emergencyStop" },
+    { "$ref": "#/$defs/mapCalibrationConfirm" },
     { "$ref": "#/$defs/configuration" },
     { "$ref": "#/$defs/cloudCredentialSet" },
     { "$ref": "#/$defs/cloudConfig" },

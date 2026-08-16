@@ -4,11 +4,24 @@ import { createMockSessionEvents } from '../mock/mockSession'
 import { createSessionStore } from './sessionStore'
 
 describe('sessionStore vision freshness', () => {
-  it.each(['repairing', 'faulted', 'notConfigured'] as const)('clears the last observation when vision becomes %s', (status) => {
+  it('retains the last observation while vision performs a transient repair', () => {
     const store = createSessionStore()
     for (const event of createMockSessionEvents()) store.getState().applyHostEvent(event)
-    expect(store.getState().observation).toBeDefined()
+    const observation = store.getState().observation
 
+    const event: HostEvent = {
+      schemaVersion: 2,
+      type: 'vision.status.updated',
+      payload: { status: 'repairing', modelId: 'model', provider: 'cpu', diagnostic: 'STALE' },
+    }
+    store.getState().applyHostEvent(event)
+
+    expect(store.getState().observation).toBe(observation)
+  })
+
+  it.each(['faulted', 'notConfigured'] as const)('clears the last observation when vision becomes %s', (status) => {
+    const store = createSessionStore()
+    for (const event of createMockSessionEvents()) store.getState().applyHostEvent(event)
     const event: HostEvent = {
       schemaVersion: 2,
       type: 'vision.status.updated',

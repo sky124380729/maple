@@ -31,11 +31,11 @@ public static class BrokerActionMapping
     public static string? DefaultLogicalKey(AbstractAction action) => ToBrokerAction(action) switch
     {
         BrokerActionKind.Jump => "Alt",
-        BrokerActionKind.SingleAttack => "J",
-        BrokerActionKind.AreaAttack => "A",
+        BrokerActionKind.SingleAttack => "Ctrl",
+        BrokerActionKind.AreaAttack => "Ctrl",
         BrokerActionKind.Pickup => "Z",
-        BrokerActionKind.HpPotion => "1",
-        BrokerActionKind.MpPotion => "2",
+        BrokerActionKind.HpPotion => "Delete",
+        BrokerActionKind.MpPotion => "End",
         _ => null
     };
 }
@@ -43,16 +43,20 @@ public static class BrokerActionMapping
 public sealed class BrokerActionExecutor : IActionExecutor
 {
     private readonly IInputAdapter inputAdapter;
+    private readonly Func<CombatConfiguration> configurationProvider;
 
-    public BrokerActionExecutor(IInputAdapter inputAdapter) =>
+    public BrokerActionExecutor(IInputAdapter inputAdapter, Func<CombatConfiguration>? configurationProvider = null)
+    {
         this.inputAdapter = inputAdapter ?? throw new ArgumentNullException(nameof(inputAdapter));
+        this.configurationProvider = configurationProvider ?? (() => CombatConfiguration.Default);
+    }
 
     public ValueTask KeyDownAsync(AbstractAction action, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         InputResult result = inputAdapter.KeyDown(
             action,
-            BrokerActionMapping.DefaultLogicalKey(action),
+            LogicalKey(action),
             Environment.TickCount64);
         Ensure(result, InputStatus.Accepted);
         return ValueTask.CompletedTask;
@@ -63,7 +67,7 @@ public sealed class BrokerActionExecutor : IActionExecutor
         cancellationToken.ThrowIfCancellationRequested();
         InputResult result = inputAdapter.KeyUp(
             action,
-            BrokerActionMapping.DefaultLogicalKey(action),
+            LogicalKey(action),
             Environment.TickCount64);
         Ensure(result, InputStatus.Completed);
         return ValueTask.CompletedTask;
@@ -80,5 +84,20 @@ public sealed class BrokerActionExecutor : IActionExecutor
     {
         if (result == null || result.Status != expected)
             throw new InputUnavailableException(result?.Message ?? "INPUT_BROKER_RESULT_MISSING");
+    }
+
+    private string? LogicalKey(AbstractAction action)
+    {
+        CombatConfiguration configuration = configurationProvider();
+        return BrokerActionMapping.ToBrokerAction(action) switch
+        {
+            BrokerActionKind.Jump => configuration.JumpKey,
+            BrokerActionKind.SingleAttack => configuration.SingleAttackKey,
+            BrokerActionKind.AreaAttack => configuration.AreaAttackKey,
+            BrokerActionKind.Pickup => configuration.PickupKey,
+            BrokerActionKind.HpPotion => configuration.HpPotionKey,
+            BrokerActionKind.MpPotion => configuration.MpPotionKey,
+            _ => null,
+        };
     }
 }

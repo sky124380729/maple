@@ -2,14 +2,21 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$ModelPath,
     [string]$ModelId = "kaelo-maple-yolo",
-    [string]$Version = "local-agpl-3.0"
+    [string]$Version = "local-agpl-3.0",
+    [double]$DisplayConfidenceThreshold = 0.25,
+    [string]$ManifestPath
 )
 
 $ErrorActionPreference = "Stop"
 $resolvedModel = (Resolve-Path -LiteralPath $ModelPath).Path
 $hash = (Get-FileHash -LiteralPath $resolvedModel -Algorithm SHA256).Hash.ToLowerInvariant()
-$manifestDirectory = Join-Path $env:LOCALAPPDATA "Maple\models\active"
-$manifestPath = Join-Path $manifestDirectory "manifest.json"
+$manifestPath = if ([string]::IsNullOrWhiteSpace($ManifestPath)) {
+    Join-Path $env:LOCALAPPDATA "Maple\models\active\manifest.json"
+}
+else {
+    [IO.Path]::GetFullPath($ManifestPath)
+}
+$manifestDirectory = Split-Path -Parent $manifestPath
 New-Item -ItemType Directory -Path $manifestDirectory -Force | Out-Null
 
 $manifest = [ordered]@{
@@ -22,6 +29,7 @@ $manifest = [ordered]@{
     inputWidth = 320
     inputHeight = 320
     confidenceThreshold = 0.60
+    displayConfidenceThreshold = $DisplayConfidenceThreshold
     nmsThreshold = 0.45
     classes = @("character", "environment", "item", "mob", "npc", "ui")
     classRoles = [ordered]@{

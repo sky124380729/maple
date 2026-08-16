@@ -27,12 +27,14 @@ public sealed class NativePreviewRenderModelTests
         Assert.Single(model.Monsters);
         Assert.Equal("monster-7", model.Monsters[0].TargetId);
         Assert.True(model.Monsters[0].Selected);
+        Assert.Equal("怪 91%", model.Monsters[0].Label);
+        Assert.DoesNotContain("#", model.Monsters[0].Label);
         Assert.DoesNotContain(model.Markers, marker => marker.Kind == "loot");
         Assert.Equal("snail-v1", model.ModelVersion);
     }
 
     [Fact]
-    public void BuildRejectsInvalidBoxesAndSelectsUnoccupiedHudCorner()
+    public void BuildRejectsInvalidBoxesAndKeepsTelemetryAtTopLeft()
     {
         PreviewOverlaySnapshot snapshot = CreateSnapshot();
         snapshot.Self!.Box = [0.02, 0.02, 0.18, 0.2];
@@ -46,7 +48,9 @@ public sealed class NativePreviewRenderModelTests
         PreviewRenderModel model = PreviewRenderModel.Build(snapshot, CreateTelemetry(), nowMonoMs: 500);
 
         Assert.Single(model.Players);
-        Assert.Equal(PreviewHudCorner.BottomRight, model.HudCorner);
+        Assert.Equal("玩家 90%", model.Players[0].Label);
+        Assert.DoesNotContain("#", model.Players[0].Label);
+        Assert.Equal(PreviewHudCorner.TopLeft, model.HudCorner);
     }
 
     [Fact]
@@ -59,7 +63,14 @@ public sealed class NativePreviewRenderModelTests
         PreviewTelemetrySnapshot stale = slow with { WarningCode = "STALE_FRAME" };
         PreviewRenderModel critical = PreviewRenderModel.Build(CreateSnapshot(), stale, nowMonoMs: 500);
         Assert.Equal(PreviewHudSeverity.Critical, critical.TelemetrySeverity);
-        Assert.Equal(4, critical.HudBands.Count);
+        PreviewHudBand band = Assert.Single(critical.HudBands);
+        Assert.Equal("telemetry", band.Key);
+        Assert.Equal("FPS", band.Label);
+        Assert.StartsWith("60", band.Value, StringComparison.Ordinal);
+        Assert.Contains("识别 28", band.Value);
+        Assert.Contains("延迟 120 ms", band.Value);
+        Assert.DoesNotContain("绘制", band.Value);
+        Assert.DoesNotContain("内存", band.Value);
     }
 
     private static PreviewOverlaySnapshot CreateSnapshot() => new()

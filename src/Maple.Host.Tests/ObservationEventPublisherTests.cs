@@ -47,6 +47,26 @@ public sealed class ObservationEventPublisherTests
         Assert.Contains(messages, json => EventType(json) == "vision.status.updated" && json.Contains("\"status\":\"repairing\""));
     }
 
+    [Fact]
+    public void TransientMissRetainsLastGoodOverlayWithinDisplayGracePeriod()
+    {
+        var sink = new RecordingSink();
+        List<string> messages = [];
+        long now = 1050;
+        var telemetry = new RuntimeTelemetryCollector(InferenceProvider.Cpu, () => now, () => DateTimeOffset.UnixEpoch, () => 256);
+        var publisher = new ObservationEventPublisher(sink, messages.Add, telemetry, () => SessionState.Observing, () => now, "maple-yolo-v1");
+        publisher.Publish(Publication(Result(42, freshUntil: 1150), 42));
+
+        now = 1220;
+        VisionPipelineResult stale = WithStatus(Result(43, freshUntil: 1150), VisionPipelineStatus.StaleResult, "VISION_FRAME_ID_MISMATCH");
+        publisher.Publish(Publication(stale, 43));
+
+        Assert.NotNull(sink.Overlay!.Self);
+        Assert.Single(sink.Overlay.Monsters);
+        Assert.True(sink.Overlay.Self!.FreshUntilMonoMs > now);
+        Assert.DoesNotContain(messages, json => EventType(json) == "observation.updated" && PayloadFrameId(json) == 43);
+    }
+
     private static VisionRuntimePublication Publication(VisionPipelineResult result, long frameId) => new(
         result,
         new CaptureFrameMetadata { SchemaVersion = 2, FrameId = frameId, CapturedAtMonoMs = 1000, ClientWidth = 1280, ClientHeight = 720, Dpi = 96, CaptureBackend = CaptureBackend.Wgc, DroppedReason = DroppedFrameReason.None },

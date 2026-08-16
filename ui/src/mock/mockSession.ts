@@ -1,4 +1,5 @@
 import { CONTRACT_SCHEMA_VERSION, type HostEvent } from '../contracts/bridge'
+import { defaultCombatConfiguration } from '../features/workbench/combatConfiguration'
 
 const baseTimestampMs = Date.parse('2026-08-14T12:00:00Z')
 const target = {
@@ -9,6 +10,8 @@ const target = {
   clientHeight: 720,
   dpi: 96,
 } as const
+
+export const mockCombatConfiguration = { ...defaultCombatConfiguration }
 
 export function createMockTelemetryEvent(tick = 0): Extract<HostEvent, { type: 'telemetry.updated' }> {
   return {
@@ -60,6 +63,7 @@ export function createMockSessionEvents(tick = 0): HostEvent[] {
     },
     createMockTelemetryEvent(tick),
     { schemaVersion: CONTRACT_SCHEMA_VERSION, type: 'vision.status.updated', timestamp, payload: { status: 'ready', modelId: 'maple-yolo-demo', provider: 'directml', diagnostic: 'OK' } },
+    { schemaVersion: CONTRACT_SCHEMA_VERSION, type: 'config.updated', timestamp, payload: mockCombatConfiguration },
     {
       schemaVersion: CONTRACT_SCHEMA_VERSION,
       type: 'cloud.status.updated',
@@ -88,8 +92,8 @@ export function createMockSessionEvents(tick = 0): HostEvent[] {
         players: [{ box: [0.2, 0.5, 0.08, 0.18], confidence: 0.81, freshUntilMonoMs, trackId: 'player-7' }],
         monsters: [{ class: 'snail', box: [0.66, 0.54, 0.07, 0.13], confidence: 0.88, freshUntilMonoMs, targetId: 'monster-1' }],
         loot: { visible: false, confidence: 0, freshUntilMonoMs },
-        hp: { mode: 'percent', value: 0.99, confidence: 0.98, freshUntilMonoMs },
-        mp: { mode: 'percent', value: 0.35, confidence: 0.96, freshUntilMonoMs },
+        hp: { mode: 'percent', value: 0.99, currentValue: 97, maximumValue: 98, confidence: 0.98, freshUntilMonoMs },
+        mp: { mode: 'percent', value: 0.35, currentValue: 7, maximumValue: 20, confidence: 0.96, freshUntilMonoMs },
         map: { mapId: 'forest-east', state: 'validated', confidence: 0.91, freshUntilMonoMs },
         state: 'Observing',
       },

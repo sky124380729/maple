@@ -22,7 +22,8 @@ public sealed record VisionRuntimePublication(
     TargetBinding Target,
     double DetectorLatencyMs,
     double QueueAgeMs,
-    long DroppedFrames);
+    long DroppedFrames,
+    FrameCameraTransform? CameraTransform = null);
 
 public interface IVisionRuntimePublisher
 {
@@ -38,6 +39,7 @@ public sealed class VisionRuntimeService
     private readonly HostSafetyCoordinator safety;
     private readonly IVisionRuntimePublisher publisher;
     private readonly Func<long> clock;
+    private readonly CameraTransformTracker? cameraTracker;
     private int running;
     private bool faulted;
 
@@ -47,7 +49,8 @@ public sealed class VisionRuntimeService
         Func<TargetBinding?> targetProvider,
         HostSafetyCoordinator safety,
         IVisionRuntimePublisher publisher,
-        Func<long>? clock = null)
+        Func<long>? clock = null,
+        CameraTransformTracker? cameraTracker = null)
     {
         this.frames = frames ?? throw new ArgumentNullException(nameof(frames));
         this.pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
@@ -55,6 +58,7 @@ public sealed class VisionRuntimeService
         this.safety = safety ?? throw new ArgumentNullException(nameof(safety));
         this.publisher = publisher ?? throw new ArgumentNullException(nameof(publisher));
         this.clock = clock ?? (() => Environment.TickCount64);
+        this.cameraTracker = cameraTracker;
     }
 
     public async Task RunAsync(CancellationToken cancellationToken)
@@ -75,11 +79,12 @@ public sealed class VisionRuntimeService
                 long started = clock();
                 try
                 {
+                    FrameCameraTransform? cameraTransform = cameraTracker?.Track(frame);
                     VisionPipelineResult result = await pipeline.ProcessAsync(frame, target, started, cancellationToken).ConfigureAwait(false);
                     long completed = clock();
                     publisher.Publish(new VisionRuntimePublication(
                         result, frame.Metadata, target, Math.Max(0, completed - started),
-                        Math.Max(0, started - frame.Metadata.CapturedAtMonoMs), frames.DroppedFrames));
+                        Math.Max(0, started - frame.Metadata.CapturedAtMonoMs), frames.DroppedFrames, cameraTransform));
                     faulted = false;
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }

@@ -1,0 +1,192 @@
+{
+  "schemaVersion": 1,
+  "generatedAtUtc": "2026-08-15T19:54:49.8282368+00:00",
+  "success": true,
+  "captureCode": "BITBLT_FALLBACK",
+  "capturedFrames": 5,
+  "hwnd": "0x000000000004118E",
+  "pid": 5924,
+  "clientWidth": 2049,
+  "clientHeight": 1152,
+  "captureBackend": "BitBlt",
+  "elapsedMs": 576.0606,
+  "modelId": "kaelo-maple-yolo",
+  "provider": "cpu",
+  "pipelineStatus": "Ready",
+  "diagnostic": "\u89C6\u89C9\u89C2\u5BDF\u878D\u5408\u5B8C\u6210",
+  "canDriveActions": false,
+  "fixedUi": {
+    "frameId": 5,
+    "loot": {
+      "visible": false,
+      "confidence": 0.9,
+      "freshUntilMonoMs": 19976807
+    },
+    "map": {
+      "mapId": "unknown",
+      "state": "Candidate",
+      "confidence": 0,
+      "freshUntilMonoMs": 19976807
+    },
+    "hpCandidates": [
+      {
+        "mode": "Percent",
+        "value": 0.9810126582278481,
+        "confidence": 0.95,
+        "freshUntilMonoMs": 19976807
+      }
+    ],
+    "mpCandidates": [
+      {
+        "mode": "Percent",
+        "value": 0.975,
+        "confidence": 0.95,
+        "freshUntilMonoMs": 19976807
+      }
+    ]
+  },
+  "dynamic": {
+    "frameId": 5,
+    "self": {
+      "box": [
+        0.11135342121124267,
+        0.5399007558822632,
+        0.04249520301818846,
+        0.07538800239562993
+      ],
+      "confidence": 0.3281368017196655,
+      "freshUntilMonoMs": 19976867
+    },
+    "players": [],
+    "monsters": [
+      {
+        "class": "mob",
+        "box": [
+          0.6134530544281005,
+          0.7379969596862793,
+          0.03850183486938474,
+          0.031423091888427734
+        ],
+        "confidence": 0.8278663158416748,
+        "freshUntilMonoMs": 19976867,
+        "targetId": "monster-5-0"
+      },
+      {
+        "class": "mob",
+        "box": [
+          0.24116306304931642,
+          0.028534036874771115,
+          0.02806062698364256,
+          0.029279857873916626
+        ],
+        "confidence": 0.5697712898254395,
+        "freshUntilMonoMs": 19976867,
+        "targetId": "monster-5-1"
+      },
+      {
+        "class": "mob",
+        "box": [
+          0.3312267899513245,
+          0.03386311233043671,
+          0.03511083126068115,
+          0.03339956402778625
+        ],
+        "confidence": 0.5572929382324219,
+        "freshUntilMonoMs": 19976867,
+        "targetId": "monster-5-2"
+      }
+    ],
+    "modelVersion": "onnx",
+    "canDriveActions": false,
+    "diagnostic": "OK"
+  },
+  "observation": {
+    "schemaVersion": 2,
+    "frameId": 5,
+    "capturedAtMonoMs": 19976687,
+    "target": {
+      "schemaVersion": 2,
+      "hwnd": "0x000000000004118E",
+      "pid": 5924,
+      "startedAtUtc": "2026-08-15T16:18:12.4961279+00:00",
+      "executablePath": "E:\\mapleStory\\\u5192\u9669\u5C9Bonline\\mxdclassic\\Maplestory_Classic.exe",
+      "clientWidth": 2049,
+      "clientHeight": 1152,
+      "dpi": 96
+    },
+    "self": {
+      "box": [
+        0.11135342121124267,
+        0.5399007558822632,
+        0.04249520301818846,
+        0.07538800239562993
+      ],
+      "confidence": 0.3281368017196655,
+      "freshUntilMonoMs": 19976867
+    },
+    "players": [],
+    "monsters": [
+      {
+        "class": "mob",
+        "box": [
+          0.6134530544281005,
+          0.7379969596862793,
+          0.03850183486938474,
+          0.031423091888427734
+        ],
+        "confidence": 0.8278663158416748,
+        "freshUntilMonoMs": 19976867,
+        "targetId": "monster-5-0"
+      },
+      {
+        "class": "mob",
+        "box": [
+          0.24116306304931642,
+          0.028534036874771115,
+          0.02806062698364256,
+          0.029279857873916626
+        ],
+        "confidence": 0.5697712898254395,
+        "freshUntilMonoMs": 19976867,
+        "targetId": "monster-5-1"
+      },
+      {
+        "class": "mob",
+        "box": [
+          0.3312267899513245,
+          0.03386311233043671,
+          0.03511083126068115,
+          0.03339956402778625
+        ],
+        "confidence": 0.5572929382324219,
+        "freshUntilMonoMs": 19976867,
+        "targetId": "monster-5-2"
+      }
+    ],
+    "loot": {
+      "visible": false,
+      "confidence": 0.9,
+      "freshUntilMonoMs": 19976807
+    },
+    "hp": {
+      "mode": "Percent",
+      "value": 0.9810126582278481,
+      "confidence": 0.95,
+      "freshUntilMonoMs": 19976807
+    },
+    "mp": {
+      "mode": "Percent",
+      "value": 0.975,
+      "confidence": 0.95,
+      "freshUntilMonoMs": 19976807
+    },
+    "map": {
+      "mapId": "unknown",
+      "state": "Candidate",
+      "confidence": 0,
+      "freshUntilMonoMs": 19976807
+    },
+    "state": "Observing"
+  },
+  "inputStatus": "INPUT_INJECTION=DISABLED"
+}

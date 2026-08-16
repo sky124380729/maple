@@ -3,12 +3,62 @@ using System.Buffers;
 using Maple.Cloud;
 using Maple.Capture;
 using Maple.Contracts;
+using Maple.Vision;
 using Xunit;
 
 namespace Maple.Host.Tests;
 
 public sealed class HostCommandDispatcherTests
 {
+    [Fact]
+    public async Task InputTestDispatchesOnlyTheTypedIntentAndPublishesItsResult()
+    {
+        var store = new InMemoryBailianCredentialStore();
+        var client = new BailianHttpClient(new HttpClient(new NeverCalledHandler()), store, (_, _) => ValueTask.CompletedTask);
+        var input = new RecordingInputAcceptanceController();
+        using var dispatcher = new HostCommandDispatcher(store, client, inputAcceptance: input);
+        InputResult? published = null;
+        dispatcher.InputResultPublished += (_, result) => published = result;
+
+        await dispatcher.HandleAsync(new BridgeMessageRouter().Route("""
+            {"schemaVersion":2,"type":"input.test","payload":{"kind":"hpPotion","holdMs":90}}
+            """));
+
+        Assert.Equal(InputAcceptanceKind.HpPotion, input.Kind);
+        Assert.Equal(90, input.HoldMs);
+        Assert.Same(input.Result, published);
+    }
+
+    [Fact]
+    public async Task ConfigUpdatePausesBeforePersistingAndPublishesTheValidatedConfiguration()
+    {
+        string directory = Path.Combine(Path.GetTempPath(), $"maple-dispatch-{Guid.NewGuid():N}");
+        try
+        {
+            var configStore = new CombatConfigurationStore(Path.Combine(directory, "combat-v2.json"));
+            var credentialStore = new InMemoryBailianCredentialStore();
+            var connectionClient = new BailianHttpClient(new HttpClient(new NeverCalledHandler()), credentialStore, (_, _) => ValueTask.CompletedTask);
+            int pauses = 0;
+            using var dispatcher = new HostCommandDispatcher(credentialStore, connectionClient, combatConfiguration: configStore, pauseBeforeConfiguration: () => pauses++);
+            CombatConfiguration? published = null;
+            dispatcher.CombatConfigurationChanged += (_, value) => published = value;
+            var router = new BridgeMessageRouter();
+
+            await dispatcher.HandleAsync(router.Route("""
+                {"schemaVersion":2,"type":"config.update","payload":{"attackMode":"single","singleAttackKey":"X","pickupEnabled":false,"hpThresholdMode":"percent","hpThreshold":45}}
+                """));
+
+            Assert.Equal(1, pauses);
+            Assert.Equal("X", configStore.Current.SingleAttackKey);
+            Assert.Equal(45, configStore.Current.HpThreshold);
+            Assert.Equal(configStore.Current, published);
+        }
+        finally
+        {
+            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task MapAnnotationWithoutAFrameSourceIsExplicitlyRejected()
     {
@@ -69,6 +119,28 @@ public sealed class HostCommandDispatcherTests
     }
 
     [Fact]
+    public async Task MapConfirmationActivatesOnlyThePreparedCandidateAndPublishesStatus()
+    {
+        var runtime = new ActiveMapRuntime();
+        runtime.PrepareCandidate("forest-east", ValidAnnotation(), frameId => new FrameCameraTransform(frameId, 0, 0, 0.9, true, "OK"));
+        var credentialStore = new InMemoryBailianCredentialStore();
+        using var dispatcher = new HostCommandDispatcher(
+            credentialStore,
+            new BailianHttpClient(new HttpClient(new NeverCalledHandler()), credentialStore, (_, _) => ValueTask.CompletedTask),
+            activeMapRuntime: runtime);
+        ActiveMapStatus? published = null;
+        dispatcher.MapStatusChanged += (_, status) => published = status;
+
+        await dispatcher.HandleAsync(new BridgeMessageRouter().Route("""
+            {"schemaVersion":2,"type":"map.calibration.confirm","payload":{"mapId":"forest-east"}}
+            """));
+
+        Assert.NotNull(published);
+        Assert.Equal(MapArchiveState.Validated, published.State);
+        Assert.True(published.CanProduceActions);
+    }
+
+    [Fact]
     public async Task RecordedMapFrameReachesAnnotationClientWithItsProvenance()
     {
         var credentialStore = new InMemoryBailianCredentialStore();
@@ -103,6 +175,45 @@ public sealed class HostCommandDispatcherTests
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError));
         }
     }
+
+    private sealed class RecordingInputAcceptanceController : IInputAcceptanceController
+    {
+        public InputAcceptanceKind Kind { get; private set; }
+        public int HoldMs { get; private set; }
+        public InputResult Result { get; } = new()
+        {
+            SchemaVersion = 2,
+            ActionId = "test-action",
+            Status = InputStatus.Completed,
+            ReleasedKeys = [],
+            Message = "INPUT_TEST_COMPLETED",
+        };
+
+        public Task<InputResult> RunAsync(InputAcceptanceKind kind, int holdMs, CancellationToken cancellationToken)
+        {
+            Kind = kind;
+            HoldMs = holdMs;
+            return Task.FromResult(Result);
+        }
+    }
+
+    private static InitialMapAnnotation ValidAnnotation() => new()
+    {
+        SchemaVersion = 2,
+        CoordinateSystem = "mapworld-px",
+        SourceFrameIds = [1, 2],
+        Confidence = 0.95,
+        Coverage = 0.92,
+        CalibrationErrorPx = 2,
+        Platforms =
+        [
+            new MapAnnotationPlatform { PlatformId = "p1", X1 = 0, X2 = 300, Y = 200, Confidence = 0.95 },
+            new MapAnnotationPlatform { PlatformId = "p2", X1 = 320, X2 = 620, Y = 100, Confidence = 0.95 },
+        ],
+        Ladders = [new MapAnnotationLadder { LadderId = "l1", FromPlatformId = "p1", ToPlatformId = "p2", X = 350, Confidence = 0.95 }],
+        Boundaries = [],
+        Connections = [new MapAnnotationConnection { ConnectionId = "c1", FromPlatformId = "p1", ToPlatformId = "p2", Type = "climb" }],
+    };
 
     private sealed class NeverCalledMapClient : IBailianMapClient
     {
