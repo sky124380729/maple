@@ -35,11 +35,13 @@ public static class HostCompositionRoot
             new SystemForegroundSessionDelay());
         AutomaticCombatController? automaticCombat = null;
         SamePlatformCombatTrialController? combatTrial = null;
+        StationaryAttackController? stationaryAttack = null;
         GlobalHotKeyManager? globalHotKeys = registerGlobalHotKeys ? new GlobalHotKeyManager(
             new WindowsGlobalHotKeyRegistrar(),
             () =>
             {
-                if (combatTrial?.IsRunning == true) _ = combatTrial.PauseAsync(PauseReason.OperatorRequested);
+                if (stationaryAttack?.IsRunning == true) _ = stationaryAttack.StopAsync(PauseReason.OperatorRequested);
+                else if (combatTrial?.IsRunning == true) _ = combatTrial.PauseAsync(PauseReason.OperatorRequested);
                 else if (automaticCombat is not null) _ = automaticCombat.ToggleAsync(CancellationToken.None);
                 else foregroundSession.Pause(PauseReason.CalibrationRequired);
             },
@@ -111,6 +113,8 @@ public static class HostCompositionRoot
                 actionExecutor,
                 () => combatConfiguration.Current);
             window.ConfigureCombatTrial(combatTrial);
+            stationaryAttack = new StationaryAttackController(foregroundSession, actionExecutor);
+            window.ConfigureStationaryAttack(stationaryAttack);
         }
         else
         {

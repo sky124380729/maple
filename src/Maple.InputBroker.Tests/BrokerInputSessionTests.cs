@@ -88,6 +88,25 @@ public sealed class BrokerInputSessionTests
     }
 
     [Fact]
+    public async Task RepeatedKeyDownRefreshesLeaseWithoutRepeatingPhysicalKeyDown()
+    {
+        var sender = new RecordingSender();
+        var clock = new FakeClock(1_000);
+        var safety = new ExpiringSafetyGate(clock);
+        await using var session = new BrokerInputSession(sender, safety, clock, 500);
+        await ArmAsync(session);
+
+        await session.HandleAsync(KeyDown(1, BrokerActionKind.SingleAttack, 0, 1_300));
+        clock.NowMonoMs = 1_250;
+        await session.HandleAsync(KeyDown(2, BrokerActionKind.SingleAttack, 0, 1_550));
+        clock.NowMonoMs = 1_400;
+        await session.CheckWatchdogAsync();
+
+        Assert.Single(sender.Events);
+        Assert.Equal(new[] { "SingleAttack" }, session.ActiveKeys);
+    }
+
+    [Fact]
     public async Task ReleaseAllDisarmsUntilTargetIsArmedAgain()
     {
         var sender = new RecordingSender();
@@ -148,13 +167,13 @@ public sealed class BrokerInputSessionTests
         Assert.True(response.Accepted);
     }
 
-    private static BrokerRequest KeyDown(long sequence, BrokerActionKind action, int holdMs)
+    private static BrokerRequest KeyDown(long sequence, BrokerActionKind action, int holdMs, long frameFreshUntilMonoMs = 0)
     {
         return new BrokerRequest(
             BrokerProtocol.Version,
             sequence,
             BrokerRequestKind.KeyDownAction,
-            new BrokerActionPayload("a-" + sequence, action, null, holdMs, 300));
+            new BrokerActionPayload("a-" + sequence, action, null, holdMs, 300, frameFreshUntilMonoMs));
     }
 
     private sealed class RecordingSender : IBrokerKeySender
@@ -190,5 +209,14 @@ public sealed class BrokerInputSessionTests
             if (!FrameFresh) return BrokerSafetyResult.Reject("FRAME_STALE");
             return BrokerSafetyResult.Allow();
         }
+    }
+
+    private sealed class ExpiringSafetyGate(FakeClock clock) : IBrokerSafetyGate
+    {
+        public BrokerSafetyResult Arm(ArmTargetPayload target) => BrokerSafetyResult.Allow();
+        public BrokerSafetyResult Evaluate(BrokerActionPayload action) =>
+            action.FrameFreshUntilMonoMs >= clock.NowMonoMs
+                ? BrokerSafetyResult.Allow()
+                : BrokerSafetyResult.Reject("FRAME_STALE");
     }
 }

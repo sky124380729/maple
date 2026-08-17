@@ -80,10 +80,10 @@ describe('Maple real-time workbench', () => {
     render(<App bridge={bridge} />)
     await screen.findByText('冒险岛怀旧服')
 
-    fireEvent.click(screen.getByRole('button', { name: '开始运行' }))
+    fireEvent.click(screen.getByRole('button', { name: '开始自动运行' }))
     expect(screen.getAllByText('观察中').length).toBeGreaterThan(0)
 
-    fireEvent.click(screen.getByRole('button', { name: '暂停并释放按键' }))
+    fireEvent.click(screen.getByRole('button', { name: '停止自动运行' }))
     expect(screen.getAllByText('已暂停').length).toBeGreaterThan(0)
 
     fireEvent.click(screen.getByRole('button', { name: '紧急停止' }))
@@ -139,7 +139,7 @@ describe('Maple real-time workbench', () => {
     const bridge = createMockHostBridge({ telemetryIntervalMs: 10_000 })
     render(<App bridge={bridge} />)
     await screen.findByText('冒险岛怀旧服')
-    fireEvent.click(screen.getByRole('button', { name: '开始运行' }))
+    fireEvent.click(screen.getByRole('button', { name: '开始自动运行' }))
     fireEvent.click(screen.getByRole('button', { name: '系统设置' }))
 
     fireEvent.change(screen.getByLabelText('百炼 API Key'), { target: { value: 'test-key-1234567890' } })

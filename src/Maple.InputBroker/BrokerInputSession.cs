@@ -183,7 +183,16 @@ public sealed class BrokerInputSession : IAsyncDisposable
         lock (sync)
         {
             ReleaseOpposite(action.Action);
-            if (!active.ContainsKey(action.Action))
+            if (active.TryGetValue(action.Action, out ActiveBrokerKey current))
+            {
+                if (!current.Encoding.Equals(encoding))
+                {
+                    sender.Send(current.Encoding, isKeyUp: true);
+                    sender.Send(encoding, isKeyUp: false);
+                }
+                active[action.Action] = new ActiveBrokerKey(encoding, action);
+            }
+            else
             {
                 sender.Send(encoding, isKeyUp: false);
                 active.Add(action.Action, new ActiveBrokerKey(encoding, action));

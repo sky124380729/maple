@@ -412,6 +412,7 @@ namespace Maple.Contracts
         [EnumMember(Value = "session.resume")] SessionResume,
         [EnumMember(Value = "session.emergencyStop")] SessionEmergencyStop,
         [EnumMember(Value = "combat.trial.start")] CombatTrialStart,
+        [EnumMember(Value = "stationary.attack.set")] StationaryAttackSet,
         [EnumMember(Value = "map.scan.start")] MapScanStart,
         [EnumMember(Value = "map.calibration.start")] MapCalibrationStart,
         [EnumMember(Value = "map.calibration.confirm")] MapCalibrationConfirm,

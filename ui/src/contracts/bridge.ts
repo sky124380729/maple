@@ -299,6 +299,7 @@ const uiCommandVariants = [
   z.object({ ...commandEnvelope, type: z.literal('session.pause'), payload: emptyPayload }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('session.resume'), payload: emptyPayload }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('combat.trial.start'), payload: emptyPayload }).strict(),
+  z.object({ ...commandEnvelope, type: z.literal('stationary.attack.set'), payload: z.object({ enabled: z.boolean() }).strict() }).strict(),
   emergencyStopCommandSchema,
   z.object({ ...commandEnvelope, type: z.literal('map.scan.start'), payload: emptyPayload }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('map.calibration.start'), payload: emptyPayload }).strict(),

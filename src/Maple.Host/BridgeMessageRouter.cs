@@ -28,6 +28,7 @@ public sealed class BridgeMessageRouter
         ["session.resume"] = UiCommandType.SessionResume,
         ["session.emergencyStop"] = UiCommandType.SessionEmergencyStop,
         ["combat.trial.start"] = UiCommandType.CombatTrialStart,
+        ["stationary.attack.set"] = UiCommandType.StationaryAttackSet,
         ["map.scan.start"] = UiCommandType.MapScanStart,
         ["map.calibration.start"] = UiCommandType.MapCalibrationStart,
         ["map.calibration.confirm"] = UiCommandType.MapCalibrationConfirm,
@@ -87,6 +88,7 @@ public sealed class BridgeMessageRouter
             UiCommandType.MapCalibrationStart or
             UiCommandType.CloudCredentialClear or
             UiCommandType.CloudConnectionTest => !payload.EnumerateObject().Any(),
+            UiCommandType.StationaryAttackSet => ValidateStationaryAttack(payload),
             UiCommandType.MapCalibrationConfirm => ValidateMapConfirmation(payload),
             UiCommandType.SessionEmergencyStop => ValidateEmergencyStop(payload),
             UiCommandType.PreviewBoundsChanged => ValidatePreviewBounds(payload),
@@ -104,6 +106,11 @@ public sealed class BridgeMessageRouter
         if (!HasOnlyFields(payload, ["message"]) || !payload.TryGetProperty("message", out JsonElement message)) return false;
         return IsString(message, 1, 200, trim: true);
     }
+
+    private static bool ValidateStationaryAttack(JsonElement payload) =>
+        HasOnlyFields(payload, ["enabled"])
+        && payload.TryGetProperty("enabled", out JsonElement enabled)
+        && enabled.ValueKind is JsonValueKind.True or JsonValueKind.False;
 
     private static bool ValidateInputTest(JsonElement payload)
     {

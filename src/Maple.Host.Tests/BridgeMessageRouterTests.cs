@@ -6,6 +6,17 @@ namespace Maple.Host.Tests;
 public sealed class BridgeMessageRouterTests
 {
     [Fact]
+    public void AcceptsStationaryAttackToggleWithoutRawInputFields()
+    {
+        BridgeRouteResult result = router.Route("""
+            {"schemaVersion":2,"type":"stationary.attack.set","payload":{"enabled":true}}
+            """);
+
+        Assert.True(result.Accepted);
+        Assert.Equal(UiCommandType.StationaryAttackSet, result.CommandType);
+    }
+
+    [Fact]
     public void AcceptsEmptySamePlatformCombatTrialCommand()
     {
         BridgeRouteResult result = router.Route("""

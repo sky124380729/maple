@@ -22,15 +22,16 @@ export interface SessionControlsProps {
 export function SessionControls({ sessionState, inputStatus, lastInputResult, resumeCountdown, configuration, observation, mapStatus, onOpenMap, sendCommand }: SessionControlsProps) {
   const [settingsPaused, setSettingsPaused] = useState(false)
   const [keyEditorOpen, setKeyEditorOpen] = useState(false)
+  const [stationaryAttackEnabled, setStationaryAttackEnabled] = useState(false)
   const stopped = sessionState === 'Stopped'
   const paused = sessionState === 'Paused'
   const arming = sessionState === 'Arming'
   const emergency = sessionState === 'EmergencyStop'
   const running = !stopped && !paused && !arming && !emergency
   const brokerConnecting = inputStatus.status === 'starting'
+  const brokerUnavailable = inputStatus.status !== 'ready' && inputStatus.status !== 'paused'
   const startLabel = arming ? (resumeCountdown ? `${resumeCountdown} 秒后开始` : '正在启动') : running ? '运行中' : '开始自动运行'
   const brokerLabel = inputStatus.status === 'ready' ? '输入服务已就绪' : inputStatus.status === 'starting' ? '输入服务连接中' : inputStatus.status === 'paused' ? '输入服务已暂停' : inputStatus.status === 'faulted' ? '输入服务异常' : '输入服务待连接'
-
   const updateConfig = (payload: Extract<UiCommand, { type: 'config.update' }>['payload']) => {
     if (!stopped && !paused) {
       sendCommand({ schemaVersion: 2, type: 'session.pause', payload: {} })
@@ -81,8 +82,8 @@ export function SessionControls({ sessionState, inputStatus, lastInputResult, re
           <Text className="session-summary__broker"><i />{brokerLabel}</Text>
         </div>
         <Space orientation="vertical" size={10} className="control-actions">
-          <Button className="action-button action-button--primary" type="primary" aria-label={startLabel} icon={<PlayCircleFilled />} onClick={() => sendCommand({ schemaVersion: 2, type: 'combat.trial.start', payload: {} })} disabled={emergency || arming || running || brokerConnecting} loading={arming} block>{startLabel}</Button>
-          <Button className="action-button action-button--secondary" aria-label="停止自动运行" icon={<PauseCircleOutlined />} onClick={() => sendCommand({ schemaVersion: 2, type: 'session.pause', payload: {} })} disabled={emergency || stopped || paused} block>停止自动运行</Button>
+          <Button className="action-button action-button--primary" type="primary" aria-label={startLabel} icon={<PlayCircleFilled />} onClick={() => { setStationaryAttackEnabled(false); sendCommand({ schemaVersion: 2, type: 'combat.trial.start', payload: {} }) }} disabled={emergency || arming || running || brokerConnecting} loading={arming} block>{startLabel}</Button>
+          <Button className="action-button action-button--secondary" aria-label="停止自动运行" icon={<PauseCircleOutlined />} onClick={() => { setStationaryAttackEnabled(false); sendCommand({ schemaVersion: 2, type: 'session.pause', payload: {} }) }} disabled={emergency || stopped || paused} block>停止自动运行</Button>
         </Space>
         <div className="hotkey-strip hotkey-strip--stacked" aria-label="全局快捷键"><span><kbd>{inputStatus.hotkeys.pauseResume}</kbd> 暂停/恢复</span><span><kbd>{inputStatus.hotkeys.emergencyStop}</kbd> 紧急停止</span></div>
         {settingsPaused && <div className="settings-pause-notice" role="status">修改设置时已暂停</div>}
@@ -103,6 +104,7 @@ export function SessionControls({ sessionState, inputStatus, lastInputResult, re
           </div>
           <div className="setting-field setting-field--inline"><div><Text className="field-title">魔法值下限</Text><Text className="field-hint">低于此值时使用 MP 药水</Text></div><div className="threshold-control"><Segmented size="small" value={configuration.mpThresholdMode} onChange={(value) => updateConfig({ mpThresholdMode: value as 'percent' | 'absolute' })} options={[{ label: <span aria-label="MP 百分比">%</span>, value: 'percent' }, { label: <span aria-label="MP 固定值">数值</span>, value: 'absolute' }]} /><InputNumber aria-label="魔法值下限" min={1} max={configuration.mpThresholdMode === 'percent' ? 100 : undefined} value={configuration.mpThreshold} onChange={(value) => { if (value !== null) updateConfig({ mpThreshold: value }) }} suffix={configuration.mpThresholdMode === 'percent' ? '%' : '点'} controls={false} /></div></div>
           <div className="setting-field setting-field--inline"><div><Text className="field-title">自动拾取</Text><Text className="field-hint">检测到掉落物时执行</Text></div><Switch aria-label="自动拾取" checked={configuration.pickupEnabled} onChange={(checked) => updateConfig({ pickupEnabled: checked })} /></div>
+          <div className="setting-field setting-field--inline"><div><Text className="field-title">定点攻击</Text><Text className="field-hint">持续约 30 秒，间歇左右回位</Text></div><Switch aria-label="定点攻击" checked={stationaryAttackEnabled && !stopped && !paused && !emergency} disabled={emergency || brokerConnecting} onChange={(checked) => { setStationaryAttackEnabled(checked); sendCommand({ schemaVersion: 2, type: 'stationary.attack.set', payload: { enabled: checked } }) }} /></div>
           <div className="setting-field setting-field--inline"><div><Text className="field-title">攻击距离</Text><Text className="field-hint">同平台目标的期望像素距离</Text></div><InputNumber aria-label="期望攻击距离" min={20} max={500} value={configuration.preferredDistancePx} onChange={(value) => { if (value !== null) updateConfig({ preferredDistancePx: value }) }} suffix="px" controls={false} /></div>
         </section>
         <section className="settings-section" aria-labelledby="profile-title">

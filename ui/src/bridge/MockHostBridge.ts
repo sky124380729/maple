@@ -75,6 +75,14 @@ export function createMockHostBridge(options: MockHostBridgeOptions = {}): HostB
           inputStatus = { ...inputStatus, status: 'ready', integrity: 'high' }; emitInputStatus()
           emitSessionState('Observing', 'None')
           break
+        case 'combat.trial.start':
+          inputStatus = { ...inputStatus, status: 'ready', integrity: 'high' }; emitInputStatus()
+          emitSessionState('Observing', 'None')
+          break
+        case 'stationary.attack.set':
+          inputStatus = { ...inputStatus, status: result.data.payload.enabled ? 'ready' : 'paused', integrity: 'high', activeKeys: [] }; emitInputStatus()
+          emitSessionState(result.data.payload.enabled ? 'Attacking' : 'Paused', result.data.payload.enabled ? 'None' : 'OperatorRequested')
+          break
         case 'session.pause':
           inputStatus = { ...inputStatus, status: 'paused', activeKeys: [], lastReleaseSucceeded: true }; emitInputStatus()
           emitSessionState('Paused', 'OperatorRequested')

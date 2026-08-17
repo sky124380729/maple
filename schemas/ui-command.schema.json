@@ -16,6 +16,22 @@
         "payload": { "type": "object", "additionalProperties": false }
       }
     },
+    "stationaryAttack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "stationary.attack.set" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["enabled"],
+          "properties": { "enabled": { "type": "boolean" } }
+        }
+      }
+    },
     "mapCalibrationConfirm": {
       "type": "object",
       "additionalProperties": false,
@@ -168,6 +184,7 @@
   },
   "oneOf": [
     { "$ref": "#/$defs/emptyCommand" },
+    { "$ref": "#/$defs/stationaryAttack" },
     { "$ref": "#/$defs/previewBoundsChanged" },
     { "$ref": "#/$defs/inputTest" },
     { "$ref": "#/$defs/emergencyStop" },

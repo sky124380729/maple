@@ -60,6 +60,11 @@ const validObservation = {
 }
 
 describe('shared bridge contracts', () => {
+  test('accepts stationary attack toggle without accepting raw keys', () => {
+    expect(uiCommandSchema.safeParse({ schemaVersion: 2, type: 'stationary.attack.set', payload: { enabled: true } }).success).toBe(true)
+    expect(uiCommandSchema.safeParse({ schemaVersion: 2, type: 'stationary.attack.set', payload: { enabled: true, key: 'Ctrl' } }).success).toBe(false)
+  })
+
   test('accepts map calibration confirmation and runtime status', () => {
     expect(uiCommandSchema.safeParse({ schemaVersion: 2, type: 'map.calibration.confirm', payload: { mapId: 'forest-east' } }).success).toBe(true)
     expect(hostEventSchema.safeParse({

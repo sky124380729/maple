@@ -60,6 +60,7 @@ namespace Maple.Host
         private CombatConfiguration pendingCombatConfiguration = CombatConfiguration.Default;
         private AutomaticCombatController? automaticCombat;
         private SamePlatformCombatTrialController? combatTrial;
+        private StationaryAttackController? stationaryAttack;
 
         public WebViewHostForm(IWebViewRuntime webViewRuntime, IInputAdapter inputAdapter, string assetFolder)
             : this(
@@ -156,6 +157,13 @@ namespace Maple.Host
             if (combatTrial is not null) throw new InvalidOperationException("Combat trial is already configured");
             combatTrial = controller ?? throw new ArgumentNullException(nameof(controller));
             combatTrial.StatusChanged += OnAutomaticCombatStatusChanged;
+        }
+
+        public void ConfigureStationaryAttack(StationaryAttackController controller)
+        {
+            if (stationaryAttack is not null) throw new InvalidOperationException("Stationary attack is already configured");
+            stationaryAttack = controller ?? throw new ArgumentNullException(nameof(controller));
+            stationaryAttack.StatusChanged += OnAutomaticCombatStatusChanged;
         }
 
         public void SendCloudStatus(CloudRuntimeStatus status)
@@ -296,6 +304,8 @@ namespace Maple.Host
                     await automaticCombat.PauseAsync(PauseReason.WindowNotForeground);
                 if (combatTrial?.IsRunning == true && !foregroundSession.IsArmed)
                     await combatTrial.PauseAsync(PauseReason.WindowNotForeground);
+                if (stationaryAttack?.IsRunning == true && !foregroundSession.IsArmed)
+                    await stationaryAttack.StopAsync(PauseReason.WindowNotForeground);
                 await Task.Run(foregroundSession.RefreshStatus);
             }
             catch (OperationCanceledException) { }
@@ -324,6 +334,8 @@ namespace Maple.Host
                 _ = ResumeInputAsync();
             else if (result.CommandType == UiCommandType.CombatTrialStart)
                 _ = StartCombatTrialAsync();
+            else if (result.CommandType == UiCommandType.StationaryAttackSet)
+                _ = SetStationaryAttackAsync(result.PayloadJson);
             else if (result.CommandType == UiCommandType.SessionPause)
                 _ = PauseAutomaticCombatAsync(PauseReason.OperatorRequested);
             else if (result.CommandType == UiCommandType.PreviewBoundsChanged)
@@ -399,14 +411,39 @@ namespace Maple.Host
                 return;
             }
             if (automaticCombat?.IsRunning == true) await automaticCombat.PauseAsync(PauseReason.OperatorRequested);
+            if (stationaryAttack?.IsRunning == true) await stationaryAttack.StopAsync(PauseReason.OperatorRequested);
             await combatTrial.StartAsync(CancellationToken.None);
+        }
+
+        private async Task SetStationaryAttackAsync(string? payloadJson)
+        {
+            if (stationaryAttack is null) return;
+            bool enabled = false;
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(payloadJson ?? string.Empty);
+                enabled = document.RootElement.GetProperty("enabled").GetBoolean();
+            }
+            catch (Exception exception) when (exception is JsonException or KeyNotFoundException or InvalidOperationException) { return; }
+
+            if (enabled)
+            {
+                if (automaticCombat?.IsRunning == true) await automaticCombat.PauseAsync(PauseReason.OperatorRequested);
+                if (combatTrial?.IsRunning == true) await combatTrial.PauseAsync(PauseReason.OperatorRequested);
+                await stationaryAttack.StartAsync(CancellationToken.None);
+            }
+            else
+            {
+                await stationaryAttack.StopAsync(PauseReason.OperatorRequested);
+            }
         }
 
         private async Task PauseAutomaticCombatAsync(PauseReason reason)
         {
             if (automaticCombat is not null) await automaticCombat.PauseAsync(reason);
             if (combatTrial is not null) await combatTrial.PauseAsync(reason);
-            if (automaticCombat is null && combatTrial is null) foregroundSession?.Pause(reason);
+            if (stationaryAttack is not null) await stationaryAttack.StopAsync(reason);
+            if (automaticCombat is null && combatTrial is null && stationaryAttack is null) foregroundSession?.Pause(reason);
         }
 
         private void OnAutomaticCombatStatusChanged(object? sender, AutomaticCombatStatus status) =>
@@ -537,7 +574,8 @@ namespace Maple.Host
         {
             if (automaticCombat is not null) _ = automaticCombat.EmergencyStopAsync();
             if (combatTrial is not null) _ = combatTrial.EmergencyStopAsync();
-            if (automaticCombat is null && combatTrial is null && foregroundSession is not null) foregroundSession.EmergencyStop();
+            if (stationaryAttack is not null) _ = stationaryAttack.EmergencyStopAsync();
+            if (automaticCombat is null && combatTrial is null && stationaryAttack is null && foregroundSession is not null) foregroundSession.EmergencyStop();
             else safety.EmergencyStop();
             SendSessionState(SessionState.EmergencyStop, PauseReason.OperatorRequested, null);
         }
@@ -574,6 +612,11 @@ namespace Maple.Host
                 {
                     combatTrial.StatusChanged -= OnAutomaticCombatStatusChanged;
                     combatTrial.Dispose();
+                }
+                if (stationaryAttack is not null)
+                {
+                    stationaryAttack.StatusChanged -= OnAutomaticCombatStatusChanged;
+                    stationaryAttack.Dispose();
                 }
                 foregroundSession?.Dispose();
                 visionCancellation?.Cancel();

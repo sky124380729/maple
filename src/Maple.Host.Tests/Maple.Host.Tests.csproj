@@ -60,6 +60,7 @@
     <Compile Include="../Maple.Host/ValidatedMapPlatformResolver.cs" Link="ValidatedMapPlatformResolver.cs" />
     <Compile Include="../Maple.Host/AutomaticCombatController.cs" Link="AutomaticCombatController.cs" />
     <Compile Include="../Maple.Host/SamePlatformCombatTrialController.cs" Link="SamePlatformCombatTrialController.cs" />
+    <Compile Include="../Maple.Host/StationaryAttackController.cs" Link="StationaryAttackController.cs" />
     <Compile Include="../Maple.Host/CombatTrialEvidence.cs" Link="CombatTrialEvidence.cs" />
     <Compile Include="../Maple.Host/ActiveMapRuntime.cs" Link="ActiveMapRuntime.cs" />
     <Compile Include="../Maple.Preview/OverlaySnapshot.cs" Link="OverlaySnapshot.cs" />

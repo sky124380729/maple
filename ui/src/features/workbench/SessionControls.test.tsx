@@ -26,6 +26,26 @@ describe('SessionControls production input interaction', () => {
     expect(sendCommand).toHaveBeenCalledWith({ schemaVersion: 2, type: 'combat.trial.start', payload: {} })
   })
 
+  test('toggles stationary attack as a high-level command', () => {
+    const sendCommand = vi.fn()
+    render(<SessionControls sessionState="Stopped" inputStatus={ready} configuration={defaultCombatConfiguration} sendCommand={sendCommand} />)
+
+    fireEvent.click(screen.getByRole('switch', { name: '定点攻击' }))
+
+    expect(sendCommand).toHaveBeenCalledWith({ schemaVersion: 2, type: 'stationary.attack.set', payload: { enabled: true } })
+  })
+
+  test('allows stationary attack to start the input broker while disconnected', () => {
+    const sendCommand = vi.fn()
+    render(<SessionControls sessionState="Stopped" inputStatus={{ ...ready, status: 'disconnected', integrity: 'unknown' }} configuration={defaultCombatConfiguration} sendCommand={sendCommand} />)
+
+    const stationaryAttack = screen.getByRole('switch', { name: '定点攻击' })
+    expect(stationaryAttack).toBeEnabled()
+    fireEvent.click(stationaryAttack)
+
+    expect(sendCommand).toHaveBeenCalledWith({ schemaVersion: 2, type: 'stationary.attack.set', payload: { enabled: true } })
+  })
+
   test('shows current and maximum resources together with percentages', () => {
     const observationEvent = createMockSessionEvents().find((event): event is Extract<HostEvent, { type: 'observation.updated' }> => event.type === 'observation.updated')!
     const observation = {
