@@ -27,10 +27,11 @@ public sealed class StationaryAttackRhythmOptions
     public int MediumAttackMaxExclusiveMs { get; init; } = 20_000;
     public int ShortAttackMinMs { get; init; } = 1_000;
     public int ShortAttackMaxExclusiveMs { get; init; } = 10_000;
-    public int MovementMinHoldMs { get; init; } = 60;
-    public int MovementMaxHoldMs { get; init; } = 400;
-    public int MovementMinGapMs { get; init; } = 50;
-    public int MovementMaxGapMs { get; init; } = 350;
+    // Keep the stationary correction short enough to avoid walking off a platform.
+    public int MovementMinHoldMs { get; init; } = 50;
+    public int MovementMaxHoldMs { get; init; } = 220;
+    public int MovementMinGapMs { get; init; } = 60;
+    public int MovementMaxGapMs { get; init; } = 280;
     public int RestProbabilityPercent { get; init; } = 25;
     public int RestMinMs { get; init; } = 2_000;
     public int RestMaxMs { get; init; } = 5_000;
