@@ -74,6 +74,7 @@ describe('typed host bridge', () => {
       'target.updated',
       'session.stateChanged',
       'telemetry.updated',
+      'combat.rhythm.updated',
       'preview.availabilityChanged',
       'observation.updated',
       'log.appended',
@@ -117,13 +118,28 @@ describe('typed host bridge', () => {
         pauseReason: 'None',
       },
     } as const
+    const rhythmEvent = {
+      schemaVersion: 2,
+      type: 'combat.rhythm.updated',
+      payload: {
+        schemaVersion: 2,
+        cycleId: 7,
+        phase: 'attackHolding',
+        sampledDurationMs: 26_430,
+        remainingMs: 18_620,
+        updatedAtMonoMs: 120_000,
+        earlyReleaseReason: null,
+      },
+    } as const
 
+    sessionStore.getState().applyHostEvent(rhythmEvent)
     sessionStore.getState().applyHostEvent(stateEvent)
     telemetryStore.getState().applyHostEvent(telemetryEvent)
     telemetryStore.getState().applyHostEvent({ ...telemetryEvent, payload: { ...telemetryEvent.payload, captureFps: 59 } })
     telemetryStore.getState().applyHostEvent({ ...telemetryEvent, payload: { ...telemetryEvent.payload, captureFps: 58 } })
 
     expect(sessionStore.getState()).toMatchObject({ sessionState: 'Paused', pauseReason: 'OperatorRequested', inputInjection: 'DISABLED' })
+    expect(sessionStore.getState().rhythm).toBeUndefined()
     expect(telemetryStore.getState().latest?.captureFps).toBe(58)
     expect(telemetryStore.getState().history.map((item) => item.captureFps)).toEqual([59, 58])
   })

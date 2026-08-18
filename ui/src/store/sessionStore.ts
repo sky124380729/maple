@@ -1,5 +1,5 @@
 import { createStore } from 'zustand/vanilla'
-import type { HostEvent, ObservationSnapshot, PauseReason, SessionState, TargetBinding } from '../contracts/bridge'
+import type { CombatRhythmSnapshot, HostEvent, ObservationSnapshot, PauseReason, SessionState, TargetBinding } from '../contracts/bridge'
 
 type PreviewAvailability = Extract<HostEvent, { type: 'preview.availabilityChanged' }>['payload']
 type LogEntry = Extract<HostEvent, { type: 'log.appended' }>['payload']
@@ -11,6 +11,7 @@ export interface SessionStoreState {
   pauseReason: PauseReason
   preview: PreviewAvailability
   observation?: ObservationSnapshot
+  rhythm?: CombatRhythmSnapshot
   logs: LogEntry[]
   cloudStatus: CloudStatus
   inputInjection: 'DISABLED'
@@ -41,11 +42,20 @@ export function createSessionStore() {
     applyHostEvent(event) {
       switch (event.type) {
         case 'target.updated': set({ target: event.payload }); break
-        case 'session.stateChanged': set({ sessionState: event.payload.state, pauseReason: event.payload.pauseReason }); break
+        case 'session.stateChanged': {
+          const clearsRhythm = ['Stopped', 'Paused', 'ManualIntervention', 'EmergencyStop'].includes(event.payload.state)
+          set((state) => ({
+            sessionState: event.payload.state,
+            pauseReason: event.payload.pauseReason,
+            rhythm: clearsRhythm ? undefined : state.rhythm,
+          }))
+          break
+        }
         case 'preview.availabilityChanged': set({ preview: event.payload }); break
         case 'observation.updated': set({ observation: event.payload }); break
         case 'log.appended': set((state) => ({ logs: [...state.logs, event.payload].slice(-200) })); break
         case 'cloud.status.updated': set({ cloudStatus: event.payload }); break
+        case 'combat.rhythm.updated': set({ rhythm: event.payload }); break
       }
     },
     reset() { set(initialState) },

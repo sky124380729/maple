@@ -21,5 +21,6 @@
     <Compile Include="../Maple.Host/HostCommandDispatcher.cs" Link="HostCommandDispatcher.cs" />
     <Compile Include="../Maple.Host/HostSafetyCoordinator.cs" Link="HostSafetyCoordinator.cs" />
     <Compile Include="../Maple.Host/LocalNavigationPolicy.cs" Link="LocalNavigationPolicy.cs" />
+    <Compile Include="../Maple.Host/CombatRhythmMessageSerializer.cs" Link="CombatRhythmMessageSerializer.cs" />
   </ItemGroup>
 </Project>

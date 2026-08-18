@@ -1,5 +1,5 @@
 import { CONTRACT_SCHEMA_VERSION, uiCommandSchema, type HostEvent, type UiCommand } from '../contracts/bridge'
-import { createMockSessionEvents, createMockTelemetryEvent } from '../mock/mockSession'
+import { createMockRhythmEvent, createMockSessionEvents, createMockTelemetryEvent } from '../mock/mockSession'
 import type { BridgeResult, HostBridge, HostEventListener } from './HostBridge'
 
 export interface MockHostBridgeOptions {
@@ -34,7 +34,11 @@ export function createMockHostBridge(options: MockHostBridgeOptions = {}): HostB
   let interval: ReturnType<typeof setInterval> | undefined
 
   const ensureTelemetryStarted = () => {
-    if (!interval) interval = setInterval(() => emit(createMockTelemetryEvent(++tick)), telemetryIntervalMs)
+    if (!interval) interval = setInterval(() => {
+      tick += 1
+      emit(createMockTelemetryEvent(tick))
+      emit(createMockRhythmEvent(tick))
+    }, telemetryIntervalMs)
   }
 
   const requestSnapshot = (): BridgeResult => {

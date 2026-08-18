@@ -71,7 +71,7 @@ export function WorkbenchPage({ bridge: suppliedBridge }: { bridge?: HostBridge 
         </div>
       </header>
       <div className="workbench-grid">
-        <SessionControls sessionState={session.sessionState} sendCommand={sendCommand} />
+        <SessionControls sessionState={session.sessionState} rhythm={session.rhythm} sendCommand={sendCommand} />
         <PreviewRegion preview={session.preview} observation={session.observation} onRequestSnapshot={requestSnapshot} />
         <HealthPanel sessionState={session.sessionState} pauseReason={session.pauseReason} observation={session.observation} preview={session.preview} logs={session.logs} onRefresh={requestSnapshot} />
       </div>
