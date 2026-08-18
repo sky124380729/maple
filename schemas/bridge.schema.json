@@ -113,9 +113,33 @@
       "required": ["schemaVersion", "type", "payload"],
       "properties": {
         "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
-        "type": { "enum": ["target.updated", "capture.frameMetadata", "overlay.updated", "observation.updated", "telemetry.updated", "session.stateChanged", "input.result", "log.appended", "preview.availabilityChanged"] },
+        "type": { "enum": ["target.updated", "capture.frameMetadata", "overlay.updated", "observation.updated", "telemetry.updated", "session.stateChanged", "input.result", "log.appended", "preview.availabilityChanged", "combat.rhythm.updated"] },
         "timestamp": { "$ref": "#/$defs/timestamp" },
         "payload": { "type": "object" }
+      }
+    },
+    "combatRhythm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "combat.rhythm.updated" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "cycleId", "phase", "sampledDurationMs", "remainingMs", "updatedAtMonoMs"],
+          "properties": {
+            "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+            "cycleId": { "type": "integer", "minimum": 0 },
+            "phase": { "enum": ["idle", "attackHolding", "moveLeft", "moveRight", "movementGap", "resting"] },
+            "sampledDurationMs": { "type": "integer", "minimum": 0, "maximum": 30000 },
+            "remainingMs": { "type": "integer", "minimum": 0, "maximum": 30000 },
+            "updatedAtMonoMs": { "type": "integer", "minimum": 0 },
+            "earlyReleaseReason": { "type": ["string", "null"], "maxLength": 200 }
+          }
+        }
       }
     },
     "mapCalibrationConfirm": {
@@ -230,6 +254,7 @@
     { "$ref": "#/$defs/cloudCredentialSet" },
     { "$ref": "#/$defs/cloudConfig" },
     { "$ref": "#/$defs/cloudMapAnnotate" },
+    { "$ref": "#/$defs/combatRhythm" },
     { "$ref": "#/$defs/hostEvent" },
     { "$ref": "#/$defs/inputBrokerStatus" },
     { "$ref": "#/$defs/mapRuntimeStatus" },

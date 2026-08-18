@@ -3,6 +3,7 @@ import { z } from 'zod'
 export const CONTRACT_SCHEMA_VERSION = 2 as const
 export const MAX_OBSERVATION_TTL_MS = 5_000
 export const MAX_ACTION_DURATION_MS = 5_000
+export const MAX_ATTACK_DURATION_MS = 30_000
 
 const schemaVersion = z.literal(CONTRACT_SCHEMA_VERSION)
 const monoMs = z.number().int().nonnegative()
@@ -173,6 +174,16 @@ export const telemetrySnapshotSchema = z
     pauseReason: pauseReasonSchema,
   })
   .strict()
+
+export const combatRhythmSnapshotSchema = z.object({
+  schemaVersion,
+  cycleId: z.number().int().nonnegative(),
+  phase: z.enum(['idle', 'attackHolding', 'moveLeft', 'moveRight', 'movementGap', 'resting']),
+  sampledDurationMs: z.number().int().min(0).max(MAX_ATTACK_DURATION_MS),
+  remainingMs: z.number().int().min(0).max(MAX_ATTACK_DURATION_MS),
+  updatedAtMonoMs: monoMs,
+  earlyReleaseReason: z.string().max(200).nullable().optional(),
+}).strict()
 
 const actionBase = {
   actionId: z.string().min(1).max(128),
@@ -376,6 +387,7 @@ const hostEventVariants = [
   z.object({ ...commandEnvelope, type: z.literal('overlay.updated'), payload: overlaySnapshotSchema }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('observation.updated'), payload: observationSnapshotSchema }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('telemetry.updated'), payload: telemetrySnapshotSchema }).strict(),
+  z.object({ ...commandEnvelope, type: z.literal('combat.rhythm.updated'), payload: combatRhythmSnapshotSchema }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('session.stateChanged'), payload: z.object({ state: sessionStateSchema, pauseReason: pauseReasonSchema, resumeCountdown: z.number().int().min(1).max(3).nullable().optional() }).strict() }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('input.result'), payload: inputResultSchema }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('input.status.updated'), payload: inputBrokerStatusSchema }).strict(),
@@ -407,6 +419,7 @@ export type CaptureFrameMetadata = z.infer<typeof captureFrameMetadataSchema>
 export type OverlaySnapshot = z.infer<typeof overlaySnapshotSchema>
 export type ObservationSnapshot = z.infer<typeof observationSnapshotSchema>
 export type TelemetrySnapshot = z.infer<typeof telemetrySnapshotSchema>
+export type CombatRhythmSnapshot = z.infer<typeof combatRhythmSnapshotSchema>
 export type SessionState = z.infer<typeof sessionStateSchema>
 export type PauseReason = z.infer<typeof pauseReasonSchema>
 export type AbstractAction = z.infer<typeof abstractActionSchema>

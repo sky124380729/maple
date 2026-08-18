@@ -14,6 +14,7 @@ const requireTokens = (relative, tokens) => {
 
 requireTokens('src/Maple.Core/SafetyGate.cs', ['CalibrationRequired', 'WindowNotForeground', 'InputUnavailable'])
 requireTokens('src/Maple.Core/ActionPolicy.cs', ['MoveLeft', 'MoveRight', 'Attack', 'Replan', 'UsePotion'])
+requireTokens('src/Maple.Contracts/DomainContracts.cs', ['MaxAttackDurationMs', 'CombatRhythmSnapshot', 'CombatRhythmUpdated'])
 requireTokens('src/Maple.Core/ActionJournal.cs', ['Precondition', 'KeyDown', 'Observe', 'EarlyReleaseOrTimeout', 'KeyUp', 'Postcondition'])
 requireTokens('src/Maple.Map/MapWorld.cs', ['CanProduceActions', 'Candidate', 'Validated', 'Archived'])
 requireTokens('src/Maple.Map/TopologyValidator.cs', ['MinimumCoverage', 'MaximumCalibrationErrorPx'])
@@ -26,6 +27,7 @@ requireTokens('src/Maple.Input/BrokerProtocol.cs', ['BrokerProtocol', 'BrokerReq
 requireTokens('src/Maple.Host/BrokerClient.cs', ['BrokerClient', 'BrokerProtocol.Version', 'ReleaseAll'])
 requireTokens('src/Maple.InputBroker/BrokerInputSession.cs', ['ReleaseAllAsync', 'HEARTBEAT_TIMEOUT', 'TARGET_NOT_ARMED'])
 requireTokens('src/Maple.Host/BridgeMessageRouter.cs', ['session.emergencyStop', 'UNKNOWN_COMMAND_REJECTED', 'ContainsForbiddenField', 'ValidatePayload'])
+requireTokens('schemas/bridge.schema.json', ['combat.rhythm.updated', 'attackHolding', 'movementGap', 'resting'])
 requireTokens('src/Maple.Host/HostSafetyCoordinator.cs', ['PauseAndRelease', 'EmergencyStop', 'ReleaseForShutdown'])
 requireTokens('src/Maple.Cloud/BailianMapHttpClient.cs', ['BailianHttpClient.Endpoint', 'CloudUploadApproved', 'HasMatchingProvenance', '不得输出路线、按键或动作'])
 requireTokens('src/Maple.Preview/NativePreviewSurface.cs', ['FrameSlot<Bitmap>', 'OverlayColors.Self', 'OverlayColors.Player', 'OverlayColors.Monster'])
