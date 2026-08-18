@@ -5,6 +5,7 @@
   "$defs": {
     "schemaVersion": { "const": 2 },
     "timestamp": { "type": "string", "format": "date-time" },
+    "monoMs": { "type": "integer", "minimum": 0 },
     "emptyPayload": { "type": "object", "additionalProperties": false },
     "emergencyStop": {
       "type": "object",
@@ -118,6 +119,30 @@
         "payload": { "type": "object" }
       }
     },
+    "combatRhythm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "type", "payload"],
+      "properties": {
+        "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+        "type": { "const": "combat.rhythm.updated" },
+        "timestamp": { "$ref": "#/$defs/timestamp" },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "cycleId", "phase", "sampledDurationMs", "remainingMs", "updatedAtMonoMs"],
+          "properties": {
+            "schemaVersion": { "$ref": "#/$defs/schemaVersion" },
+            "cycleId": { "type": "integer", "minimum": 0 },
+            "phase": { "enum": ["idle", "attackHolding", "moveLeft", "moveRight", "movementGap", "resting"] },
+            "sampledDurationMs": { "type": "integer", "minimum": 0, "maximum": 30000 },
+            "remainingMs": { "type": "integer", "minimum": 0, "maximum": 30000 },
+            "updatedAtMonoMs": { "$ref": "#/$defs/monoMs" },
+            "earlyReleaseReason": { "type": ["string", "null"], "maxLength": 200 }
+          }
+        }
+      }
+    },
     "cloudStatus": {
       "type": "object",
       "additionalProperties": false,
@@ -150,6 +175,7 @@
     { "$ref": "#/$defs/cloudCredentialSet" },
     { "$ref": "#/$defs/cloudConfig" },
     { "$ref": "#/$defs/cloudMapAnnotate" },
+    { "$ref": "#/$defs/combatRhythm" },
     { "$ref": "#/$defs/hostEvent" },
     { "$ref": "#/$defs/cloudStatus" }
   ]

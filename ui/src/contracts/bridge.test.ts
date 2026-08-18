@@ -79,6 +79,37 @@ describe('shared bridge contracts', () => {
     expect(abstractActionSchema.safeParse({ ...baseAction, type: 'MoveDown' }).success).toBe(false)
   })
 
+  test('allows a thirty second attack without extending movement limits', () => {
+    const longDuration = {
+      actionId: 'stationary-attack',
+      issuedAtMonoMs: 100,
+      holdMs: 30_000,
+      maxDurationMs: 30_000,
+    }
+
+    expect(abstractActionSchema.safeParse({ ...longDuration, type: 'Attack', profileId: 'singleAttack' }).success).toBe(true)
+    expect(abstractActionSchema.safeParse({ ...longDuration, type: 'MoveLeft' }).success).toBe(false)
+  })
+
+  test('accepts strict combat rhythm countdown events', () => {
+    const event = {
+      schemaVersion: 2,
+      type: 'combat.rhythm.updated',
+      payload: {
+        schemaVersion: 2,
+        cycleId: 7,
+        phase: 'attackHolding',
+        sampledDurationMs: 26_430,
+        remainingMs: 18_620,
+        updatedAtMonoMs: 120_000,
+        earlyReleaseReason: null,
+      },
+    }
+
+    expect(hostEventSchema.safeParse(event).success).toBe(true)
+    expect(hostEventSchema.safeParse({ ...event, payload: { ...event.payload, direction: 'Left' } }).success).toBe(false)
+  })
+
   test('validates bridge percentage thresholds in the 0 to 100 unit', () => {
     const command = {
       schemaVersion: 2,

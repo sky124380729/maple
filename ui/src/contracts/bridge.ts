@@ -3,6 +3,7 @@ import { z } from 'zod'
 export const CONTRACT_SCHEMA_VERSION = 2 as const
 export const MAX_OBSERVATION_TTL_MS = 5_000
 export const MAX_ACTION_DURATION_MS = 5_000
+export const MAX_ATTACK_DURATION_MS = 30_000
 
 const schemaVersion = z.literal(CONTRACT_SCHEMA_VERSION)
 const monoMs = z.number().int().nonnegative()
@@ -164,6 +165,18 @@ export const telemetrySnapshotSchema = z
   })
   .strict()
 
+export const combatRhythmSnapshotSchema = z
+  .object({
+    schemaVersion,
+    cycleId: z.number().int().nonnegative(),
+    phase: z.enum(['idle', 'attackHolding', 'moveLeft', 'moveRight', 'movementGap', 'resting']),
+    sampledDurationMs: z.number().int().nonnegative().max(MAX_ATTACK_DURATION_MS),
+    remainingMs: z.number().int().nonnegative().max(MAX_ATTACK_DURATION_MS),
+    updatedAtMonoMs: monoMs,
+    earlyReleaseReason: z.string().max(200).nullable().optional(),
+  })
+  .strict()
+
 const actionBase = {
   actionId: z.string().min(1).max(128),
   issuedAtMonoMs: monoMs,
@@ -171,10 +184,17 @@ const actionBase = {
   maxDurationMs: z.number().int().positive().max(MAX_ACTION_DURATION_MS),
 }
 
+const attackActionBase = {
+  actionId: z.string().min(1).max(128),
+  issuedAtMonoMs: monoMs,
+  holdMs: z.number().int().min(10).max(MAX_ATTACK_DURATION_MS),
+  maxDurationMs: z.number().int().positive().max(MAX_ATTACK_DURATION_MS),
+}
+
 export const abstractActionSchema = z
   .discriminatedUnion('type', [
     z.object({ ...actionBase, type: z.enum(['MoveLeft', 'MoveRight', 'Jump', 'ClimbUp', 'ClimbDown', 'Pickup']) }).strict(),
-    z.object({ ...actionBase, type: z.literal('Attack'), profileId: z.enum(['singleAttack', 'areaAttack']) }).strict(),
+    z.object({ ...attackActionBase, type: z.literal('Attack'), profileId: z.enum(['singleAttack', 'areaAttack']) }).strict(),
     z.object({ ...actionBase, type: z.literal('UsePotion'), profileId: z.enum(['hpPotion', 'mpPotion']) }).strict(),
     z.object({ ...actionBase, type: z.enum(['Pause', 'Replan']) }).strict(),
   ])
@@ -283,6 +303,7 @@ const hostEventVariants = [
   z.object({ ...commandEnvelope, type: z.literal('overlay.updated'), payload: overlaySnapshotSchema }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('observation.updated'), payload: observationSnapshotSchema }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('telemetry.updated'), payload: telemetrySnapshotSchema }).strict(),
+  z.object({ ...commandEnvelope, type: z.literal('combat.rhythm.updated'), payload: combatRhythmSnapshotSchema }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('session.stateChanged'), payload: z.object({ state: sessionStateSchema, pauseReason: pauseReasonSchema }).strict() }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('input.result'), payload: inputResultSchema }).strict(),
   z.object({ ...commandEnvelope, type: z.literal('log.appended'), payload: z.object({ level: z.enum(['debug', 'info', 'warn', 'error']), message: z.string().min(1).max(500), code: z.string().max(64).optional() }).strict() }).strict(),
@@ -309,6 +330,7 @@ export type CaptureFrameMetadata = z.infer<typeof captureFrameMetadataSchema>
 export type OverlaySnapshot = z.infer<typeof overlaySnapshotSchema>
 export type ObservationSnapshot = z.infer<typeof observationSnapshotSchema>
 export type TelemetrySnapshot = z.infer<typeof telemetrySnapshotSchema>
+export type CombatRhythmSnapshot = z.infer<typeof combatRhythmSnapshotSchema>
 export type SessionState = z.infer<typeof sessionStateSchema>
 export type PauseReason = z.infer<typeof pauseReasonSchema>
 export type AbstractAction = z.infer<typeof abstractActionSchema>

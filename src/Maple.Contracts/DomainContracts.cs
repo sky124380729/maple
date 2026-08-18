@@ -10,6 +10,7 @@ namespace Maple.Contracts
         public const int SchemaVersion = 2;
         public const long MaxObservationTtlMs = 5000;
         public const int MaxActionDurationMs = 5000;
+        public const int MaxAttackDurationMs = 30000;
     }
 
     [DataContract]
@@ -136,6 +137,18 @@ namespace Maple.Contracts
     }
 
     [DataContract]
+    public sealed class CombatRhythmSnapshot
+    {
+        [DataMember(Name = "schemaVersion", IsRequired = true)] public int SchemaVersion { get; set; }
+        [DataMember(Name = "cycleId", IsRequired = true)] public long CycleId { get; set; }
+        [DataMember(Name = "phase", IsRequired = true)] public CombatRhythmPhase Phase { get; set; }
+        [DataMember(Name = "sampledDurationMs", IsRequired = true)] public int SampledDurationMs { get; set; }
+        [DataMember(Name = "remainingMs", IsRequired = true)] public int RemainingMs { get; set; }
+        [DataMember(Name = "updatedAtMonoMs", IsRequired = true)] public long UpdatedAtMonoMs { get; set; }
+        [DataMember(Name = "earlyReleaseReason", EmitDefaultValue = false)] public string EarlyReleaseReason { get; set; }
+    }
+
+    [DataContract]
     public sealed class AbstractAction
     {
         [DataMember(Name = "actionId", IsRequired = true)] public string ActionId { get; set; }
@@ -222,7 +235,10 @@ namespace Maple.Contracts
         public static ContractValidationResult ValidateAction(AbstractAction action)
         {
             if (action == null || string.IsNullOrWhiteSpace(action.ActionId)) return ContractValidationResult.Invalid("actionId");
-            if (action.HoldMs < 0 || action.MaxDurationMs <= 0 || action.HoldMs > action.MaxDurationMs || action.MaxDurationMs > ContractConstants.MaxActionDurationMs) return ContractValidationResult.Invalid("duration");
+            int maximumDurationMs = action.Type == ActionType.Attack
+                ? ContractConstants.MaxAttackDurationMs
+                : ContractConstants.MaxActionDurationMs;
+            if (action.HoldMs < 0 || action.MaxDurationMs <= 0 || action.HoldMs > action.MaxDurationMs || action.MaxDurationMs > maximumDurationMs) return ContractValidationResult.Invalid("duration");
             if (action.Type == ActionType.Attack && action.ProfileId != ActionProfileId.SingleAttack && action.ProfileId != ActionProfileId.AreaAttack) return ContractValidationResult.Invalid("attack.profileId");
             if (action.Type == ActionType.UsePotion && action.ProfileId != ActionProfileId.HpPotion && action.ProfileId != ActionProfileId.MpPotion) return ContractValidationResult.Invalid("potion.profileId");
             if (action.Type != ActionType.Attack && action.Type != ActionType.UsePotion && action.ProfileId.HasValue) return ContractValidationResult.Invalid("profileId");
@@ -263,6 +279,16 @@ namespace Maple.Contracts
     [DataContract]
     public enum ActionType { MoveLeft, MoveRight, Jump, ClimbUp, ClimbDown, Attack, Pickup, UsePotion, Pause, Replan }
     [DataContract]
+    public enum CombatRhythmPhase
+    {
+        [EnumMember(Value = "idle")] Idle,
+        [EnumMember(Value = "attackHolding")] AttackHolding,
+        [EnumMember(Value = "moveLeft")] MoveLeft,
+        [EnumMember(Value = "moveRight")] MoveRight,
+        [EnumMember(Value = "movementGap")] MovementGap,
+        [EnumMember(Value = "resting")] Resting
+    }
+    [DataContract]
     public enum ActionProfileId
     {
         [EnumMember(Value = "singleAttack")] SingleAttack,
@@ -284,7 +310,8 @@ namespace Maple.Contracts
         [EnumMember(Value = "input.result")] InputResult,
         [EnumMember(Value = "log.appended")] LogAppended,
         [EnumMember(Value = "preview.availabilityChanged")] PreviewAvailabilityChanged,
-        [EnumMember(Value = "cloud.status.updated")] CloudStatusUpdated
+        [EnumMember(Value = "cloud.status.updated")] CloudStatusUpdated,
+        [EnumMember(Value = "combat.rhythm.updated")] CombatRhythmUpdated
     }
     [DataContract]
     public enum UiCommandType

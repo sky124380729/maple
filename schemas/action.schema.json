@@ -26,8 +26,8 @@
         "type": { "const": "Attack" },
         "profileId": { "enum": ["singleAttack", "areaAttack"] },
         "issuedAtMonoMs": { "$ref": "#/$defs/monoMs" },
-        "holdMs": { "type": "integer", "minimum": 10, "maximum": 5000 },
-        "maxDurationMs": { "type": "integer", "exclusiveMinimum": 0, "maximum": 5000 }
+        "holdMs": { "type": "integer", "minimum": 10, "maximum": 30000 },
+        "maxDurationMs": { "type": "integer", "exclusiveMinimum": 0, "maximum": 30000 }
       }
     },
     "potionAction": {
