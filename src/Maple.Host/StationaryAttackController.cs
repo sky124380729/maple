@@ -24,27 +24,32 @@ public sealed class StationaryAttackController : IDisposable
     private readonly StationaryAttackTiming timing;
     private readonly Func<int, int, int> nextInt;
     private readonly Func<TimeSpan, CancellationToken, Task> delay;
+    private readonly StationaryAttackRhythmSampler? rhythmSampler;
     private readonly object sync = new();
     private CancellationTokenSource? cancellation;
     private bool disposed;
+    private long rhythmCycleId;
 
     public StationaryAttackController(
         IAutomaticCombatInputSession inputSession,
         IActionExecutor executor,
         StationaryAttackTiming? timing = null,
         Func<int, int, int>? nextInt = null,
-        Func<TimeSpan, CancellationToken, Task>? delay = null)
+        Func<TimeSpan, CancellationToken, Task>? delay = null,
+        StationaryAttackRhythmSampler? rhythmSampler = null)
     {
         this.inputSession = inputSession ?? throw new ArgumentNullException(nameof(inputSession));
         this.executor = executor ?? throw new ArgumentNullException(nameof(executor));
         this.timing = timing ?? StationaryAttackTiming.Default;
         this.nextInt = nextInt ?? ((minimum, maximum) => Random.Shared.Next(minimum, maximum + 1));
         this.delay = delay ?? Task.Delay;
+        this.rhythmSampler = rhythmSampler;
         if (this.timing.AttackMinMs < 1 || this.timing.AttackMaxMs < this.timing.AttackMinMs)
             throw new ArgumentOutOfRangeException(nameof(timing));
     }
 
     public event EventHandler<AutomaticCombatStatus>? StatusChanged;
+    public event EventHandler<CombatRhythmSnapshot>? RhythmChanged;
     public Task? Completion { get; private set; }
     public bool IsRunning { get { lock (sync) return Completion is { IsCompleted: false }; } }
 
@@ -102,16 +107,30 @@ public sealed class StationaryAttackController : IDisposable
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                await HoldAsync(ActionType.Attack, ActionProfileId.SingleAttack, nextInt(timing.AttackMinMs, timing.AttackMaxMs), cancellationToken).ConfigureAwait(false);
-                await DelayAsync(timing.BetweenMoveMinMs, timing.BetweenMoveMaxMs, cancellationToken).ConfigureAwait(false);
+                long cycleId = Interlocked.Increment(ref rhythmCycleId);
+                int attackMs = rhythmSampler is null
+                    ? nextInt(timing.AttackMinMs, timing.AttackMaxMs)
+                    : rhythmSampler.SampleAttackHoldMs();
+                PublishRhythm(cycleId, CombatRhythmPhase.AttackHolding, attackMs, attackMs);
+                await HoldAsync(ActionType.Attack, ActionProfileId.SingleAttack, attackMs, cancellationToken, cycleId, CombatRhythmPhase.AttackHolding).ConfigureAwait(false);
+                int gapMs = rhythmSampler is null
+                    ? nextInt(timing.BetweenMoveMinMs, timing.BetweenMoveMaxMs)
+                    : rhythmSampler.SampleMovementGapMs();
+                await DelayPhaseAsync(cycleId, CombatRhythmPhase.MovementGap, gapMs, cancellationToken).ConfigureAwait(false);
 
-                bool leftFirst = nextInt(0, 1) == 0;
+                bool leftFirst = rhythmSampler is null
+                    ? nextInt(0, 1) == 0
+                    : rhythmSampler.SampleFirstDirection() == HorizontalDirection.Left;
                 ActionType first = leftFirst ? ActionType.MoveLeft : ActionType.MoveRight;
                 ActionType second = leftFirst ? ActionType.MoveRight : ActionType.MoveLeft;
-                await HoldAsync(first, null, nextInt(timing.MoveMinMs, timing.MoveMaxMs), cancellationToken).ConfigureAwait(false);
-                await DelayAsync(timing.BetweenMoveMinMs, timing.BetweenMoveMaxMs, cancellationToken).ConfigureAwait(false);
-                await HoldAsync(second, null, nextInt(timing.MoveMinMs, timing.MoveMaxMs), cancellationToken).ConfigureAwait(false);
-                await DelayAsync(timing.BetweenMoveMinMs, timing.BetweenMoveMaxMs, cancellationToken).ConfigureAwait(false);
+                int firstMoveMs = rhythmSampler is null ? nextInt(timing.MoveMinMs, timing.MoveMaxMs) : rhythmSampler.SampleMovementHoldMs();
+                await HoldAsync(first, null, firstMoveMs, cancellationToken, cycleId, leftFirst ? CombatRhythmPhase.MoveLeft : CombatRhythmPhase.MoveRight).ConfigureAwait(false);
+                gapMs = rhythmSampler is null ? nextInt(timing.BetweenMoveMinMs, timing.BetweenMoveMaxMs) : rhythmSampler.SampleMovementGapMs();
+                await DelayPhaseAsync(cycleId, CombatRhythmPhase.MovementGap, gapMs, cancellationToken).ConfigureAwait(false);
+                int secondMoveMs = rhythmSampler is null ? nextInt(timing.MoveMinMs, timing.MoveMaxMs) : rhythmSampler.SampleMovementHoldMs();
+                await HoldAsync(second, null, secondMoveMs, cancellationToken, cycleId, leftFirst ? CombatRhythmPhase.MoveRight : CombatRhythmPhase.MoveLeft).ConfigureAwait(false);
+                if (rhythmSampler is not null && rhythmSampler.ShouldRest())
+                    await DelayPhaseAsync(cycleId, CombatRhythmPhase.Resting, rhythmSampler.SampleRestMs(), cancellationToken).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -130,7 +149,7 @@ public sealed class StationaryAttackController : IDisposable
         }
     }
 
-    private async Task HoldAsync(ActionType type, ActionProfileId? profile, int holdMs, CancellationToken cancellationToken)
+    private async Task HoldAsync(ActionType type, ActionProfileId? profile, int holdMs, CancellationToken cancellationToken, long cycleId = 0, CombatRhythmPhase phase = CombatRhythmPhase.Idle)
     {
         bool down = false;
         try
@@ -143,6 +162,7 @@ public sealed class StationaryAttackController : IDisposable
                 int sliceMs = Math.Min(remainingMs, nextInt(LeaseRefreshMinMs, LeaseRefreshMaxMs));
                 await delay(TimeSpan.FromMilliseconds(sliceMs), cancellationToken).ConfigureAwait(false);
                 remainingMs -= sliceMs;
+                if (cycleId != 0) PublishRhythm(cycleId, phase, holdMs, remainingMs);
                 if (remainingMs > 0)
                     await executor.KeyDownAsync(CreateAction(type, profile), cancellationToken).ConfigureAwait(false);
             }
@@ -163,12 +183,37 @@ public sealed class StationaryAttackController : IDisposable
             ProfileId = profile,
             IssuedAtMonoMs = now,
             HoldMs = 0,
-            MaxDurationMs = ContractConstants.MaxActionDurationMs,
+            MaxDurationMs = type == ActionType.Attack ? ContractConstants.MaxAttackDurationMs : ContractConstants.MaxActionDurationMs,
         };
     }
 
     private Task DelayAsync(int minimum, int maximum, CancellationToken cancellationToken) =>
         delay(TimeSpan.FromMilliseconds(nextInt(minimum, maximum)), cancellationToken);
+
+    private async Task DelayPhaseAsync(long cycleId, CombatRhythmPhase phase, int durationMs, CancellationToken cancellationToken)
+    {
+        int remainingMs = durationMs;
+        PublishRhythm(cycleId, phase, durationMs, remainingMs);
+        while (remainingMs > 0)
+        {
+            int sliceMs = Math.Min(remainingMs, 250);
+            await delay(TimeSpan.FromMilliseconds(sliceMs), cancellationToken).ConfigureAwait(false);
+            remainingMs -= sliceMs;
+            PublishRhythm(cycleId, phase, durationMs, remainingMs);
+        }
+    }
+
+    private void PublishRhythm(long cycleId, CombatRhythmPhase phase, int durationMs, int remainingMs, string? earlyReleaseReason = null) =>
+        RhythmChanged?.Invoke(this, new CombatRhythmSnapshot
+        {
+            SchemaVersion = ContractConstants.SchemaVersion,
+            CycleId = cycleId,
+            Phase = phase,
+            SampledDurationMs = durationMs,
+            RemainingMs = Math.Max(0, remainingMs),
+            UpdatedAtMonoMs = Environment.TickCount64,
+            EarlyReleaseReason = earlyReleaseReason,
+        });
 
     private void Publish(SessionState state, PauseReason reason, string code) =>
         StatusChanged?.Invoke(this, new AutomaticCombatStatus(state, reason, code));

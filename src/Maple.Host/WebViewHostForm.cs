@@ -164,6 +164,7 @@ namespace Maple.Host
             if (stationaryAttack is not null) throw new InvalidOperationException("Stationary attack is already configured");
             stationaryAttack = controller ?? throw new ArgumentNullException(nameof(controller));
             stationaryAttack.StatusChanged += OnAutomaticCombatStatusChanged;
+            stationaryAttack.RhythmChanged += OnStationaryRhythmChanged;
         }
 
         public void SendCloudStatus(CloudRuntimeStatus status)
@@ -449,6 +450,35 @@ namespace Maple.Host
         private void OnAutomaticCombatStatusChanged(object? sender, AutomaticCombatStatus status) =>
             SendOnUiThread(() => SendSessionState(status.State, status.PauseReason, null));
 
+        private void OnStationaryRhythmChanged(object? sender, CombatRhythmSnapshot snapshot)
+        {
+            string phase = snapshot.Phase switch
+            {
+                CombatRhythmPhase.AttackHolding => "attackHolding",
+                CombatRhythmPhase.MoveLeft => "moveLeft",
+                CombatRhythmPhase.MoveRight => "moveRight",
+                CombatRhythmPhase.MovementGap => "movementGap",
+                CombatRhythmPhase.Resting => "resting",
+                _ => "idle",
+            };
+            string json = JsonSerializer.Serialize(new
+            {
+                schemaVersion = ContractConstants.SchemaVersion,
+                type = "combat.rhythm.updated",
+                payload = new
+                {
+                    schemaVersion = snapshot.SchemaVersion,
+                    cycleId = snapshot.CycleId,
+                    phase,
+                    sampledDurationMs = snapshot.SampledDurationMs,
+                    remainingMs = snapshot.RemainingMs,
+                    updatedAtMonoMs = snapshot.UpdatedAtMonoMs,
+                    earlyReleaseReason = snapshot.EarlyReleaseReason,
+                },
+            }, new JsonSerializerOptions { DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull });
+            SendOnUiThread(() => webViewRuntime.Send(json));
+        }
+
         private void OnInputCountdownChanged(object? sender, int secondsRemaining)
         {
             SendOnUiThread(() => SendSessionState(SessionState.Arming, PauseReason.None, secondsRemaining));
@@ -616,6 +646,7 @@ namespace Maple.Host
                 if (stationaryAttack is not null)
                 {
                     stationaryAttack.StatusChanged -= OnAutomaticCombatStatusChanged;
+                    stationaryAttack.RhythmChanged -= OnStationaryRhythmChanged;
                     stationaryAttack.Dispose();
                 }
                 foregroundSession?.Dispose();

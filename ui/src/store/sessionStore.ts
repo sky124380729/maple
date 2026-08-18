@@ -1,5 +1,5 @@
 import { createStore } from 'zustand/vanilla'
-import type { CombatConfiguration, HostEvent, InputBrokerStatus, InputResult, MapRuntimeStatus, MapScanStatus, ObservationSnapshot, PauseReason, SessionState, TargetBinding, VisionStatus } from '../contracts/bridge'
+import type { CombatConfiguration, CombatRhythmSnapshot, HostEvent, InputBrokerStatus, InputResult, MapRuntimeStatus, MapScanStatus, ObservationSnapshot, PauseReason, SessionState, TargetBinding, VisionStatus } from '../contracts/bridge'
 import { defaultCombatConfiguration } from '../features/workbench/combatConfiguration'
 
 type PreviewAvailability = Extract<HostEvent, { type: 'preview.availabilityChanged' }>['payload']
@@ -20,6 +20,7 @@ export interface SessionStoreState {
   combatConfiguration: CombatConfiguration
   mapStatus?: MapRuntimeStatus
   mapScan?: MapScanStatus
+  rhythm?: CombatRhythmSnapshot
   lastInputResult?: InputResult
   applyHostEvent(event: HostEvent): void
   reset(): void
@@ -73,6 +74,7 @@ export function createSessionStore() {
         case 'config.updated': set({ combatConfiguration: event.payload }); break
         case 'map.status.updated': set({ mapStatus: event.payload }); break
         case 'map.scan.updated': set({ mapScan: event.payload }); break
+        case 'combat.rhythm.updated': set({ rhythm: event.payload }); break
       }
     },
     reset() { set(initialState) },

@@ -191,11 +191,17 @@ const actionBase = {
   holdMs: z.number().int().min(0).max(MAX_ACTION_DURATION_MS),
   maxDurationMs: z.number().int().positive().max(MAX_ACTION_DURATION_MS),
 }
+const attackActionBase = {
+  actionId: z.string().min(1).max(128),
+  issuedAtMonoMs: monoMs,
+  holdMs: z.number().int().min(0).max(MAX_ATTACK_DURATION_MS),
+  maxDurationMs: z.number().int().positive().max(MAX_ATTACK_DURATION_MS),
+}
 
 export const abstractActionSchema = z
   .discriminatedUnion('type', [
     z.object({ ...actionBase, type: z.enum(['MoveLeft', 'MoveRight', 'Jump', 'ClimbUp', 'ClimbDown', 'Pickup']) }).strict(),
-    z.object({ ...actionBase, type: z.literal('Attack'), profileId: z.enum(['singleAttack', 'areaAttack']) }).strict(),
+    z.object({ ...attackActionBase, type: z.literal('Attack'), profileId: z.enum(['singleAttack', 'areaAttack']) }).strict(),
     z.object({ ...actionBase, type: z.literal('UsePotion'), profileId: z.enum(['hpPotion', 'mpPotion']) }).strict(),
     z.object({ ...actionBase, type: z.enum(['Pause', 'Replan']) }).strict(),
   ])

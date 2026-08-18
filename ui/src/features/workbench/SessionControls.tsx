@@ -1,7 +1,7 @@
 import { ControlOutlined, EnvironmentOutlined, KeyOutlined, PauseCircleOutlined, PlayCircleFilled, RightOutlined, SettingOutlined } from '@ant-design/icons'
 import { Button, Divider, InputNumber, Segmented, Space, Switch, Tooltip, Typography } from 'antd'
 import { useState } from 'react'
-import type { CombatConfiguration, InputBrokerStatus, InputResult, MapRuntimeStatus, ObservationSnapshot, SessionState, UiCommand } from '../../contracts/bridge'
+import type { CombatConfiguration, CombatRhythmSnapshot, InputBrokerStatus, InputResult, MapRuntimeStatus, ObservationSnapshot, SessionState, UiCommand } from '../../contracts/bridge'
 import { KeyBindingEditor } from './KeyBindingEditor'
 import { SectionHeading, StatusPill } from './presentation'
 
@@ -15,11 +15,12 @@ export interface SessionControlsProps {
   configuration: CombatConfiguration
   observation?: ObservationSnapshot
   mapStatus?: MapRuntimeStatus
+  rhythm?: CombatRhythmSnapshot
   onOpenMap?(): void
   sendCommand(command: UiCommand): void
 }
 
-export function SessionControls({ sessionState, inputStatus, lastInputResult, resumeCountdown, configuration, observation, mapStatus, onOpenMap, sendCommand }: SessionControlsProps) {
+export function SessionControls({ sessionState, inputStatus, lastInputResult, resumeCountdown, configuration, observation, mapStatus, rhythm, onOpenMap, sendCommand }: SessionControlsProps) {
   const [settingsPaused, setSettingsPaused] = useState(false)
   const [keyEditorOpen, setKeyEditorOpen] = useState(false)
   const [stationaryAttackEnabled, setStationaryAttackEnabled] = useState(false)
@@ -105,6 +106,7 @@ export function SessionControls({ sessionState, inputStatus, lastInputResult, re
           <div className="setting-field setting-field--inline"><div><Text className="field-title">魔法值下限</Text><Text className="field-hint">低于此值时使用 MP 药水</Text></div><div className="threshold-control"><Segmented size="small" value={configuration.mpThresholdMode} onChange={(value) => updateConfig({ mpThresholdMode: value as 'percent' | 'absolute' })} options={[{ label: <span aria-label="MP 百分比">%</span>, value: 'percent' }, { label: <span aria-label="MP 固定值">数值</span>, value: 'absolute' }]} /><InputNumber aria-label="魔法值下限" min={1} max={configuration.mpThresholdMode === 'percent' ? 100 : undefined} value={configuration.mpThreshold} onChange={(value) => { if (value !== null) updateConfig({ mpThreshold: value }) }} suffix={configuration.mpThresholdMode === 'percent' ? '%' : '点'} controls={false} /></div></div>
           <div className="setting-field setting-field--inline"><div><Text className="field-title">自动拾取</Text><Text className="field-hint">检测到掉落物时执行</Text></div><Switch aria-label="自动拾取" checked={configuration.pickupEnabled} onChange={(checked) => updateConfig({ pickupEnabled: checked })} /></div>
           <div className="setting-field setting-field--inline"><div><Text className="field-title">定点攻击</Text><Text className="field-hint">持续约 30 秒，间歇左右回位</Text></div><Switch aria-label="定点攻击" checked={stationaryAttackEnabled && !stopped && !paused && !emergency} disabled={emergency || brokerConnecting} onChange={(checked) => { setStationaryAttackEnabled(checked); sendCommand({ schemaVersion: 2, type: 'stationary.attack.set', payload: { enabled: checked } }) }} /></div>
+          {stationaryAttackEnabled && rhythm && <div className="rhythm-countdown" role="status"><div className="rhythm-countdown__head"><span>当前节奏</span><strong>{rhythm.phase === 'attackHolding' ? '攻击中' : rhythm.phase === 'moveLeft' ? '向左回位' : rhythm.phase === 'moveRight' ? '向右回位' : rhythm.phase === 'resting' ? '短暂休息' : '动作间隔'}</strong></div><div className="rhythm-countdown__time">{(rhythm.remainingMs / 1000).toFixed(1)}<small>秒</small></div><div className="rhythm-countdown__bar"><i style={{ width: `${rhythm.sampledDurationMs > 0 ? Math.max(0, Math.min(100, rhythm.remainingMs / rhythm.sampledDurationMs * 100)) : 0}%` }} /></div><small>本轮时长 {(rhythm.sampledDurationMs / 1000).toFixed(1)} 秒 · 周期 #{rhythm.cycleId}</small></div>}
           <div className="setting-field setting-field--inline"><div><Text className="field-title">攻击距离</Text><Text className="field-hint">同平台目标的期望像素距离</Text></div><InputNumber aria-label="期望攻击距离" min={20} max={500} value={configuration.preferredDistancePx} onChange={(value) => { if (value !== null) updateConfig({ preferredDistancePx: value }) }} suffix="px" controls={false} /></div>
         </section>
         <section className="settings-section" aria-labelledby="profile-title">

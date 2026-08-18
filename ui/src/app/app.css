@@ -134,6 +134,14 @@ button:focus-visible, input:focus-visible, [role="button"]:focus-visible { outli
 .input-test-result small { overflow-wrap: anywhere; color: var(--faint); font-size: 9px; }
 .input-test-result--completed { border-left-color: #42d392; background: rgba(66, 211, 146, .07); }
 .input-test-result--failed, .input-test-result--rejected { border-left-color: #ff6474; background: rgba(255, 100, 116, .07); }
+.rhythm-countdown { display: grid; gap: 6px; margin-top: 9px; padding: 9px 10px; border: 1px solid rgba(77, 163, 255, .28); border-radius: 7px; background: rgba(28, 52, 76, .42); }
+.rhythm-countdown__head { display: flex; align-items: center; justify-content: space-between; color: var(--faint); font-size: 10px; }
+.rhythm-countdown__head strong { color: #b8dcff; font-size: 11px; font-weight: 600; }
+.rhythm-countdown__time { color: #e8f3ff; font-size: 22px; font-variant-numeric: tabular-nums; font-weight: 700; line-height: 1; }
+.rhythm-countdown__time small { margin-left: 3px; color: var(--faint); font-size: 10px; font-weight: 500; }
+.rhythm-countdown__bar { height: 4px; overflow: hidden; border-radius: 99px; background: rgba(142, 183, 222, .18); }
+.rhythm-countdown__bar i { display: block; height: 100%; border-radius: inherit; background: #4da3ff; transition: width .2s linear; }
+.rhythm-countdown > small { color: var(--faint); font-size: 9px; }
 .key-editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding-top: 6px; }
 .key-editor-field { display: grid; grid-template-columns: minmax(0, 1fr) 94px; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .key-editor-field .ant-select { width: 94px; }

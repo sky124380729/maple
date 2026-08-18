@@ -86,7 +86,7 @@ export function WorkbenchPage({ bridge: suppliedBridge }: { bridge?: HostBridge 
         </div>
       </header>
       <div className="workbench-grid">
-        <SessionControls sessionState={session.sessionState} inputStatus={session.inputStatus} lastInputResult={session.lastInputResult} resumeCountdown={session.resumeCountdown} configuration={session.combatConfiguration} observation={session.observation} mapStatus={session.mapStatus} onOpenMap={() => setMapOpen(true)} sendCommand={sendCommand} />
+        <SessionControls sessionState={session.sessionState} inputStatus={session.inputStatus} lastInputResult={session.lastInputResult} resumeCountdown={session.resumeCountdown} configuration={session.combatConfiguration} observation={session.observation} mapStatus={session.mapStatus} rhythm={session.rhythm} onOpenMap={() => setMapOpen(true)} sendCommand={sendCommand} />
         <PreviewRegion preview={session.preview} observation={session.observation} telemetry={telemetry} onRequestSnapshot={requestSnapshot} sendCommand={sendCommand} />
         <HealthPanel sessionState={session.sessionState} pauseReason={session.pauseReason} observation={session.observation} telemetry={telemetry} visionStatus={session.visionStatus} preview={session.preview} inputStatus={session.inputStatus} logs={session.logs} onRefresh={requestSnapshot} />
       </div>

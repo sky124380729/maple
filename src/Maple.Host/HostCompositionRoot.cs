@@ -113,7 +113,12 @@ public static class HostCompositionRoot
                 actionExecutor,
                 () => combatConfiguration.Current);
             window.ConfigureCombatTrial(combatTrial);
-            stationaryAttack = new StationaryAttackController(foregroundSession, actionExecutor);
+            stationaryAttack = new StationaryAttackController(
+                foregroundSession,
+                actionExecutor,
+                rhythmSampler: new StationaryAttackRhythmSampler(
+                    new SystemRandomSource(),
+                    new StationaryAttackRhythmOptions()));
             window.ConfigureStationaryAttack(stationaryAttack);
         }
         else
