@@ -129,6 +129,8 @@ public sealed class StationaryAttackController : IDisposable
                 await DelayPhaseAsync(cycleId, CombatRhythmPhase.MovementGap, gapMs, cancellationToken).ConfigureAwait(false);
                 int secondMoveMs = rhythmSampler is null ? nextInt(timing.MoveMinMs, timing.MoveMaxMs) : rhythmSampler.SampleMovementHoldMs();
                 await HoldAsync(second, null, secondMoveMs, cancellationToken, cycleId, leftFirst ? CombatRhythmPhase.MoveRight : CombatRhythmPhase.MoveLeft).ConfigureAwait(false);
+                gapMs = rhythmSampler is null ? nextInt(timing.BetweenMoveMinMs, timing.BetweenMoveMaxMs) : rhythmSampler.SampleMovementGapMs();
+                await DelayPhaseAsync(cycleId, CombatRhythmPhase.MovementGap, gapMs, cancellationToken).ConfigureAwait(false);
                 if (rhythmSampler is not null && rhythmSampler.ShouldRest())
                     await DelayPhaseAsync(cycleId, CombatRhythmPhase.Resting, rhythmSampler.SampleRestMs(), cancellationToken).ConfigureAwait(false);
             }
