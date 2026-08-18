@@ -60,7 +60,7 @@ export function createSessionStore() {
     applyHostEvent(event) {
       switch (event.type) {
         case 'target.updated': set({ target: event.payload }); break
-        case 'session.stateChanged': set({ sessionState: event.payload.state, pauseReason: event.payload.pauseReason, resumeCountdown: event.payload.resumeCountdown ?? null }); break
+        case 'session.stateChanged': set((state) => ({ sessionState: event.payload.state, pauseReason: event.payload.pauseReason, resumeCountdown: event.payload.resumeCountdown ?? null, rhythm: ['Paused', 'Stopped', 'EmergencyStop'].includes(event.payload.state) ? undefined : state.rhythm })); break
         case 'preview.availabilityChanged': set({ preview: event.payload }); break
         case 'observation.updated': set({ observation: event.payload }); break
         case 'log.appended': set((state) => ({ logs: [...state.logs, event.payload].slice(-200) })); break

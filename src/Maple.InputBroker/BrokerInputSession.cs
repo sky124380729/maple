@@ -10,6 +10,7 @@ namespace Maple.InputBroker;
 public sealed class BrokerInputSession : IAsyncDisposable
 {
     private const int MaximumAllowedDurationMs = 5_000;
+    private const int MaximumAllowedAttackDurationMs = 30_000;
     private readonly IBrokerKeySender sender;
     private readonly IBrokerSafetyGate safety;
     private readonly IBrokerClock clock;
@@ -143,7 +144,7 @@ public sealed class BrokerInputSession : IAsyncDisposable
             action.HoldMs < 0 ||
             action.MaximumDurationMs <= 0 ||
             action.HoldMs > action.MaximumDurationMs ||
-            action.MaximumDurationMs > MaximumAllowedDurationMs)
+            action.MaximumDurationMs > MaximumAllowedDuration(action.Action))
         {
             return Reject(request, "INVALID_DURATION");
         }
@@ -214,6 +215,11 @@ public sealed class BrokerInputSession : IAsyncDisposable
 
         return Response(request, true, "KEY_DOWN_SENT");
     }
+
+    private static int MaximumAllowedDuration(BrokerActionKind action) =>
+        action is BrokerActionKind.SingleAttack or BrokerActionKind.AreaAttack
+            ? MaximumAllowedAttackDurationMs
+            : MaximumAllowedDurationMs;
 
     private void ReleaseOpposite(BrokerActionKind action)
     {
