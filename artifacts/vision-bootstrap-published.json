@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "ready": true,
+  "diagnostic": "OK",
+  "modelId": "kaelo-maple-yolo",
+  "provider": "cpu",
+  "ocrReady": true,
+  "ocrProvider": "windowsMediaOcr",
+  "canDriveActions": false
+}

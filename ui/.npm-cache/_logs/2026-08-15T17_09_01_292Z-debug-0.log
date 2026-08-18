@@ -1,0 +1,18 @@
+0 verbose cli C:\nvm4w\nodejs\node.exe C:\nvm4w\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@10.9.3
+2 info using node@v22.20.0
+3 silly config load:file:D:\nvm\v22.20.0\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\Levi\Desktop\maple\ui\.npmrc
+5 silly config load:file:C:\Users\Levi\.npmrc
+6 silly config load:file:C:\nvm4w\nodejs\etc\npmrc
+7 verbose title npm cache verify
+8 verbose argv "cache" "verify" "--cache" ".npm-cache"
+9 verbose logfile logs-max:10 dir:C:\Users\Levi\Desktop\maple\ui\.npm-cache\_logs\2026-08-15T17_09_01_292Z-
+10 verbose logfile C:\Users\Levi\Desktop\maple\ui\.npm-cache\_logs\2026-08-15T17_09_01_292Z-debug-0.log
+11 silly logfile done cleaning log files
+12 verbose cwd C:\Users\Levi\Desktop\maple\ui
+13 verbose os Windows_NT 10.0.26200
+14 verbose node v22.20.0
+15 verbose npm  v10.9.3
+16 verbose exit 0
+17 info ok

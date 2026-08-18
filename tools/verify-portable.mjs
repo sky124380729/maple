@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createSpawnOptions } from './verify-portable-runner.mjs'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const ui = path.join(root, 'ui')
@@ -12,7 +13,8 @@ const dotnetCommand = process.env.DOTNET_ROOT
 
 function run(command, args, cwd = root) {
   console.log(`\n> ${command} ${args.join(' ')}`)
-  const result = spawnSync(command, args, { cwd, stdio: 'inherit' })
+  const spawn = createSpawnOptions(command, args, cwd)
+  const result = spawnSync(spawn.command, spawn.args, spawn.spawnOptions)
   if (result.error) throw result.error
   if (result.status !== 0) process.exit(result.status ?? 1)
 }

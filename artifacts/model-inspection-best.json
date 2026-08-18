@@ -1,0 +1,54 @@
+{
+  "SchemaVersion": 1,
+  "ModelPath": "C:\\Users\\Levi\\Desktop\\\u8F85\u52A9\\Kaelo_ok_sp\\Kaelo_ok_sp\\weights\\best.onnx",
+  "Sha256": "06c933f9290c5683af26b110ff8c1ba40a4b023de2f3dea07b401def8879310a",
+  "Producer": "pytorch",
+  "License": "AGPL-3.0 License (https://ultralytics.com/license)",
+  "Inputs": [
+    {
+      "Name": "images",
+      "ElementType": "Single",
+      "Dimensions": [
+        1,
+        3,
+        320,
+        320
+      ]
+    }
+  ],
+  "Outputs": [
+    {
+      "Name": "output0",
+      "ElementType": "Single",
+      "Dimensions": [
+        1,
+        10,
+        2100
+      ]
+    }
+  ],
+  "Classes": [
+    "character",
+    "environment",
+    "item",
+    "mob",
+    "npc",
+    "ui"
+  ],
+  "ClassRoles": {
+    "character": "characterCandidate",
+    "environment": "ignore",
+    "item": "ignore",
+    "mob": "monster",
+    "npc": "ignore",
+    "ui": "ignore"
+  },
+  "OutputLayout": "yoloChannelsFirst",
+  "AvailableProviders": [
+    "AzureExecutionProvider",
+    "CPUExecutionProvider"
+  ],
+  "ModelReady": true,
+  "CanDriveActions": false,
+  "Diagnostic": "SELF_NOT_RESOLVED"
+}

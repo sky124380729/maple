@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "generatedAtUtc": "2026-08-15T08:23:14.8732151+00:00",
+  "osDescription": "Microsoft Windows 10.0.26200",
+  "osArchitecture": "X64",
+  "webView2": {
+    "state": "Ready",
+    "code": "WEBVIEW2_READY",
+    "installedVersion": "151.0.4129.78",
+    "minimumVersion": "109.0.1518.78",
+    "isReady": true
+  },
+  "target": {
+    "status": "Found",
+    "diagnosticCode": "TARGET_BOUND",
+    "candidates": [
+      {
+        "hwnd": "0x000000000005092C",
+        "pid": 13652,
+        "title": "\u5192\u9669\u5C9B\u6000\u65E7\u670D",
+        "className": "UnityWndClass",
+        "isForeground": false,
+        "isMinimized": true,
+        "clientLeft": -48000,
+        "clientTop": -48000,
+        "clientWidth": 0,
+        "clientHeight": 0,
+        "dpi": 96,
+        "processStartedAtUtc": "2026-08-15T07:07:42.9196664+00:00",
+        "processPathSha256": "e6eb36ee660ee1e018c012a397b86581d5b863476da7a7c7e0b707a00be87b61",
+        "processVersion": "6000.3.16.10841891",
+        "processPath": "E:\\mapleStory\\\u5192\u9669\u5C9Bonline\\mxdclassic\\Maplestory_Classic.exe"
+      }
+    ],
+    "target": {
+      "hwnd": "0x000000000005092C",
+      "pid": 13652,
+      "title": "\u5192\u9669\u5C9B\u6000\u65E7\u670D",
+      "className": "UnityWndClass",
+      "isForeground": false,
+      "isMinimized": true,
+      "clientLeft": -48000,
+      "clientTop": -48000,
+      "clientWidth": 0,
+      "clientHeight": 0,
+      "dpi": 96,
+      "processStartedAtUtc": "2026-08-15T07:07:42.9196664+00:00",
+      "processPathSha256": "e6eb36ee660ee1e018c012a397b86581d5b863476da7a7c7e0b707a00be87b61",
+      "processVersion": "6000.3.16.10841891",
+      "processPath": "E:\\mapleStory\\\u5192\u9669\u5C9Bonline\\mxdclassic\\Maplestory_Classic.exe"
+    }
+  },
+  "captureFallback": "BitBlt",
+  "inputAdapter": "NullInputAdapter",
+  "inputStatus": "INPUT_INJECTION=DISABLED",
+  "wgcStatus": "WINDOWS_PENDING",
+  "modelStatus": "MODEL_PENDING",
+  "hidStatus": "HID_CONTRACT_UNVERIFIED"
+}

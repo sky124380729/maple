@@ -1,0 +1,20 @@
+0 verbose cli C:\nvm4w\nodejs\node.exe C:\nvm4w\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@10.9.3
+2 info using node@v22.20.0
+3 silly config load:file:D:\nvm\v22.20.0\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\Levi\Desktop\maple\ui\.npmrc
+5 silly config load:file:C:\Users\Levi\.npmrc
+6 silly config load:file:C:\nvm4w\nodejs\etc\npmrc
+7 verbose title npm rebuild
+8 verbose argv "rebuild" "--cache" ".npm-cache" "--ignore-scripts"
+9 verbose logfile logs-max:10 dir:C:\Users\Levi\Desktop\maple\ui\.npm-cache\_logs\2026-08-15T17_17_33_899Z-
+10 verbose logfile C:\Users\Levi\Desktop\maple\ui\.npm-cache\_logs\2026-08-15T17_17_33_899Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:4345298944 maxSize:1086324736 maxEntrySize:543162368
+13 verbose shrinkwrap failed to load node_modules/.package-lock.json out of date, updated: node_modules
+14 verbose cwd C:\Users\Levi\Desktop\maple\ui
+15 verbose os Windows_NT 10.0.26200
+16 verbose node v22.20.0
+17 verbose npm  v10.9.3
+18 verbose exit 0
+19 info ok
