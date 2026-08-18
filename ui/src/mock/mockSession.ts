@@ -30,6 +30,23 @@ export function createMockTelemetryEvent(tick = 0): Extract<HostEvent, { type: '
   }
 }
 
+export function createMockRhythmEvent(tick = 0): Extract<HostEvent, { type: 'combat.rhythm.updated' }> {
+  return {
+    schemaVersion: CONTRACT_SCHEMA_VERSION,
+    type: 'combat.rhythm.updated',
+    timestamp: new Date(baseTimestampMs + tick * 1_000).toISOString(),
+    payload: {
+      schemaVersion: CONTRACT_SCHEMA_VERSION,
+      cycleId: 7,
+      phase: 'attackHolding',
+      sampledDurationMs: 26_430,
+      remainingMs: Math.max(0, 18_620 - tick * 1_000),
+      updatedAtMonoMs: 120_000 + tick * 1_000,
+      earlyReleaseReason: null,
+    },
+  }
+}
+
 export function createMockSessionEvents(tick = 0): HostEvent[] {
   const capturedAtMonoMs = 100_000 + tick * 1_000
   const freshUntilMonoMs = capturedAtMonoMs + 250
@@ -39,6 +56,7 @@ export function createMockSessionEvents(tick = 0): HostEvent[] {
     { schemaVersion: CONTRACT_SCHEMA_VERSION, type: 'target.updated', timestamp, payload: target },
     { schemaVersion: CONTRACT_SCHEMA_VERSION, type: 'session.stateChanged', timestamp, payload: { state: 'Observing', pauseReason: 'None' } },
     createMockTelemetryEvent(tick),
+    createMockRhythmEvent(tick),
     {
       schemaVersion: CONTRACT_SCHEMA_VERSION,
       type: 'cloud.status.updated',

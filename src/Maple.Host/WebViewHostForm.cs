@@ -7,6 +7,7 @@ using Maple.Contracts;
 using Maple.Core;
 using Maple.Input;
 using Maple.Preview;
+using Maple.Runtime;
 
 namespace Maple.Host
 {
@@ -25,7 +26,7 @@ namespace Maple.Host
         void ReloadLocalContent();
     }
 
-    public class WebViewHostForm : Form
+    public class WebViewHostForm : Form, ICombatRhythmSink
     {
         private readonly IWebViewRuntime webViewRuntime;
         private readonly BridgeMessageRouter router = new BridgeMessageRouter();
@@ -70,6 +71,22 @@ namespace Maple.Host
                 },
             };
             webViewRuntime.Send(JsonSerializer.Serialize(message));
+        }
+
+        public ValueTask PublishAsync(CombatRhythmSnapshot snapshot, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            string json = CombatRhythmMessageSerializer.Serialize(snapshot);
+            if (IsDisposed || Disposing) return ValueTask.CompletedTask;
+            if (InvokeRequired)
+            {
+                Invoke(new Action(() => webViewRuntime.Send(json)));
+            }
+            else
+            {
+                webViewRuntime.Send(json);
+            }
+            return ValueTask.CompletedTask;
         }
 
         private void BuildLayout()

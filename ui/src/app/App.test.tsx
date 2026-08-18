@@ -17,6 +17,8 @@ describe('Maple real-time workbench', () => {
     expect(screen.getAllByText('60 帧/秒').length).toBeGreaterThan(0)
     expect(screen.getByText('30 帧/秒')).toBeInTheDocument()
     expect(screen.getByText('模拟画面已连接')).toBeInTheDocument()
+    expect(screen.getByText('攻击键按住中')).toBeInTheDocument()
+    expect(screen.getByText('本轮 26.43 秒')).toBeInTheDocument()
     expect(screen.getByLabelText('实时模拟预览画布')).toBeInTheDocument()
     expect(screen.getAllByText('自己 94%').length).toBeGreaterThan(0)
     expect(screen.getByText('其他玩家 81% #player-7')).toBeInTheDocument()

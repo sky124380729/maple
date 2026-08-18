@@ -53,6 +53,35 @@ public sealed class ContractV2Tests
     }
 
     [Fact]
+    public void StationaryAttackAllowsThirtySecondHold()
+    {
+        var attack = new AbstractAction
+        {
+            ActionId = "stationary-attack",
+            Type = ActionType.Attack,
+            ProfileId = ActionProfileId.SingleAttack,
+            HoldMs = 30_000,
+            MaxDurationMs = 30_000
+        };
+
+        Assert.True(ContractValidation.ValidateAction(attack).IsValid);
+    }
+
+    [Fact]
+    public void MovementKeepsTheShortActionLimit()
+    {
+        var movement = new AbstractAction
+        {
+            ActionId = "too-long-movement",
+            Type = ActionType.MoveLeft,
+            HoldMs = 5_001,
+            MaxDurationMs = 5_001
+        };
+
+        Assert.False(ContractValidation.ValidateAction(movement).IsValid);
+    }
+
+    [Fact]
     public void ContractPublishesTheBailianBridgeMessages()
     {
         string[] commands = Enum.GetNames<UiCommandType>();

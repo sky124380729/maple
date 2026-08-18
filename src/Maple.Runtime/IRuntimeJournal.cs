@@ -11,7 +11,12 @@ public sealed record RuntimeJournalEntry(
     string? ActionType = null,
     string? ProfileId = null,
     int? ComputedHoldMs = null,
-    string? PauseReason = null);
+    string? PauseReason = null,
+    long? RhythmCycleId = null,
+    string? RhythmPhase = null,
+    int? PlannedDurationMs = null,
+    int? RemainingDurationMs = null,
+    string? EarlyReleaseReason = null);
 
 public interface IRuntimeJournal
 {

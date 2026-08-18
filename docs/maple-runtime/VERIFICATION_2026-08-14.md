@@ -44,3 +44,27 @@
 - WGC API 通过 `IWgcRuntimeAdapter` 注入，避免 Mac 直接引用 `.winmd`；Windows AI 必须绑定系统 API，不得把 fake adapter 当成采集完成。
 - `Maple.Input.WindowsVirtualHidAdapter` 仍在 `HID_CONTRACT_UNVERIFIED` 时拒绝发送；没有真实设备资料前禁止填写猜测的 VID/PID/报告编码。
 - 百炼地图客户端源码与协议测试已完成，但生产 Host 尚无 WGC `IMapImageSource`；这属于 Windows 帧源绑定，不是百炼协议未实现。
+
+## 2026-08-18 定点压键随机节奏验证
+
+执行命令：
+
+```bash
+DOTNET_ROOT=/tmp/maple-dotnet node tools/verify-portable.mjs
+```
+
+结果：
+
+- `PORTABLE_VERIFICATION=PASS`；
+- React/Vitest：7 个文件、41/41 PASS；
+- Playwright：desktop/mobile 2/2 PASS；
+- Host.Tests：31/31 PASS；Runtime.Tests：61/61 PASS；Input.Tests：3/3 PASS；Map.Tests：2/2 PASS；
+- portable contracts 与 closed-loop spec oracle PASS；
+- `Maple.Host` Windows 交叉编译成功，0 warning / 0 error；
+- 定点压键覆盖 1–30 秒加权抽样、单次 key-down/key-up、左右/右左随机移动、无按键间隔、25% 概率休息、目标丢失/取消提前释放、`ReleaseAll`、节奏日志和 React 倒计时。
+
+边界声明：本记录仍是 macOS portable 与 Windows 交叉编译证据，`WINDOWS_NATIVE_AND_HID=NOT_VERIFIED`。真实 HID 仍必须在 Windows 上执行：
+
+```powershell
+tests/windows/hid_contract.tests.ps1 -RequireEvidence
+```

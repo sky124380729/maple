@@ -1,17 +1,19 @@
 import { ControlOutlined, EnvironmentOutlined, KeyOutlined, PauseCircleOutlined, PlayCircleFilled, RightOutlined, SettingOutlined } from '@ant-design/icons'
 import { Button, Divider, InputNumber, Segmented, Space, Switch, Tooltip, Typography } from 'antd'
 import { useState } from 'react'
-import type { SessionState, UiCommand } from '../../contracts/bridge'
+import type { CombatRhythmSnapshot, SessionState, UiCommand } from '../../contracts/bridge'
+import { RhythmCountdown } from './RhythmCountdown'
 import { SectionHeading, StatusPill } from './presentation'
 
 const { Text } = Typography
 
 export interface SessionControlsProps {
   sessionState: SessionState
+  rhythm?: CombatRhythmSnapshot
   sendCommand(command: UiCommand): void
 }
 
-export function SessionControls({ sessionState, sendCommand }: SessionControlsProps) {
+export function SessionControls({ sessionState, rhythm, sendCommand }: SessionControlsProps) {
   const [attackMode, setAttackMode] = useState<'single' | 'auto' | 'group'>('auto')
   const [hpThreshold, setHpThreshold] = useState<number | null>(35)
   const [pickupEnabled, setPickupEnabled] = useState(false)
@@ -29,6 +31,7 @@ export function SessionControls({ sessionState, sendCommand }: SessionControlsPr
           <div className="control-hero__mode">仅观察</div>
           <Text className="control-hero__copy">先确认画面与识别状态，再开放动作通道。</Text>
         </div>
+        <RhythmCountdown rhythm={rhythm} sessionState={sessionState} />
         <Space orientation="vertical" size={10} className="control-actions">
           <Button className="action-button action-button--primary" type="primary" aria-label="开始观察" icon={<PlayCircleFilled />} onClick={() => sendCommand({ schemaVersion: 2, type: 'session.arm', payload: {} })} disabled={emergency} block>开始观察</Button>
           <Button className="action-button action-button--secondary" aria-label="暂停观察" icon={<PauseCircleOutlined />} onClick={() => sendCommand({ schemaVersion: 2, type: 'session.pause', payload: {} })} disabled={emergency || stopped} block>暂停观察</Button>
