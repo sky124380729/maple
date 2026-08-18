@@ -1,10 +1,17 @@
 using Maple.Core;
+using Maple.Runtime;
 using Xunit;
 
 namespace Maple.Runtime.Tests.Runtime;
 
 public sealed class StationaryAttackRhythmTests
 {
+    [Fact]
+    public void StationaryRhythmIsEnabledByDefault()
+    {
+        Assert.True(new OrchestratorOptions().StationaryRhythmEnabled);
+    }
+
     [Theory]
     [InlineData(0, 20_000)]
     [InlineData(87, 30_000)]
